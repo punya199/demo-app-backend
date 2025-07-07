@@ -3,6 +3,8 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import appConfig, { validationSchema } from './config/app-config'
+import { User } from './user/user.entity'
+import { UserModule } from './user/user.module'
 
 @Module({
   imports: [
@@ -18,7 +20,7 @@ import appConfig, { validationSchema } from './config/app-config'
       password: appConfig.DATABASE_PASSWORD,
       database: appConfig.DATABASE_NAME,
       ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-      // entities: [Survey],
+      entities: [User],
       migrations: ['dist/migrations/*.js'], // Use compiled JS files in production
       migrationsTableName: 'migrations',
       synchronize: false, // Disabled for production - use migrations instead
@@ -26,6 +28,7 @@ import appConfig, { validationSchema } from './config/app-config'
       logging: 'all',
       uuidExtension: 'pgcrypto',
     }),
+    UserModule,
   ],
 })
 export class AppModule {}

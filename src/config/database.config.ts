@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm'
 
+import { User } from '../user/user.entity'
 import appConfig from './app-config'
 
 // Determine if we're running in production (compiled JS) or development (TS)
@@ -13,7 +14,7 @@ export default new DataSource({
   password: appConfig.DATABASE_PASSWORD,
   database: appConfig.DATABASE_NAME,
   ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-  entities: isProduction ? ['dist/**/*.entity.js'] : [],
+  entities: isProduction ? ['dist/**/*.entity.js'] : [User],
   migrations: isProduction ? ['dist/migrations/*.js'] : ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',
   synchronize: false, // Important: disable for production
