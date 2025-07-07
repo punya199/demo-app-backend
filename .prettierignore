@@ -1,0 +1,25 @@
+# Build output
+dist
+build
+
+# Dependencies
+node_modules
+
+# Cache
+.cache
+.yarn
+
+# Logs
+*.log
+
+# Environment variables
+.env*
+
+# Coverage directory
+coverage
+
+# Misc
+.DS_Store
+*.pem 
+
+package*.json
