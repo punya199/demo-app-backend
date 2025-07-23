@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm'
 
+import { Bill } from '../bill/bill.entity'
 import { User } from '../user/user.entity'
 import appConfig from './app-config'
 
@@ -14,7 +15,7 @@ export default new DataSource({
   password: appConfig.DATABASE_PASSWORD,
   database: appConfig.DATABASE_NAME,
   ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-  entities: isProduction ? ['dist/**/*.entity.js'] : [User],
+  entities: isProduction ? ['dist/**/*.entity.js'] : [User, Bill],
   migrations: isProduction ? ['dist/migrations/*.js'] : ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',
   synchronize: false, // Important: disable for production

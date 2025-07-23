@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
+import { Bill } from './bill/bill.entity'
+import { BillModule } from './bill/bill.module'
 import appConfig, { validationSchema } from './config/app-config'
 import { User } from './user/user.entity'
 import { UserModule } from './user/user.module'
@@ -22,7 +24,7 @@ import { UserModule } from './user/user.module'
       password: appConfig.DATABASE_PASSWORD,
       database: appConfig.DATABASE_NAME,
       ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-      entities: [User],
+      entities: [User, Bill],
       migrations: ['dist/migrations/*.js'], // Use compiled JS files in production
       migrationsTableName: 'migrations',
       synchronize: false, // Disabled for production - use migrations instead
@@ -31,6 +33,7 @@ import { UserModule } from './user/user.module'
       uuidExtension: 'pgcrypto',
     }),
     UserModule,
+    BillModule,
   ],
   providers: [AppService],
   controllers: [AppController],
