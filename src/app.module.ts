@@ -5,9 +5,9 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
-import { Bill } from './modules/bill/bill.entity'
+import { entities } from './config/database.config'
 import { BillModule } from './modules/bill/bill.module'
-import { User } from './modules/user/user.entity'
+import { HouseRentModule } from './modules/house-rent/house-rent.module'
 import { UserModule } from './modules/user/user.module'
 
 @Module({
@@ -24,7 +24,7 @@ import { UserModule } from './modules/user/user.module'
       password: appConfig.DATABASE_PASSWORD,
       database: appConfig.DATABASE_NAME,
       ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-      entities: [User, Bill],
+      entities: entities,
       migrations: ['dist/migrations/*.js'], // Use compiled JS files in production
       migrationsTableName: 'migrations',
       synchronize: false, // Disabled for production - use migrations instead
@@ -34,6 +34,7 @@ import { UserModule } from './modules/user/user.module'
     }),
     UserModule,
     BillModule,
+    HouseRentModule,
   ],
   providers: [AppService],
   controllers: [AppController],
