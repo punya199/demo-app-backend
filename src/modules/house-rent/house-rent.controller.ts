@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
 import { DataSource } from 'typeorm'
-import { JwtAuthGuard } from '../user/jwt-auth.guard'
+import { AuthUser } from '../user/user.decorator'
 import { CreateHouseRentBodyDto } from './dto/create-house-rent.dto'
 import { EditHouseRentBodyDto } from './dto/edit-house-rent.dto'
 import { HouseRentService } from './house-rent.service'
@@ -12,14 +12,15 @@ export class HouseRentController {
     private readonly dataSource: DataSource
   ) {}
 
+  @AuthUser()
   @Post()
-  @UseGuards(JwtAuthGuard)
   async createHouseRent(@Body() body: CreateHouseRentBodyDto) {
     return this.dataSource.transaction(async etm => {
       return this.houseRentService.createHouseRent(body, etm)
     })
   }
 
+  @AuthUser()
   @Put(':houseRentId')
   async updateHouseRent(
     @Param('houseRentId', ParseUUIDPipe) houseRentId: string,
