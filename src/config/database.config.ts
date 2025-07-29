@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm'
 
-import { Bill } from '../bill/bill.entity'
-import { User } from '../user/user.entity'
+import { Bill } from '../modules/bill/bill.entity'
+import { User } from '../modules/user/user.entity'
 import appConfig from './app-config'
 
 // Determine if we're running in production (compiled JS) or development (TS)

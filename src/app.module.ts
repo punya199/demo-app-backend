@@ -4,11 +4,11 @@ import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { Bill } from './bill/bill.entity'
-import { BillModule } from './bill/bill.module'
 import appConfig, { validationSchema } from './config/app-config'
-import { User } from './user/user.entity'
-import { UserModule } from './user/user.module'
+import { Bill } from './modules/bill/bill.entity'
+import { BillModule } from './modules/bill/bill.module'
+import { User } from './modules/user/user.entity'
+import { UserModule } from './modules/user/user.module'
 
 @Module({
   imports: [
