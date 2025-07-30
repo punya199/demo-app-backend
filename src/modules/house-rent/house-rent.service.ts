@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { EntityManager, Repository } from 'typeorm'
+import { EntityManager, In, Not, Repository } from 'typeorm'
 import { AttachmentEntity } from '../../entities/attachment.entity'
 import { HouseRentEntity } from '../../entities/house-rent'
 import { HouseRentDetailEntity } from '../../entities/house-rent-detail.entity'
@@ -72,7 +72,8 @@ export class HouseRentService {
       await etm.softDelete(HouseRentMemberEntity, { houseRentId: houseRent.id })
     }
 
-    // const attachments = await this.attachmentRepository.save(params.attachments)
+    await this.updateAttachments(params, etm, houseRent.id)
+
     return { houseRent }
   }
 
@@ -109,6 +110,8 @@ export class HouseRentService {
       await etm.softDelete(HouseRentMemberEntity, { houseRentId })
     }
 
+    await this.updateAttachments(params, etm, houseRentId)
+
     return { houseRent }
   }
 
@@ -117,9 +120,14 @@ export class HouseRentService {
       where: { id: houseRentId },
       relations: ['rents', 'members'],
     })
-
+    const attachments = await this.attachmentRepository.find({
+      where: { attachableId: houseRentId, attachableType: 'house_rent' },
+    })
     return {
-      houseRent,
+      houseRent: {
+        ...houseRent,
+        attachments,
+      },
     }
   }
 
@@ -130,6 +138,30 @@ export class HouseRentService {
 
     return {
       houseRents,
+    }
+  }
+
+  private async updateAttachments(
+    params: CreateHouseRentBodyDto,
+    etm: EntityManager,
+    houseRentId: string
+  ) {
+    if (params.attachmentIds?.length) {
+      await etm.update(
+        AttachmentEntity,
+        { id: In(params.attachmentIds) },
+        { attachableId: houseRentId, attachableType: 'house_rent' }
+      )
+      await etm.softDelete(AttachmentEntity, {
+        attachableId: houseRentId,
+        attachableType: 'house_rent',
+        id: Not(In(params.attachmentIds)),
+      })
+    } else {
+      await etm.softDelete(AttachmentEntity, {
+        attachableId: houseRentId,
+        attachableType: 'house_rent',
+      })
     }
   }
 }

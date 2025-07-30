@@ -11,21 +11,21 @@ import { BaseModelEntity } from './base-model.entity'
   where: 'deleted_at IS NULL',
 })
 export class AttachmentEntity extends BaseModelEntity {
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ name: 'attachable_id', type: 'uuid', nullable: true })
   attachableId: string
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ name: 'attachable_type', type: 'varchar', nullable: true })
   attachableType: string
 
-  @Column()
+  @Column({ name: 'file_name', type: 'varchar', nullable: false })
   fileName: string
 
-  @Column()
-  url: string
+  @Column({ name: 'file_path', type: 'varchar', nullable: false })
+  filePath: string
 
-  @Column()
+  @Column({ name: 'mime_type', type: 'varchar', nullable: false })
   mimeType: string
 
-  @Column({ nullable: true })
+  @Column({ name: 'size', type: 'integer', nullable: false })
   size: number
 }

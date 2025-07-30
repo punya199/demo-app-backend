@@ -1,6 +1,5 @@
 import { Type } from 'class-transformer'
 import { Column, Entity, Index, OneToMany } from 'typeorm'
-import { AttachmentEntity } from './attachment.entity'
 import { BaseModelEntity } from './base-model.entity'
 import { HouseRentDetailEntity, IHouseRentDetail } from './house-rent-detail.entity'
 import { HouseRentMemberEntity, IHouseRentMember } from './house-rent-member.entity'
@@ -18,7 +17,6 @@ export interface IInternet {
 
 export interface IAirCondition {
   pricePerUnit: number
-  unit: number
 }
 
 export interface IHouseRent {
@@ -61,9 +59,4 @@ export class HouseRentEntity extends BaseModelEntity implements IHouseRent {
 
   @OneToMany(() => HouseRentMemberEntity, member => member.houseRent)
   members: IHouseRentMember[]
-
-  @OneToMany(() => AttachmentEntity, attachment => attachment.attachableId, {
-    createForeignKeyConstraints: false,
-  })
-  attachments: AttachmentEntity[]
 }

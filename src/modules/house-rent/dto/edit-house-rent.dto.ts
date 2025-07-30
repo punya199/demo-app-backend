@@ -105,10 +105,6 @@ export class AirConditionDto implements IAirCondition {
   @IsNotEmpty()
   @IsNumber()
   pricePerUnit: number
-
-  @IsNotEmpty()
-  @IsNumber()
-  unit: number
 }
 
 export class ElectricitySummaryDto implements IElectricitySummaryData {
@@ -163,4 +159,9 @@ export class EditHouseRentBodyDto implements IHouseRent {
   @Type(() => AirConditionDto)
   @ValidateNested()
   airCondition: IAirCondition
+
+  @IsNotEmpty()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  attachmentIds: string[]
 }

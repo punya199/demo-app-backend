@@ -6,6 +6,7 @@ import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
 import { entities } from './config/database.config'
+import { AttachmentModule } from './modules/attachment/attachment.module'
 import { BillModule } from './modules/bill/bill.module'
 import { HouseRentModule } from './modules/house-rent/house-rent.module'
 import { UserModule } from './modules/user/user.module'
@@ -35,6 +36,7 @@ import { UserModule } from './modules/user/user.module'
     UserModule,
     BillModule,
     HouseRentModule,
+    AttachmentModule,
   ],
   providers: [AppService],
   controllers: [AppController],
