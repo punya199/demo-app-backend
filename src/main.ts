@@ -1,7 +1,9 @@
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common'
 import { NestFactory, Reflector } from '@nestjs/core'
 import { json, urlencoded } from 'express'
+import helmet from 'helmet'
 import { AppModule } from './app.module'
+import appConfig from './config/app-config'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
@@ -14,7 +16,10 @@ async function bootstrap() {
   // เปิด ValidationPipe
   app.useGlobalPipes(new ValidationPipe())
   app.enableCors()
-  await app.listen(3000)
+  app.use(helmet())
+
+  await app.listen(appConfig.PORT)
+  console.log(`Server is running on port ${appConfig.PORT} ${appConfig.APP_VERSION || '-'}`)
 }
 
 void bootstrap()

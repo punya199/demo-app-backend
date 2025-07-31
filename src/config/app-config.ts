@@ -4,6 +4,7 @@ import Joi from 'joi'
 export const ALLOW_LOG_LEVEL = ['debug', 'production'] as const
 
 export const appConfig = {
+  PORT: process.env.PORT || 3000,
   LOG_LEVEL: process.env.LOG_LEVEL as (typeof ALLOW_LOG_LEVEL)[number],
   IS_WORKER: process.env.IS_WORKER === 'true',
   APP_VERSION: process.env.APP_VERSION ?? '',
@@ -27,6 +28,7 @@ type IConfigKey = keyof typeof appConfig
 type IJoiObject = { [p in IConfigKey]: Joi.Schema<unknown> }
 
 const joiObject: IJoiObject = {
+  PORT: Joi.number().default(3000).description('Port'),
   LOG_LEVEL: Joi.string()
     .valid(...ALLOW_LOG_LEVEL)
     .description('Log level'),
