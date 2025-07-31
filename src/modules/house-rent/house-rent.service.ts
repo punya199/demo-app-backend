@@ -122,6 +122,9 @@ export class HouseRentService {
     })
     const attachments = await this.attachmentRepository.find({
       where: { attachableId: houseRentId, attachableType: 'house_rent' },
+      order: {
+        createdAt: 'ASC',
+      },
     })
     return {
       houseRent: {
@@ -133,7 +136,30 @@ export class HouseRentService {
 
   async getHouseRents() {
     const houseRents = await this.houseRentRepository.find({
-      relations: ['rents', 'members'],
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+        members: {
+          id: true,
+          userId: true,
+        },
+        rents: {
+          id: true,
+          month: true,
+          houseRentPrice: true,
+          waterPrice: true,
+          electricity: true,
+        },
+        airCondition: true,
+        internet: true,
+        paymentFee: true,
+      },
+      relations: {
+        rents: true,
+        members: true,
+      },
     })
 
     return {
