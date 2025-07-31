@@ -30,7 +30,7 @@ export class UserEntity extends BaseModelEntity {
   @Column({ name: 'password', type: 'varchar', select: false, nullable: false })
   password: string
 
-  @Column({ name: 'role', type: 'varchar', default: UserRole.USER, nullable: false })
+  @Column({ name: 'role', type: 'enum', enum: UserRole, default: UserRole.USER, nullable: false })
   role: UserRole
 
   @OneToMany(() => HouseRentMemberEntity, houseRentMember => houseRentMember.user)
