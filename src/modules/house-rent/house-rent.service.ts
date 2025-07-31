@@ -34,7 +34,6 @@ export class HouseRentService {
       paymentFee: params.paymentFee,
       internet: params.internet,
       airCondition: params.airCondition,
-      rents: params.rents,
     })
 
     if (params.rents?.length) {
