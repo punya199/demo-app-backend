@@ -33,7 +33,7 @@ export class UserService {
       throw new Error('Invalid credentials')
     }
 
-    const payload: Payload = { sub: user.id, username: user.username }
+    const payload: Payload = { sub: user.id, username: user.username, role: user.role }
     return { accessToken: await this.jwtService.signAsync(payload), user }
   }
   async getMe(userId: string) {

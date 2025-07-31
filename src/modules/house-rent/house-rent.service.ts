@@ -189,4 +189,8 @@ export class HouseRentService {
       })
     }
   }
+
+  async deleteHouseRent(houseRentId: string) {
+    await this.houseRentRepository.softDelete(houseRentId)
+  }
 }

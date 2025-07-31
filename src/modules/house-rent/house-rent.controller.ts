@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
 import { DataSource } from 'typeorm'
+import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser } from '../user/user.decorator'
 import { CreateHouseRentBodyDto } from './dto/create-house-rent.dto'
 import { EditHouseRentBodyDto } from './dto/edit-house-rent.dto'
@@ -39,5 +40,11 @@ export class HouseRentController {
   @Get()
   async getHouseRents() {
     return this.houseRentService.getHouseRents()
+  }
+
+  @AuthUser(UserRole.ADMIN)
+  @Delete(':houseRentId')
+  async deleteHouseRent(@Param('houseRentId', ParseUUIDPipe) houseRentId: string) {
+    return this.houseRentService.deleteHouseRent(houseRentId)
   }
 }
