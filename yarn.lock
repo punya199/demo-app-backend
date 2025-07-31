@@ -7907,15 +7907,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nestjs-cls@npm:^5.0.0":
-  version: 5.4.3
-  resolution: "nestjs-cls@npm:5.4.3"
+"nestjs-cls@npm:^6.0.1":
+  version: 6.0.1
+  resolution: "nestjs-cls@npm:6.0.1"
   peerDependencies:
     "@nestjs/common": ">= 10 < 12"
     "@nestjs/core": ">= 10 < 12"
     reflect-metadata: "*"
     rxjs: ">= 7"
-  checksum: 10c0/bc6086bc1237ef0d67bcccd8bc5f1a7ae76c5acb6cde38878de984159916972b61970b2577fc0d7b1cece2a9f3f9a6d2871aa19b497e85e748c1ede0b13cec75
+  checksum: 10c0/48508c2ccb74e9eff61a5ce825a573b3ff0546d58ea690ba7964f4d806258bef51d17fe32f705b7f72213264b71e826f98a8552613c877f4fb79f512b7533d64
   languageName: node
   linkType: hard
 
@@ -8936,7 +8936,7 @@ __metadata:
     joi: "npm:^17.13.3"
     lodash: "npm:^4.17.21"
     multer: "npm:^2.0.2"
-    nestjs-cls: "npm:^5.0.0"
+    nestjs-cls: "npm:^6.0.1"
     nestjs-pino: "npm:^4.4.0"
     passport: "npm:^0.7.0"
     passport-jwt: "npm:^4.0.1"

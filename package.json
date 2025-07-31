@@ -44,7 +44,7 @@
     "joi": "^17.13.3",
     "lodash": "^4.17.21",
     "multer": "^2.0.2",
-    "nestjs-cls": "^5.0.0",
+    "nestjs-cls": "^6.0.1",
     "nestjs-pino": "^4.4.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
