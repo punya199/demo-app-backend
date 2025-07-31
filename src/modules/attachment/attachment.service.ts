@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import path from 'path'
+import { Readable } from 'stream'
 import { Repository } from 'typeorm'
+import { appConfig } from '../../config/app-config'
 import { AttachmentEntity } from '../../entities/attachment.entity'
+import { s3Client } from '../../utils/s3-client'
 
 @Injectable()
 export class AttachmentService {
@@ -17,14 +22,23 @@ export class AttachmentService {
 
     // You can customize the upload path/logic here
     const fileName = file.originalname
-    const filePath = file.path
-    // const filePath = `/private/uploads/${Date.now()}-${fileName}`
     const mimeType = file.mimetype
     const size = file.size
 
+    const s3key = path.join('uploads', fileName)
+    const uploadResult = await s3Client.send(
+      new PutObjectCommand({
+        Bucket: appConfig.AWS_BUCKET_NAME,
+        Key: s3key,
+        Body: file.buffer,
+      })
+    )
+
+    console.log(uploadResult)
+
     const attachment = this.attachmentRepository.create({
       fileName,
-      filePath,
+      filePath: s3key,
       mimeType,
       size,
     })
@@ -51,6 +65,39 @@ export class AttachmentService {
     return this.attachmentRepository.findOne({
       where: { id },
     })
+  }
+
+  async getAttachmentFile(id: string) {
+    const attachment = await this.getAttachment(id)
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found')
+    }
+
+    const s3key = attachment.filePath
+
+    const head = await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: appConfig.AWS_BUCKET_NAME,
+        Key: s3key,
+      })
+    )
+
+    const getObjectCommand = new GetObjectCommand({
+      Bucket: appConfig.AWS_BUCKET_NAME,
+      Key: s3key,
+    })
+    const object = await s3Client.send(getObjectCommand)
+
+    const readableStream = object.Body?.transformToWebStream()
+
+    const readable = Readable.from(readableStream as unknown as ReadableStream)
+
+    return {
+      contentType: attachment.mimeType,
+      filename: decodeURIComponent(attachment.fileName),
+      readable,
+      contentLength: head.ContentLength,
+    }
   }
 
   async deleteAttachment(id: string): Promise<void> {

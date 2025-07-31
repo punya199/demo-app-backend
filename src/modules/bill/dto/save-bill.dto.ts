@@ -8,7 +8,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator'
-import { Friend, Item } from '../bill.entity'
+import { Friend, Item } from '../../../entities/bill.entity'
 
 class BillItemDto implements Item {
   @IsString()

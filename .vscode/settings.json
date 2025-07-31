@@ -13,5 +13,8 @@
   "typescript.preferences.importModuleSpecifier": "project-relative",
   "cSpell.words": [
     "deleter"
-  ]
+  ],
+  "[sql]": {
+    "editor.defaultFormatter": "adpyke.vscode-sql-formatter"
+  }
 }

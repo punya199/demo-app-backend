@@ -71,9 +71,9 @@ export class HouseRentMemberDto implements IHouseRentMember {
   @IsOptional()
   id?: string
 
+  @IsUUID()
   @IsNotEmpty()
-  @IsString()
-  name: string
+  userId: string
 
   @IsNotEmpty()
   @IsNumber()

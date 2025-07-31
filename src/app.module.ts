@@ -2,9 +2,11 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { ClsModule } from 'nestjs-cls'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
+import { clsServiceConfig } from './config/cls-service-config'
 import { entities } from './config/database.config'
 import { AttachmentModule } from './modules/attachment/attachment.module'
 import { BillModule } from './modules/bill/bill.module'
@@ -13,6 +15,7 @@ import { UserModule } from './modules/user/user.module'
 
 @Module({
   imports: [
+    ClsModule.forRoot(clsServiceConfig),
     ConfigModule.forRoot({
       isGlobal: true, // ทำให้ config ใช้ได้ทั่วทั้งแอป
       validationSchema: validationSchema, // ใช้ schema สำหรับ validate config

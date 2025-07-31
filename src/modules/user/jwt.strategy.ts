@@ -4,11 +4,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt'
 import { jwtConstants } from './constants'
 
 export interface PayloadUser {
-  userId: number
+  userId: string
   username: string
 }
 export interface Payload {
-  sub: number
+  sub: string
   username: string
 }
 @Injectable()

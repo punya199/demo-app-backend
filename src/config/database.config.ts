@@ -1,19 +1,19 @@
 import { DataSource } from 'typeorm'
 
 import { AttachmentEntity } from '../entities/attachment.entity'
+import { BillEntity } from '../entities/bill.entity'
 import { HouseRentEntity } from '../entities/house-rent'
 import { HouseRentDetailEntity } from '../entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../entities/house-rent-member.entity'
-import { Bill } from '../modules/bill/bill.entity'
-import { User } from '../modules/user/user.entity'
+import { UserEntity } from '../entities/user.entity'
 import appConfig from './app-config'
 
 // Determine if we're running in production (compiled JS) or development (TS)
 const isProduction = process.env.NODE_ENV === 'production' || __filename.endsWith('.js')
 
 export const entities = [
-  User,
-  Bill,
+  UserEntity,
+  BillEntity,
   HouseRentEntity,
   HouseRentMemberEntity,
   HouseRentDetailEntity,

@@ -1,6 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { HouseRentEntity } from './house-rent'
+import { UserEntity } from './user.entity'
 
 export interface IElectricityUnit {
   prev: number
@@ -10,7 +11,7 @@ export interface IElectricityUnit {
 
 export interface IHouseRentMember {
   id?: string
-  name: string
+  userId: string
   airConditionUnit: number
   electricityUnit: IElectricityUnit
   payInternetMonthIds?: string[]
@@ -23,13 +24,13 @@ export interface IHouseRentMember {
 @Index(['houseRentId'], {
   where: 'deleted_at IS NULL',
 })
-@Index(['name'], {
+@Index(['userId', 'houseRentId'], {
   where: 'deleted_at IS NULL',
   unique: true,
 })
 export class HouseRentMemberEntity extends BaseModelEntity implements IHouseRentMember {
-  @Column({ name: 'name', type: 'varchar' })
-  name: string
+  @Column({ name: 'user_id', type: 'uuid', nullable: false })
+  userId: string
 
   @Column({ name: 'air_condition_unit', type: 'integer', default: 0 })
   airConditionUnit: number
@@ -45,6 +46,10 @@ export class HouseRentMemberEntity extends BaseModelEntity implements IHouseRent
 
   @Column({ name: 'house_rent_id', type: 'uuid', nullable: false })
   houseRentId: string
+
+  @JoinColumn({ name: 'user_id' })
+  @ManyToOne(() => UserEntity, user => user.houseRentMembers)
+  user: UserEntity
 
   @JoinColumn({ name: 'house_rent_id' })
   @ManyToOne(() => HouseRentEntity, houseRent => houseRent.members)

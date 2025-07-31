@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  NotFoundException,
   Param,
   Post,
   Query,
@@ -13,8 +12,6 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
-import { diskStorage } from 'multer'
-import { extname } from 'path'
 import { AuthUser } from '../user/user.decorator'
 import { AttachmentService } from './attachment.service'
 
@@ -26,19 +23,19 @@ export class AttachmentController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './private/uploads',
-        filename: (
-          req: Request,
-          file: Express.Multer.File,
-          callback: (error: Error | null, filename: string) => void
-        ) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-          const ext = extname(file.originalname)
-          const filename = `${uniqueSuffix}${ext}`
-          callback(null, filename)
-        },
-      }),
+      // storage: diskStorage({
+      //   destination: './private/uploads',
+      //   filename: (
+      //     req: Request,
+      //     file: Express.Multer.File,
+      //     callback: (error: Error | null, filename: string) => void
+      //   ) => {
+      //     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+      //     const ext = extname(file.originalname)
+      //     const filename = `${uniqueSuffix}${ext}`
+      //     callback(null, filename)
+      //   },
+      // }),
       fileFilter: (
         req: Request,
         file: Express.Multer.File,
@@ -83,14 +80,19 @@ export class AttachmentController {
   // @AuthUser()
   @Get(':id/file')
   async getAttachmentFile(@Param('id') id: string, @Res() res: Response) {
-    const attachment = await this.attachmentService.getAttachment(id)
-    if (!attachment) {
-      throw new NotFoundException('Attachment not found')
-    }
+    const { readable, filename, contentLength, contentType } =
+      await this.attachmentService.getAttachmentFile(id)
 
-    const filePath = `${attachment.filePath}`
-    console.log({ filePath, attachment })
-    res.sendFile(filePath, { root: '.' })
+    if (contentType) {
+      res.setHeader('Content-Type', contentType)
+    }
+    if (filename) {
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
+    }
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength.toString())
+    }
+    readable.pipe(res)
   }
 
   @AuthUser()

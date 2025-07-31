@@ -1,5 +1,5 @@
 // user.controller.ts
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, UseGuards } from '@nestjs/common'
 import { JwtAuthGuard } from '../user/jwt-auth.guard'
 import { BillService } from './bill.service'
 import { BillDto } from './dto/save-bill.dto'
@@ -15,7 +15,7 @@ export class BillController {
   }
 
   @Get(':billId')
-  getBill(@Param('billId') billId: number) {
+  getBill(@Param('billId', ParseUUIDPipe) billId: string) {
     return this.billService.getBill(billId)
   }
 
@@ -26,7 +26,7 @@ export class BillController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':billId')
-  editBill(@Param('billId') billId: number, @Body() dto: BillDto) {
+  editBill(@Param('billId', ParseUUIDPipe) billId: string, @Body() dto: BillDto) {
     return this.billService.editBill(billId, dto)
   }
 }

@@ -11,6 +11,12 @@ export const appConfig = {
   DATABASE_NAME: process.env.DATABASE_NAME,
   DATABASE_PORT: +(process.env.DATABASE_PORT || 5432),
   DATABASE_SSL: process.env.DATABASE_SSL === 'true' || false,
+
+  AWS_ENDPOINT: process.env.AWS_ENDPOINT || '',
+  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
+  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
+  AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME || '',
+  AWS_REGION: process.env.AWS_REGION || '',
 }
 
 type IConfigKey = keyof typeof appConfig
@@ -23,6 +29,12 @@ const joiObject: IJoiObject = {
   DATABASE_NAME: Joi.string().required().description('Database name'),
   DATABASE_PORT: Joi.number().default(5432).description('Database port'),
   DATABASE_SSL: Joi.boolean().default(false).description('Use SSL for database connection'),
+
+  AWS_ENDPOINT: Joi.string().required().description('AWS endpoint'),
+  AWS_ACCESS_KEY_ID: Joi.string().required().description('AWS access key ID'),
+  AWS_SECRET_ACCESS_KEY: Joi.string().required().description('AWS secret access key'),
+  AWS_BUCKET_NAME: Joi.string().required().description('AWS bucket name'),
+  AWS_REGION: Joi.string().required().description('AWS region'),
 }
 
 export const validationSchema = Joi.object<IJoiObject>(joiObject)

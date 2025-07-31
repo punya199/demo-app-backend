@@ -3,14 +3,14 @@ import { Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { Bill } from './bill.entity'
+import { BillEntity } from '../../entities/bill.entity'
 import { BillDto } from './dto/save-bill.dto'
 
 @Injectable()
 export class BillService {
   constructor(
-    @InjectRepository(Bill)
-    private billRepo: Repository<Bill>,
+    @InjectRepository(BillEntity)
+    private billRepo: Repository<BillEntity>,
     private jwtService: JwtService
   ) {}
 
@@ -28,12 +28,12 @@ export class BillService {
     return { bills }
   }
 
-  async getBill(billId: number) {
+  async getBill(billId: string) {
     const bill = await this.billRepo.findOneBy({ id: billId })
     return { bill }
   }
 
-  async editBill(billId: number, dto: BillDto) {
+  async editBill(billId: string, dto: BillDto) {
     const bill = await this.billRepo.findOneBy({ id: billId })
     if (bill) {
       await this.billRepo.update(

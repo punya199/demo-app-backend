@@ -13,10 +13,6 @@ export class HouseRentService {
   constructor(
     @InjectRepository(HouseRentEntity)
     private readonly houseRentRepository: Repository<HouseRentEntity>,
-    @InjectRepository(HouseRentDetailEntity)
-    private readonly houseRentDetailRepository: Repository<HouseRentDetailEntity>,
-    @InjectRepository(HouseRentMemberEntity)
-    private readonly houseRentMemberRepository: Repository<HouseRentMemberEntity>,
     @InjectRepository(AttachmentEntity)
     private readonly attachmentRepository: Repository<AttachmentEntity>
   ) {}
@@ -60,7 +56,7 @@ export class HouseRentService {
       await etm.save(
         HouseRentMemberEntity,
         params.members.map(member => ({
-          name: member.name,
+          userId: member.userId,
           houseRentId: houseRent.id,
           airConditionUnit: member.airConditionUnit,
           electricityUnit: member.electricityUnit,
@@ -102,8 +98,12 @@ export class HouseRentService {
         HouseRentMemberEntity,
         params.members.map(member => ({
           id: member.id,
-          name: member.name,
+          userId: member.userId,
           houseRentId: houseRentId,
+          airConditionUnit: member.airConditionUnit,
+          electricityUnit: member.electricityUnit,
+          payInternetMonthIds: member.payInternetMonthIds,
+          payElectricityMonthIds: member.payElectricityMonthIds,
         }))
       )
     } else {
