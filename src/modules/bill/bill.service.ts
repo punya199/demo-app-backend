@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { BillEntity } from '../../entities/bill.entity'
+import { BillEntity } from '../../db/entities/bill.entity'
 import { BillDto } from './dto/save-bill.dto'
 
 @Injectable()

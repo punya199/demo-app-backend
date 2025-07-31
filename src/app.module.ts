@@ -8,7 +8,7 @@ import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
 import { clsServiceConfig } from './config/cls-service-config'
-import { entities } from './config/database.config'
+import { entities, subscribers } from './config/database.config'
 import { pinoConfig } from './config/pino-config'
 import { AttachmentModule } from './modules/attachment/attachment.module'
 import { BillModule } from './modules/bill/bill.module'
@@ -17,7 +17,7 @@ import { UserModule } from './modules/user/user.module'
 
 @Module({
   imports: [
-    ClsModule.forRoot(clsServiceConfig),
+    ClsModule.forRootAsync(clsServiceConfig),
     LoggerModule.forRoot(pinoConfig),
     ConfigModule.forRoot({
       isGlobal: true, // ทำให้ config ใช้ได้ทั่วทั้งแอป
@@ -32,6 +32,7 @@ import { UserModule } from './modules/user/user.module'
       database: appConfig.DATABASE_NAME,
       ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
       entities: entities,
+      subscribers: subscribers,
       migrations: ['dist/migrations/*.js'], // Use compiled JS files in production
       migrationsTableName: 'migrations',
       synchronize: false, // Disabled for production - use migrations instead

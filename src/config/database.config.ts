@@ -1,11 +1,12 @@
 import { DataSource } from 'typeorm'
 
-import { AttachmentEntity } from '../entities/attachment.entity'
-import { BillEntity } from '../entities/bill.entity'
-import { HouseRentEntity } from '../entities/house-rent'
-import { HouseRentDetailEntity } from '../entities/house-rent-detail.entity'
-import { HouseRentMemberEntity } from '../entities/house-rent-member.entity'
-import { UserEntity } from '../entities/user.entity'
+import { AttachmentEntity } from '../db/entities/attachment.entity'
+import { BillEntity } from '../db/entities/bill.entity'
+import { HouseRentEntity } from '../db/entities/house-rent'
+import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
+import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
+import { UserEntity } from '../db/entities/user.entity'
+import { AuditSubscriber } from '../db/subscribers/audit.subscriber'
 import appConfig from './app-config'
 
 // Determine if we're running in production (compiled JS) or development (TS)
@@ -19,6 +20,8 @@ export const entities = [
   HouseRentDetailEntity,
   AttachmentEntity,
 ]
+
+export const subscribers = [AuditSubscriber]
 export default new DataSource({
   type: 'postgres',
   host: appConfig.DATABASE_HOST,
@@ -28,6 +31,7 @@ export default new DataSource({
   database: appConfig.DATABASE_NAME,
   ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
   entities: isProduction ? ['dist/**/*.entity.js'] : entities,
+  subscribers: isProduction ? ['dist/**/*.subscriber.js'] : subscribers,
   migrations: isProduction ? ['dist/migrations/*.js'] : ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',
   synchronize: false, // Important: disable for production

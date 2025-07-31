@@ -5,7 +5,7 @@ import path from 'path'
 import { Readable } from 'stream'
 import { Repository } from 'typeorm'
 import { appConfig } from '../../config/app-config'
-import { AttachmentEntity } from '../../entities/attachment.entity'
+import { AttachmentEntity } from '../../db/entities/attachment.entity'
 import { s3Client } from '../../utils/s3-client'
 
 @Injectable()

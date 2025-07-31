@@ -14,9 +14,9 @@ import {
   IElectricitySummaryData,
   IHouseRent,
   IInternet,
-} from '../../../entities/house-rent'
-import { IElectricity, IHouseRentDetail } from '../../../entities/house-rent-detail.entity'
-import { IElectricityUnit, IHouseRentMember } from '../../../entities/house-rent-member.entity'
+} from '../../../db/entities/house-rent'
+import { IElectricity, IHouseRentDetail } from '../../../db/entities/house-rent-detail.entity'
+import { IElectricityUnit, IHouseRentMember } from '../../../db/entities/house-rent-member.entity'
 
 export class ElectricityDto implements IElectricity {
   @IsNotEmpty()

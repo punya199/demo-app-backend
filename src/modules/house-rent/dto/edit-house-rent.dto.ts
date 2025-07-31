@@ -1,8 +1,8 @@
 import { Type } from 'class-transformer'
 import { IsArray, IsNotEmpty, IsNumber, IsString, IsUUID, ValidateNested } from 'class-validator'
-import { IAirCondition, IHouseRent, IInternet } from '../../../entities/house-rent'
-import { IHouseRentDetail } from '../../../entities/house-rent-detail.entity'
-import { IHouseRentMember } from '../../../entities/house-rent-member.entity'
+import { IAirCondition, IHouseRent, IInternet } from '../../../db/entities/house-rent'
+import { IHouseRentDetail } from '../../../db/entities/house-rent-detail.entity'
+import { IHouseRentMember } from '../../../db/entities/house-rent-member.entity'
 import {
   AirConditionDto,
   HouseRentDetailDto,
