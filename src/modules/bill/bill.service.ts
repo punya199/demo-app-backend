@@ -24,7 +24,11 @@ export class BillService {
   }
 
   async getBills() {
-    const bills = await this.billRepo.find()
+    const bills = await this.billRepo.find({
+      order: {
+        createdAt: 'ASC',
+      },
+    })
     return { bills }
   }
 
@@ -44,5 +48,11 @@ export class BillService {
       )
       return { billId }
     }
+  }
+
+  async deleteBill(billId: string) {
+    await this.billRepo.softDelete({
+      id: billId,
+    })
   }
 }

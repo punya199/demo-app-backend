@@ -1,5 +1,15 @@
 // user.controller.ts
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common'
 import { JwtAuthGuard } from '../user/jwt-auth.guard'
 import { BillService } from './bill.service'
 import { BillDto } from './dto/save-bill.dto'
@@ -28,5 +38,11 @@ export class BillController {
   @Put(':billId')
   editBill(@Param('billId', ParseUUIDPipe) billId: string, @Body() dto: BillDto) {
     return this.billService.editBill(billId, dto)
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':billId')
+  deleteBill(@Param('billId', ParseUUIDPipe) billId: string) {
+    return this.billService.deleteBill(billId)
   }
 }
