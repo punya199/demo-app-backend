@@ -1,11 +1,13 @@
 // user.service.ts
-import { Injectable } from '@nestjs/common'
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { ILike, Repository } from 'typeorm'
-import { UserEntity } from '../../db/entities/user.entity'
+import { UserEntity, UserRole } from '../../db/entities/user.entity'
+import { EditRoleUserDto } from './dto/edit-role-user'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
 import { LoginDto } from './dto/login.dto'
+import { RegisterUserDto } from './dto/register-user'
 import { Payload } from './jwt.strategy'
 
 @Injectable()
@@ -69,5 +71,51 @@ export class UserService {
         value: user.id,
       })),
     }
+  }
+
+  async getUsers() {
+    const users = await this.userRepo.find()
+    return { users }
+  }
+
+  async registerUser(dto: RegisterUserDto) {
+    const checkUser = await this.userRepo.findOne({
+      where: { username: dto.username },
+    })
+    if (checkUser) {
+      throw new HttpException(
+        {
+          message: 'มีชื่อนี้อยู่แล้ว',
+        },
+        HttpStatus.BAD_REQUEST
+      )
+    }
+    const user = this.userRepo.create({
+      ...dto,
+      role: UserRole.USER,
+    })
+    return this.userRepo.save(user)
+  }
+  async editRoleUser(userId: string, dto: EditRoleUserDto) {
+    const user = await this.userRepo.findOne({
+      select: {
+        id: true,
+        username: true,
+        role: true,
+      },
+      where: {
+        id: userId,
+      },
+    })
+    if (user) {
+      await this.userRepo.update(
+        {
+          id: userId,
+        },
+        dto
+      )
+      return { user }
+    }
+    return { user }
   }
 }

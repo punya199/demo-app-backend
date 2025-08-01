@@ -7,7 +7,9 @@ import { HouseRentMemberEntity } from './house-rent-member.entity'
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin',
 }
+export const roleLevels: UserRole[] = [UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN]
 
 @Entity({
   name: 'users',

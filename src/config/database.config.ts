@@ -32,7 +32,7 @@ export default new DataSource({
   ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
   entities: isProduction ? ['dist/**/*.entity.js'] : entities,
   subscribers: isProduction ? ['dist/**/*.subscriber.js'] : subscribers,
-  migrations: isProduction ? ['dist/migrations/*.js'] : ['src/migrations/*.ts'],
+  migrations: isProduction ? ['dist/db/migrations/*.js'] : ['src/db/migrations/*.ts'],
   migrationsTableName: 'migrations',
   synchronize: false, // Important: disable for production
   logging: ['query', 'error'],

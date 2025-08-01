@@ -8,6 +8,6 @@ if (!name) {
   process.exit(1)
 }
 
-const command = `typeorm-ts-node-commonjs migration:generate src/migrations/${name} -d src/config/database.config.ts`
+const command = `typeorm-ts-node-commonjs migration:generate src/db/migrations/${name} -d src/config/database.config.ts`
 console.log('➡️ Running:', command)
 execSync(command, { stdio: 'inherit' })

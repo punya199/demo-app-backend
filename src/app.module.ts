@@ -33,7 +33,7 @@ import { UserModule } from './modules/user/user.module'
       ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
       entities: entities,
       subscribers: subscribers,
-      migrations: ['dist/migrations/*.js'], // Use compiled JS files in production
+      migrations: ['dist/db/migrations/*.js'], // Use compiled JS files in production
       migrationsTableName: 'migrations',
       synchronize: false, // Disabled for production - use migrations instead
       migrationsRun: false, // Don't auto-run migrations

@@ -14,7 +14,6 @@ export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
   const request = ctx.switchToHttp().getRequest<Request>()
   return request.user as PayloadUser
 })
-export const Roles = (...roles: UserRole[]) => SetMetadata('roles', roles)
+export const Roles = (role?: UserRole) => SetMetadata('role', role)
 
-export const AuthUser = (...roles: UserRole[]) =>
-  applyDecorators(Roles(...roles), UseGuards(JwtAuthGuard))
+export const AuthUser = (role?: UserRole) => applyDecorators(Roles(role), UseGuards(JwtAuthGuard))
