@@ -1,3 +1,6 @@
+import appConfig from '../../config/app-config'
+
 export const jwtConstants = {
-  secret: 'JAoo7mSvejGc1uqAVfM2xuRxrtu1B8dAshBIKX6weIb46JaDkSK30sZaOuBogMsM',
+  secret: appConfig.JWT_SECRET,
+  expiresIn: appConfig.JWT_EXPIRES_IN,
 }

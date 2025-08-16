@@ -10,6 +10,9 @@ export const appConfig = {
   APP_VERSION: process.env.APP_VERSION ?? '',
   APP_BUILD_VERSION: process.env.APP_BUILD_VERSION ?? '',
 
+  JWT_SECRET: process.env.JWT_SECRET ?? '',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '',
+
   DATABASE_HOST: process.env.DATABASE_HOST,
   DATABASE_USER: process.env.DATABASE_USER,
   DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
@@ -36,6 +39,9 @@ const joiObject: IJoiObject = {
   APP_VERSION: Joi.string().allow(null, '').optional().description('App version'),
   APP_BUILD_VERSION: Joi.string().allow(null, '').optional().description('App build version'),
   IS_WORKER: Joi.optional().description('Is worker'),
+
+  JWT_SECRET: Joi.string().required().description('JWT secret'),
+  JWT_EXPIRES_IN: Joi.string().required().description('JWT expires in'),
 
   DATABASE_HOST: Joi.string().required().description('Database host'),
   DATABASE_USER: Joi.string().required().description('Database user'),
