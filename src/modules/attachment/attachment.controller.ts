@@ -12,41 +12,33 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
+import sharp from 'sharp'
+import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser } from '../user/user.decorator'
 import { AttachmentService } from './attachment.service'
+import { GetAttachmentFileParamsDto } from './dto/get-attachment-file.dto'
 
 @Controller('attachments')
 export class AttachmentController {
   constructor(private readonly attachmentService: AttachmentService) {}
 
-  @AuthUser()
+  @AuthUser(UserRole.ADMIN)
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      // storage: diskStorage({
-      //   destination: './private/uploads',
-      //   filename: (
-      //     req: Request,
-      //     file: Express.Multer.File,
-      //     callback: (error: Error | null, filename: string) => void
-      //   ) => {
-      //     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-      //     const ext = extname(file.originalname)
-      //     const filename = `${uniqueSuffix}${ext}`
-      //     callback(null, filename)
-      //   },
-      // }),
       fileFilter: (
         req: Request,
         file: Express.Multer.File,
         callback: (error: Error | null, acceptFile: boolean) => void
       ) => {
-        // Add file type validation if needed
-        // For now, accept all file types
-        callback(null, true)
+        if (file.mimetype.includes('image/')) {
+          callback(null, true)
+        } else {
+          callback(new BadRequestException('File is not an image'), false)
+        }
       },
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fileSize: 5 * 1024 * 1024, // 10MB limit
       },
     })
   )
@@ -77,11 +69,17 @@ export class AttachmentController {
     return this.attachmentService.getAttachment(id)
   }
 
-  // @AuthUser()
+  @AuthUser()
   @Get(':id/file')
-  async getAttachmentFile(@Param('id') id: string, @Res() res: Response) {
-    const { readable, filename, contentLength, contentType } =
-      await this.attachmentService.getAttachmentFile(id)
+  async getAttachmentFile(
+    @Param('id') id: string,
+    @Query() query: GetAttachmentFileParamsDto,
+    @Res() res: Response
+  ) {
+    const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
+    res.setHeader('cross-origin-resource-policy', 'cross-origin')
+
+    res.setHeader('Cache-Control', 'public, max-age=86400') // 1 day in seconds
 
     if (contentType) {
       res.setHeader('Content-Type', contentType)
@@ -89,13 +87,21 @@ export class AttachmentController {
     if (filename) {
       res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
     }
-    if (contentLength) {
-      res.setHeader('Content-Length', contentLength.toString())
+
+    if (contentType.includes('image/') && query.thumbnail) {
+      readable
+        .pipe(
+          sharp().resize({
+            width: 200,
+          })
+        )
+        .pipe(res)
+    } else {
+      readable.pipe(res)
     }
-    readable.pipe(res)
   }
 
-  @AuthUser()
+  @AuthUser(UserRole.ADMIN)
   @Delete(':id')
   async deleteAttachment(@Param('id') id: string) {
     await this.attachmentService.deleteAttachment(id)

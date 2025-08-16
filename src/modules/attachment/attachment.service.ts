@@ -2,6 +2,7 @@ import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import path from 'path'
+import sharp from 'sharp'
 import { Readable } from 'stream'
 import { Repository } from 'typeorm'
 import { appConfig } from '../../config/app-config'
@@ -21,16 +22,36 @@ export class AttachmentService {
     }
 
     // You can customize the upload path/logic here
-    const fileName = file.originalname
+    const originalFileName = file.originalname
+    const originalFileExtension = originalFileName.split('.').pop() || ''
+    let fileName = originalFileName
+    if (['jpg', 'jpeg', 'png'].includes(originalFileExtension)) {
+      fileName = originalFileName.replace(`.${originalFileExtension}`, '.png')
+    }
+
     const mimeType = file.mimetype
     const size = file.size
+
+    let body = file.buffer
+
+    if (mimeType.includes('image/')) {
+      body = await sharp(file.buffer)
+        .resize({
+          width: 1200,
+          withoutEnlargement: true,
+        })
+        .png({
+          quality: 80,
+        })
+        .toBuffer()
+    }
 
     const s3key = path.join('uploads', fileName)
     const uploadResult = await s3Client.send(
       new PutObjectCommand({
         Bucket: appConfig.AWS_BUCKET_NAME,
         Key: s3key,
-        Body: file.buffer,
+        Body: body,
       })
     )
 
@@ -39,7 +60,7 @@ export class AttachmentService {
     const attachment = this.attachmentRepository.create({
       fileName,
       filePath: s3key,
-      mimeType,
+      mimeType: 'image/png',
       size,
     })
 
