@@ -1,21 +1,10 @@
 // user.controller.ts
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common'
 import { UserRole } from '../../db/entities/user.entity'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
 import { LoginDto } from './dto/login.dto'
 import { RegisterUserDto } from './dto/register-user'
-import { JwtAuthGuard } from './jwt-auth.guard'
 import { PayloadUser } from './jwt.strategy'
 import { AuthUser, ReqUser } from './user.decorator'
 import { UserService } from './user.service'
@@ -29,7 +18,7 @@ export class UserController {
     return this.userService.login(dto)
   }
 
-  @UseGuards(JwtAuthGuard)
+  @AuthUser()
   @Get('me')
   getMe(@ReqUser() user: PayloadUser) {
     return this.userService.getMe(user.userId)

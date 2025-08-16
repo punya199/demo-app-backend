@@ -2,9 +2,13 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
+import { plainToInstance } from 'class-transformer'
 import { ILike, Repository } from 'typeorm'
+import { PermissionsEntity } from '../../db/entities/permissions'
 import { UserEntity, UserRole } from '../../db/entities/user.entity'
+import { permissionActionHelper } from '../../utils/permission-helper'
 import { EditRoleUserDto } from './dto/edit-role-user'
+import { GetMeResponseDto } from './dto/get-me.dto'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
 import { LoginDto } from './dto/login.dto'
 import { RegisterUserDto } from './dto/register-user'
@@ -15,6 +19,8 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private userRepo: Repository<UserEntity>,
+    @InjectRepository(PermissionsEntity)
+    private permissionsRepo: Repository<PermissionsEntity>,
     private jwtService: JwtService
   ) {}
 
@@ -39,17 +45,32 @@ export class UserService {
     return { accessToken: await this.jwtService.signAsync(payload), user }
   }
   async getMe(userId: string) {
-    const user = await this.userRepo.findOne({
-      select: {
-        id: true,
-        username: true,
-        role: true,
-      },
-      where: {
-        id: userId,
-      },
+    console.log('userId', userId)
+    const user = await this.userRepo
+      .createQueryBuilder('u')
+      .select('u.id')
+      .addSelect('u.username')
+      .addSelect('u.role')
+      .where('u.id = :userId', { userId })
+      .getOne()
+
+    const permissions = await this.permissionsRepo
+      .createQueryBuilder('p')
+      .select('p.id')
+      .addSelect('p.featureName')
+      .addSelect('p.action')
+      .where('p.user_id = :userId', { userId })
+      .getMany()
+
+    const response = plainToInstance(GetMeResponseDto, {
+      ...user,
+      permissions: permissions.map(permission => ({
+        ...permission,
+        action: permissionActionHelper(permission.action),
+      })),
     })
-    return { user }
+
+    return response
   }
 
   async getUserOptions(params: GetUserOptionsParamsDto) {

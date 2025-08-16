@@ -3,6 +3,7 @@ import { Exclude } from 'class-transformer'
 import { Column, Entity, Index, OneToMany } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { HouseRentMemberEntity } from './house-rent-member.entity'
+import { PermissionsEntity } from './permissions'
 
 export enum UserRole {
   USER = 'user',
@@ -37,4 +38,7 @@ export class UserEntity extends BaseModelEntity {
 
   @OneToMany(() => HouseRentMemberEntity, houseRentMember => houseRentMember.user)
   houseRentMembers: HouseRentMemberEntity[]
+
+  @OneToMany(() => PermissionsEntity, permissions => permissions.user)
+  permissions: PermissionsEntity[]
 }
