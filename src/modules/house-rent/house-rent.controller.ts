@@ -13,7 +13,7 @@ export class HouseRentController {
     private readonly dataSource: DataSource
   ) {}
 
-  @AuthUser()
+  @AuthUser(UserRole.SUPER_ADMIN)
   @Post()
   async createHouseRent(@Body() body: CreateHouseRentBodyDto) {
     return this.dataSource.transaction(async etm => {
@@ -21,7 +21,7 @@ export class HouseRentController {
     })
   }
 
-  @AuthUser()
+  @AuthUser(UserRole.SUPER_ADMIN)
   @Put(':houseRentId')
   async updateHouseRent(
     @Param('houseRentId', ParseUUIDPipe) houseRentId: string,
@@ -42,7 +42,7 @@ export class HouseRentController {
     return this.houseRentService.getHouseRents()
   }
 
-  @AuthUser(UserRole.ADMIN)
+  @AuthUser(UserRole.SUPER_ADMIN)
   @Delete(':houseRentId')
   async deleteHouseRent(@Param('houseRentId', ParseUUIDPipe) houseRentId: string) {
     return this.houseRentService.deleteHouseRent(houseRentId)
