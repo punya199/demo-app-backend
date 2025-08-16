@@ -69,7 +69,6 @@ export class AttachmentController {
     return this.attachmentService.getAttachment(id)
   }
 
-  @AuthUser()
   @Get(':id/file')
   async getAttachmentFile(
     @Param('id') id: string,
