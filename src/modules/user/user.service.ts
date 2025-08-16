@@ -62,7 +62,7 @@ export class UserService {
       .where('p.user_id = :userId', { userId })
       .getMany()
 
-    const response = plainToInstance(GetMeResponseDto, {
+    const userResponse = plainToInstance(GetMeResponseDto, {
       ...user,
       permissions: permissions.map(permission => ({
         ...permission,
@@ -70,7 +70,7 @@ export class UserService {
       })),
     })
 
-    return response
+    return { user: userResponse }
   }
 
   async getUserOptions(params: GetUserOptionsParamsDto) {
