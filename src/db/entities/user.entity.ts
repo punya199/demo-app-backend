@@ -5,13 +5,11 @@ import { BaseModelEntity } from './base-model.entity'
 import { HouseRentMemberEntity } from './house-rent-member.entity'
 import { PermissionsEntity } from './permissions'
 
-export const EnumUserStatus = {
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  BLOCKED: 'blocked',
+export enum EnumUserStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  BLOCKED = 'blocked',
 }
-
-export type EnumUserStatus = (typeof EnumUserStatus)[keyof typeof EnumUserStatus]
 
 export enum UserRole {
   USER = 'user',
