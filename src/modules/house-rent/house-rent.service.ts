@@ -159,6 +159,9 @@ export class HouseRentService {
         rents: true,
         members: true,
       },
+      order: {
+        createdAt: 'DESC',
+      },
     })
 
     return {

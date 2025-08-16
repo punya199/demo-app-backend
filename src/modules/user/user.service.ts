@@ -74,7 +74,11 @@ export class UserService {
   }
 
   async getUsers() {
-    const users = await this.userRepo.find()
+    const users = await this.userRepo.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    })
     return { users }
   }
 
