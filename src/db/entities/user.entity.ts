@@ -5,6 +5,14 @@ import { BaseModelEntity } from './base-model.entity'
 import { HouseRentMemberEntity } from './house-rent-member.entity'
 import { PermissionsEntity } from './permissions'
 
+export const EnumUserStatus = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  BLOCKED: 'blocked',
+}
+
+export type EnumUserStatus = (typeof EnumUserStatus)[keyof typeof EnumUserStatus]
+
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
@@ -35,6 +43,15 @@ export class UserEntity extends BaseModelEntity {
 
   @Column({ name: 'role', type: 'enum', enum: UserRole, default: UserRole.USER, nullable: false })
   role: UserRole
+
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: EnumUserStatus,
+    default: EnumUserStatus.ACTIVE,
+    nullable: false,
+  })
+  status: EnumUserStatus
 
   @OneToMany(() => HouseRentMemberEntity, houseRentMember => houseRentMember.user)
   houseRentMembers: HouseRentMemberEntity[]
