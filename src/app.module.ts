@@ -2,9 +2,11 @@
 import { RedisModule } from '@nestjs-modules/ioredis'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { ServeStaticModule } from '@nestjs/serve-static'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { ClsModule } from 'nestjs-cls'
 import { LoggerModule } from 'nestjs-pino'
+import { join } from 'path'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
@@ -47,6 +49,10 @@ import { UserModule } from './modules/user/user.module'
     BillModule,
     HouseRentModule,
     AttachmentModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'), // โฟลเดอร์ public
+      serveRoot: '/', // เสิร์ฟจาก root path เช่น /images/xxx.png
+    }),
   ],
   providers: [AppService],
   controllers: [AppController],
