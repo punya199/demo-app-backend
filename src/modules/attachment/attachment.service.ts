@@ -156,6 +156,44 @@ export class AttachmentService {
       s3key = s3key.replace('.png', '-thumbnail.png')
     }
 
+
+    try{
+      const head = await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: appConfig.AWS_BUCKET_NAME,
+          Key: s3key,
+        })
+      )
+
+      if(!head){
+        throw new NotFoundException('Attachment not found')
+      }
+    }catch(error){
+
+      const originFile= await s3Client.send(
+        new GetObjectCommand({
+          Bucket: appConfig.AWS_BUCKET_NAME,
+          Key: attachment.filePath,
+        })
+      )
+      const originFileBuffer = await originFile.Body?.transformToByteArray()
+
+      const thumbnailBody = await sharp(originFileBuffer)
+        .resize({
+          width: 100,
+          height: 100,
+        })
+        .toBuffer()
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: appConfig.AWS_BUCKET_NAME,
+          Key: s3key,
+          Body: thumbnailBody,
+        })
+      )
+    }
+
     const presignedUrl = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
