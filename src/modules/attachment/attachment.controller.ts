@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Post,
   Query,
@@ -75,7 +76,8 @@ export class AttachmentController {
     @Res() res: Response
   ) {
     const presignedUrl = await this.attachmentService.getAttachmentFilePresignedUrl(id, query)
-    res.redirect(presignedUrl)
+    
+    res.redirect(HttpStatus.TEMPORARY_REDIRECT,presignedUrl,)
 
     // const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
     // res.setHeader('cross-origin-resource-policy', 'cross-origin')
