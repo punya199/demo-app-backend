@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
-import sharp from 'sharp'
 import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser } from '../user/user.decorator'
 import { AttachmentService } from './attachment.service'
@@ -75,29 +74,32 @@ export class AttachmentController {
     @Query() query: GetAttachmentFileParamsDto,
     @Res() res: Response
   ) {
-    const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
-    res.setHeader('cross-origin-resource-policy', 'cross-origin')
+    const presignedUrl = await this.attachmentService.getAttachmentFilePresignedUrl(id, query)
+    res.redirect(presignedUrl)
 
-    res.setHeader('Cache-Control', 'public, max-age=86400') // 1 day in seconds
+    // const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
+    // res.setHeader('cross-origin-resource-policy', 'cross-origin')
 
-    if (contentType) {
-      res.setHeader('Content-Type', contentType)
-    }
-    if (filename) {
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
-    }
+    // res.setHeader('Cache-Control', 'public, max-age=86400') // 1 day in seconds
 
-    if (contentType.includes('image/') && query.thumbnail) {
-      readable
-        .pipe(
-          sharp().resize({
-            width: 200,
-          })
-        )
-        .pipe(res)
-    } else {
-      readable.pipe(res)
-    }
+    // if (contentType) {
+    //   res.setHeader('Content-Type', contentType)
+    // }
+    // if (filename) {
+    //   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
+    // }
+
+    // if (contentType.includes('image/') && query.thumbnail) {
+    //   readable
+    //     .pipe(
+    //       sharp().resize({
+    //         width: 200,
+    //       })
+    //     )
+    //     .pipe(res)
+    // } else {
+    //   readable.pipe(res)
+    // }
   }
 
   @AuthUser(UserRole.ADMIN)
