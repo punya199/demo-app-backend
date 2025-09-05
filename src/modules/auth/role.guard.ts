@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { Request } from 'express'
 import { roleLevels, UserRole } from '../../db/entities/user.entity'
-import { PayloadUser } from './jwt.strategy'
+import { IAppJwtPayload } from './auth.interface'
 
 export const checkRole = (requireRole: UserRole, userRole?: UserRole) => {
   if (!userRole) {
@@ -27,7 +27,7 @@ export class RolesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>()
-    const user = request.user as PayloadUser
+    const user = request.user as IAppJwtPayload
 
     return checkRole(expectRoles, user.role)
   }

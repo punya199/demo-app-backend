@@ -1,7 +1,7 @@
 import { JwtModule, JwtService } from '@nestjs/jwt'
 import { Request } from 'express'
 import { ClsModuleAsyncOptions, ClsService } from 'nestjs-cls'
-import { Payload } from '../modules/user/jwt.strategy'
+import { IAppJwtPayload } from '../modules/auth/auth.interface'
 
 export const clsServiceConfig: ClsModuleAsyncOptions = {
   global: true,
@@ -16,7 +16,7 @@ export const clsServiceConfig: ClsModuleAsyncOptions = {
         const token = request.headers['authorization']?.split(' ')?.[1]?.toString()
 
         if (token) {
-          const payload: Payload = jwt.decode(token)
+          const payload: IAppJwtPayload = jwt.decode(token)
           const userId = payload?.sub?.toString()
           if (userId) {
             cls.set('userId', userId)

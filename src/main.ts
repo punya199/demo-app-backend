@@ -1,20 +1,25 @@
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common'
-import { NestFactory, Reflector } from '@nestjs/core'
+import { NestApplication, NestFactory, Reflector } from '@nestjs/core'
+import cookieParser from 'cookie-parser'
 import { json, urlencoded } from 'express'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import appConfig from './config/app-config'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  const app = await NestFactory.create<NestApplication>(AppModule)
 
+  app.use(cookieParser())
   app.use(json({ limit: '50mb' }))
   app.use(urlencoded({ limit: '50mb', extended: true }))
 
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
   // เปิด ValidationPipe
   app.useGlobalPipes(new ValidationPipe())
-  app.enableCors()
+  app.enableCors({
+    origin: appConfig.ORIGIN_ALLOWED.includes('*') ? '*' : appConfig.ORIGIN_ALLOWED,
+    credentials: true,
+  })
   app.use(helmet())
 
   await app.listen(appConfig.PORT)

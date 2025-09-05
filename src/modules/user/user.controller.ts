@@ -1,27 +1,21 @@
 // user.controller.ts
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common'
 import { UserRole } from '../../db/entities/user.entity'
+import { AuthUser, ReqUser } from '../auth/auth.decorator'
+import { IAppJwtPayload } from '../auth/auth.interface'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
-import { LoginDto } from './dto/login.dto'
 import { RegisterUserDto } from './dto/register-user'
-import { PayloadUser } from './jwt.strategy'
-import { AuthUser, ReqUser } from './user.decorator'
 import { UserService } from './user.service'
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.userService.login(dto)
-  }
-
   @AuthUser()
   @Get('me')
-  getMe(@ReqUser() user: PayloadUser) {
-    return this.userService.getMe(user.userId)
+  getMe(@ReqUser() user: IAppJwtPayload) {
+    return this.userService.getMe(user['user-id'])
   }
 
   @Get('options')

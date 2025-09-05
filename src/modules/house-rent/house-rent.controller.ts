@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { UserRole } from '../../db/entities/user.entity'
-import { AuthUser } from '../user/user.decorator'
+import { AuthUser } from '../auth/auth.decorator'
 import { CreateHouseRentBodyDto } from './dto/create-house-rent.dto'
 import { EditHouseRentBodyDto } from './dto/edit-house-rent.dto'
 import { HouseRentService } from './house-rent.service'

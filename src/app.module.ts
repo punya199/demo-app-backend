@@ -15,6 +15,7 @@ import { entities, subscribers } from './config/database.config'
 import { pinoConfig } from './config/pino-config'
 import { redisConfig } from './config/redis-config'
 import { AttachmentModule } from './modules/attachment/attachment.module'
+import { AuthModule } from './modules/auth/auth.module'
 import { BillModule } from './modules/bill/bill.module'
 import { HouseRentModule } from './modules/house-rent/house-rent.module'
 import { UserModule } from './modules/user/user.module'
@@ -45,14 +46,16 @@ import { UserModule } from './modules/user/user.module'
       logging: 'all',
       uuidExtension: 'pgcrypto',
     }),
-    UserModule,
-    BillModule,
-    HouseRentModule,
-    AttachmentModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'), // โฟลเดอร์ public
       serveRoot: '/', // เสิร์ฟจาก root path เช่น /images/xxx.png
     }),
+
+    AuthModule,
+    UserModule,
+    BillModule,
+    HouseRentModule,
+    AttachmentModule,
   ],
   providers: [AppService],
   controllers: [AppController],

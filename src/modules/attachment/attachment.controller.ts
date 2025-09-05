@@ -14,7 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
 import { UserRole } from '../../db/entities/user.entity'
-import { AuthUser } from '../user/user.decorator'
+import { AuthUser } from '../auth/auth.decorator'
 import { AttachmentService } from './attachment.service'
 import { GetAttachmentFileParamsDto } from './dto/get-attachment-file.dto'
 
@@ -76,8 +76,8 @@ export class AttachmentController {
     @Res() res: Response
   ) {
     const presignedUrl = await this.attachmentService.getAttachmentFilePresignedUrl(id, query)
-    
-    res.redirect(HttpStatus.TEMPORARY_REDIRECT,presignedUrl,)
+
+    res.redirect(HttpStatus.TEMPORARY_REDIRECT, presignedUrl)
 
     // const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
     // res.setHeader('cross-origin-resource-policy', 'cross-origin')
