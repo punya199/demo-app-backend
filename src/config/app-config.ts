@@ -10,7 +10,6 @@ export const appConfig = {
   LOG_LEVEL: process.env.LOG_LEVEL as (typeof ALLOW_LOG_LEVEL)[number],
   IS_WORKER: process.env.IS_WORKER === 'true',
   APP_VERSION: process.env.APP_VERSION ?? '',
-  APP_BUILD_VERSION: process.env.APP_BUILD_VERSION ?? '',
 
   ORIGIN_ALLOWED: process.env.ORIGIN_ALLOWED?.split(',') ?? [],
 
@@ -51,7 +50,6 @@ const joiObject: IJoiObject = {
     .description('Log level'),
 
   APP_VERSION: Joi.string().allow(null, '').optional().description('App version'),
-  APP_BUILD_VERSION: Joi.string().allow(null, '').optional().description('App build version'),
   IS_WORKER: Joi.optional().description('Is worker'),
 
   ORIGIN_ALLOWED: Joi.string().required().description('Allow origin'),
