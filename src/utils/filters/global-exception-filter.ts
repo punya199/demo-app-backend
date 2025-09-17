@@ -9,7 +9,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>()
     const responseErrorPayload = {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      errorCode: '500-001',
       message: 'Internal server error',
       path: request.url,
       timestamp: new Date().toISOString(),
@@ -19,7 +18,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus()
       if (status === 403) {
         const exceptionResponse = exception.getResponse()
-        if (typeof exceptionResponse === 'object' && 'errorCode' in exceptionResponse) {
+        const isObject = typeof exceptionResponse === 'object'
+        if (isObject) {
           for (const [key, value] of Object.entries(exceptionResponse)) {
             responseErrorPayload[key] = value
           }

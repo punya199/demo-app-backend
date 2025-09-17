@@ -2,11 +2,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { plainToInstance } from 'class-transformer'
-import { ILike, Repository } from 'typeorm'
+import { EntityManager, ILike, In, Not, Repository } from 'typeorm'
 import { PermissionsEntity } from '../../db/entities/permissions'
 import { UserEntity, UserRole } from '../../db/entities/user.entity'
 import { permissionActionHelper } from '../../utils/permission-helper'
 import { EditRoleUserDto } from './dto/edit-role-user'
+import { EditUserPermissionsDto } from './dto/edit-user-permissions.dto'
 import { GetMeResponseDto } from './dto/get-me.dto'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
 import { RegisterUserDto } from './dto/register-user'
@@ -118,5 +119,68 @@ export class UserService {
       return { user }
     }
     return { user }
+  }
+  async getUser(userId: string) {
+    const user = await this.userRepo.findOne({
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        status: true,
+      },
+      where: { id: userId },
+    })
+    return { user }
+  }
+
+  async getUserPermissions(userId: string) {
+    const permissions = await this.permissionsRepo.find({
+      select: {
+        id: true,
+        featureName: true,
+        action: true,
+      },
+      where: { userId },
+    })
+    return {
+      permissions: permissions.map(permission => ({
+        ...permission,
+        action: permissionActionHelper(permission.action),
+      })),
+    }
+  }
+
+  async editUserPermissions(userId: string, params: EditUserPermissionsDto, etm: EntityManager) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+    })
+    if (user) {
+      await etm.softDelete(PermissionsEntity, {
+        userId,
+        featureName: Not(In(params.permissions.map(permission => permission.featureName))),
+      })
+
+      await etm
+        .createQueryBuilder()
+        .insert()
+        .into(PermissionsEntity)
+        .values(
+          params.permissions.map(permission => ({
+            userId,
+            featureName: permission.featureName,
+            action: [
+              permission.action.canRead ? '1' : '0',
+              permission.action.canCreate ? '1' : '0',
+              permission.action.canUpdate ? '1' : '0',
+              permission.action.canDelete ? '1' : '0',
+            ].join(''),
+          }))
+        )
+        .orUpdate(['action'], ['user_id', 'feature_name'], {
+          indexPredicate: 'deleted_at IS NULL',
+          skipUpdateIfNoValuesChanged: true,
+        })
+        .execute()
+    }
   }
 }

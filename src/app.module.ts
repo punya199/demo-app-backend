@@ -18,6 +18,7 @@ import { AttachmentModule } from './modules/attachment/attachment.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { BillModule } from './modules/bill/bill.module'
 import { HouseRentModule } from './modules/house-rent/house-rent.module'
+import { PermissionModule } from './modules/permission/permission.module'
 import { UserModule } from './modules/user/user.module'
 
 @Module({
@@ -56,6 +57,7 @@ import { UserModule } from './modules/user/user.module'
     BillModule,
     HouseRentModule,
     AttachmentModule,
+    PermissionModule,
   ],
   providers: [AppService],
   controllers: [AppController],
