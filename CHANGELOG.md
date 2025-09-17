@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/punya199/demo-app-backend/compare/v1.0.1...v1.0.2) (2025-09-17)
+
+
+### Fix
+
+* Adds build versioning ([744051a](https://github.com/punya199/demo-app-backend/commit/744051a02d1a3eaea0635e0acdd89e7a698ba9ab))
+
 ## [1.0.1](https://github.com/punya199/demo-app-backend/compare/v1.0.0...v1.0.1) (2025-09-17)
 
 
