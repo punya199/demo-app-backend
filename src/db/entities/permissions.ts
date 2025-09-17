@@ -6,6 +6,7 @@ export enum EnumPermissionFeatureName {
   HOUSE_RENT = 'house_rent',
   BILL = 'bill',
   USER = 'user',
+  USER_PERMISSIONS = 'user_permissions',
 }
 
 @Entity({
