@@ -8,7 +8,6 @@ import { get, omit, set } from 'lodash'
 import ms from 'ms'
 import { AUTHENTICATION_MODULE_OPTIONS, EnumCookieKeys } from './authentication.constant'
 import { IAuthenticationModuleOptions } from './authentication.module'
-import { AzureAdHelper } from './utils/azure-ad-helper'
 
 export interface IBaseTokenPayload {
   jti: string
@@ -25,12 +24,7 @@ export class AuthenticationService {
   ) {}
 
   decodeJwt(token: string) {
-    return this.jwtService.decode(token)
-  }
-
-  verifyAzureAdIdToken(token: string) {
-    const azureAdHelper = new AzureAdHelper(this.options.azureAd?.tenantId ?? '')
-    return azureAdHelper.verifyToken(token)
+    return this.jwtService.decode<IBaseTokenPayload>(token)
   }
 
   async signToken<T extends IBaseTokenPayload>(payload: Omit<T, 'jti'>) {
@@ -39,9 +33,9 @@ export class AuthenticationService {
 
   async refreshToken(req: Request, res: Response) {
     const renewRefreshToken = this.options.jwt.renewRefreshToken
-    const user = get(req, 'user')
-    const userId = get(user, 'user-id')
-    const jti = get(user, 'jti')
+    const user = get(req, 'user') as IBaseTokenPayload
+    const userId = user['user-id']
+    const jti = user.jti
 
     if (!user) {
       return
@@ -62,9 +56,9 @@ export class AuthenticationService {
   }
 
   async clearToken(req: Request, res: Response) {
-    const user = get(req, 'user')
-    const userId = get(user, 'user-id')
-    const jti = get(user, 'jti')
+    const user = get(req, 'user') as IBaseTokenPayload
+    const userId = user['user-id']
+    const jti = user.jti
 
     await this.delTokenFromRedis(userId, jti, EnumCookieKeys.ACCESS_TOKEN)
     await this.delTokenFromRedis(userId, jti, EnumCookieKeys.REFRESH_TOKEN)

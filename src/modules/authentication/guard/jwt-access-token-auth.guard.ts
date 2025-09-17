@@ -27,7 +27,7 @@ export class JwtAccessTokenAuthGuard extends AuthGuard(EnumJwtStrategy.ACCESS_TO
     user: unknown,
     info: unknown,
     context: ExecutionContext,
-    status?: unknown,
+    status?: unknown
   ): TUser {
     if (info instanceof Error && info.message.includes('No auth token')) {
       throw new AppBadRequestException({

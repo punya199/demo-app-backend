@@ -1,0 +1,2 @@
+time -v yarn lint
+time -v yarn build

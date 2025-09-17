@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { Request } from 'express'
+import { get } from 'lodash'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { AppBadRequestException } from '../../../utils/exception'
 import {
@@ -10,6 +11,14 @@ import {
 } from '../authentication.constant'
 import { IAuthenticationModuleOptions } from '../authentication.module'
 import { AuthenticationService, IBaseTokenPayload } from '../authentication.service'
+
+const getExtractJWT = (req: Request): string => {
+  const cookie = get(req, ['cookies', EnumCookieKeys.ACCESS_TOKEN])
+  if (typeof cookie === 'string' && cookie?.length) {
+    return cookie
+  }
+  return ''
+}
 
 @Injectable()
 export class JwtAccessTokenStrategy extends PassportStrategy(
@@ -22,7 +31,7 @@ export class JwtAccessTokenStrategy extends PassportStrategy(
     private readonly authenticationService: AuthenticationService
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([JwtAccessTokenStrategy.getExtractJWT]),
+      jwtFromRequest: ExtractJwt.fromExtractors([getExtractJWT]),
       ignoreExpiration: false,
       secretOrKey: options.jwt.secret,
     })
@@ -39,12 +48,5 @@ export class JwtAccessTokenStrategy extends PassportStrategy(
     }
 
     return payload
-  }
-
-  private static getExtractJWT(req: Request): string | null {
-    if (req.cookies?.[EnumCookieKeys.ACCESS_TOKEN]) {
-      return req.cookies[EnumCookieKeys.ACCESS_TOKEN]
-    }
-    return null
   }
 }
