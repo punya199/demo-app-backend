@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/punya199/demo-app-backend/compare/v1.0.0...v1.0.1) (2025-09-17)
+
+
+### Fix
+
+* Enables build-and-push job dependency on release ([e074c00](https://github.com/punya199/demo-app-backend/commit/e074c00663ba904359660c0b42278a1b3b9d5e09))
+
 # 1.0.0 (2025-09-17)
 
 
