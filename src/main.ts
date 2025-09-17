@@ -5,6 +5,7 @@ import { json, urlencoded } from 'express'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import appConfig from './config/app-config'
+import { GlobalExceptionFilter } from './utils/filters/global-exception-filter'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestApplication>(AppModule)
@@ -13,6 +14,7 @@ async function bootstrap() {
   app.use(json({ limit: '50mb' }))
   app.use(urlencoded({ limit: '50mb', extended: true }))
 
+  app.useGlobalFilters(new GlobalExceptionFilter())
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
   // เปิด ValidationPipe
   app.useGlobalPipes(new ValidationPipe())

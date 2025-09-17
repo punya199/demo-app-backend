@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer'
-import { EnumFeatureName } from '../../../db/entities/permissions'
+import { EnumPermissionFeatureName } from '../../../db/entities/permissions'
 import { UserRole } from '../../../db/entities/user.entity'
 
 export class PermissionActionResponseDto {
@@ -21,7 +21,7 @@ export class PermissionResponseDto {
   id: string
 
   @Expose()
-  featureName: EnumFeatureName
+  featureName: EnumPermissionFeatureName
 
   @Expose()
   @Type(() => PermissionActionResponseDto)

@@ -2,7 +2,9 @@ import { InjectRedis } from '@nestjs-modules/ioredis'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import Redis from 'ioredis'
+import { pick } from 'lodash'
 import { Repository } from 'typeorm'
+import { PermissionsEntity } from '../../db/entities/permissions'
 import { EnumUserStatus, UserEntity } from '../../db/entities/user.entity'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
@@ -15,7 +17,9 @@ export class AuthService {
     private userRepo: Repository<UserEntity>,
     @InjectRedis()
     private redis: Redis,
-    private readonly authenticationService: AuthenticationService
+    private readonly authenticationService: AuthenticationService,
+    @InjectRepository(PermissionsEntity)
+    private permissionsRepo: Repository<PermissionsEntity>
   ) {}
 
   async login(dto: LoginDto) {
@@ -65,7 +69,7 @@ export class AuthService {
 
     const { accessToken, refreshToken } =
       await this.authenticationService.signToken<IAppJwtPayload>(payload)
-    return { accessToken, refreshToken, user }
+    return { accessToken, refreshToken, user: pick(user, ['id', 'username', 'role']) }
   }
 
   private async updateWrongPassword(userId: string) {

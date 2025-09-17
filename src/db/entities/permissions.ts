@@ -2,7 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-export enum EnumFeatureName {
+export enum EnumPermissionFeatureName {
   HOUSE_RENT = 'house_rent',
   BILL = 'bill',
   USER = 'user',
@@ -25,8 +25,8 @@ export class PermissionsEntity extends BaseModelEntity {
   @Column({ name: 'user_id', type: 'uuid', nullable: false })
   userId: string
 
-  @Column({ name: 'feature_name', type: 'enum', enum: EnumFeatureName, nullable: false })
-  featureName: EnumFeatureName
+  @Column({ name: 'feature_name', type: 'enum', enum: EnumPermissionFeatureName, nullable: false })
+  featureName: EnumPermissionFeatureName
 
   @Column({
     name: 'action',

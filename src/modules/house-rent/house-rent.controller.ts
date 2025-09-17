@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
 import { DataSource } from 'typeorm'
-import { UserRole } from '../../db/entities/user.entity'
-import { AuthUser } from '../auth/auth.decorator'
+import { EnumPermissionFeatureName } from '../../db/entities/permissions'
+import { AuthUserPermission } from '../auth/auth.decorator'
 import { CreateHouseRentBodyDto } from './dto/create-house-rent.dto'
 import { EditHouseRentBodyDto } from './dto/edit-house-rent.dto'
 import { HouseRentService } from './house-rent.service'
@@ -13,7 +13,10 @@ export class HouseRentController {
     private readonly dataSource: DataSource
   ) {}
 
-  @AuthUser(UserRole.SUPER_ADMIN)
+  @AuthUserPermission({
+    featureName: EnumPermissionFeatureName.HOUSE_RENT,
+    action: { canCreate: true },
+  })
   @Post()
   async createHouseRent(@Body() body: CreateHouseRentBodyDto) {
     return this.dataSource.transaction(async etm => {
@@ -21,7 +24,10 @@ export class HouseRentController {
     })
   }
 
-  @AuthUser(UserRole.SUPER_ADMIN)
+  @AuthUserPermission({
+    featureName: EnumPermissionFeatureName.HOUSE_RENT,
+    action: { canUpdate: true },
+  })
   @Put(':houseRentId')
   async updateHouseRent(
     @Param('houseRentId', ParseUUIDPipe) houseRentId: string,
@@ -42,7 +48,10 @@ export class HouseRentController {
     return this.houseRentService.getHouseRents()
   }
 
-  @AuthUser(UserRole.SUPER_ADMIN)
+  @AuthUserPermission({
+    featureName: EnumPermissionFeatureName.HOUSE_RENT,
+    action: { canDelete: true },
+  })
   @Delete(':houseRentId')
   async deleteHouseRent(@Param('houseRentId', ParseUUIDPipe) houseRentId: string) {
     return this.houseRentService.deleteHouseRent(houseRentId)

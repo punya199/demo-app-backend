@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import appConfig from '../../config/app-config'
+import { PermissionsEntity } from '../../db/entities/permissions'
 import { UserEntity } from '../../db/entities/user.entity'
 import { AuthenticationModule } from '../authentication/authentication.module'
 import { AuthController } from './auth.controller'
@@ -8,7 +9,7 @@ import { AuthService } from './auth.service'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature([UserEntity, PermissionsEntity]),
     AuthenticationModule.register({
       jwt: {
         secret: appConfig.JWT_SECRET,

@@ -1,5 +1,5 @@
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import path from 'path'
@@ -75,7 +75,6 @@ export class AttachmentService {
       })
     )
 
-
     const attachment = this.attachmentRepository.create({
       fileName,
       filePath: s3key,
@@ -144,7 +143,6 @@ export class AttachmentService {
     await this.attachmentRepository.softDelete(id)
   }
 
-
   async getAttachmentFilePresignedUrl(id: string, params: GetAttachmentFileParamsDto) {
     const attachment = await this.getAttachment(id)
     if (!attachment) {
@@ -156,8 +154,7 @@ export class AttachmentService {
       s3key = s3key.replace('.png', '-thumbnail.png')
     }
 
-
-    try{
+    try {
       const head = await s3Client.send(
         new HeadObjectCommand({
           Bucket: appConfig.AWS_BUCKET_NAME,
@@ -165,12 +162,11 @@ export class AttachmentService {
         })
       )
 
-      if(!head){
+      if (!head) {
         throw new NotFoundException('Attachment not found')
       }
-    }catch(error){
-
-      const originFile= await s3Client.send(
+    } catch {
+      const originFile = await s3Client.send(
         new GetObjectCommand({
           Bucket: appConfig.AWS_BUCKET_NAME,
           Key: attachment.filePath,
