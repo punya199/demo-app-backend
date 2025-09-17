@@ -53,8 +53,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push:
-    # needs: release
-    # if: needs.release.outputs.new_release_published == 'true'
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
