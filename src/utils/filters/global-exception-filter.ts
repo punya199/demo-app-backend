@@ -15,14 +15,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
-      const status = exception.getStatus()
-      if (status === 403) {
-        const exceptionResponse = exception.getResponse()
-        const isObject = typeof exceptionResponse === 'object'
-        if (isObject) {
-          for (const [key, value] of Object.entries(exceptionResponse)) {
-            responseErrorPayload[key] = value
-          }
+      const exceptionResponse = exception.getResponse()
+      const isObject = typeof exceptionResponse === 'object'
+      if (isObject) {
+        for (const [key, value] of Object.entries(exceptionResponse)) {
+          responseErrorPayload[key] = value
         }
       }
     }

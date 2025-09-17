@@ -1,8 +1,9 @@
 // user.controller.ts
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common'
 import { DataSource } from 'typeorm'
+import { EnumPermissionFeatureName } from '../../db/entities/permissions'
 import { UserRole } from '../../db/entities/user.entity'
-import { AuthUser, ReqUser } from '../auth/auth.decorator'
+import { AuthUser, AuthUserPermission, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { EditUserPermissionsDto } from './dto/edit-user-permissions.dto'
@@ -39,6 +40,10 @@ export class UserController {
     return this.userService.registerUser(dto)
   }
 
+  @AuthUserPermission({
+    featureName: EnumPermissionFeatureName.USER_PERMISSIONS,
+    action: { canUpdate: true },
+  })
   @Put(':userId/permissions')
   editUserPermissions(
     @Param('userId', ParseUUIDPipe) userId: string,

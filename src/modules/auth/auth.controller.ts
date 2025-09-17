@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { DataSource } from 'typeorm'
+import { AppBadRequestException } from '../../utils/exception'
 import { EnumCookieKeys } from '../authentication/authentication.constant'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
@@ -22,6 +23,7 @@ export class AuthController {
     this.authenticationService.setCookie(res, EnumCookieKeys.REFRESH_TOKEN, result.refreshToken)
     res.send({
       user: result.user,
+      refreshToken: result.refreshToken,
     })
   }
 
@@ -38,10 +40,13 @@ export class AuthController {
   @RefreshTokenAuthGuard()
   @Post('refresh-token')
   async refreshToken(@Req() req: Request, @Res() res: Response) {
-    await this.authenticationService.refreshToken(req, res)
+    const result = await this.authenticationService.refreshToken(req, res)
+    if (!result) {
+      throw new AppBadRequestException({ code: 'AUT4005' })
+    }
 
     res.send({
-      status: 'success',
+      refreshToken: result.refreshToken,
     })
   }
 }

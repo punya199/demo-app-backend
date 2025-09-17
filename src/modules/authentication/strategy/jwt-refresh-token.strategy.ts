@@ -1,7 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
-import { Request } from 'express'
-import { get } from 'lodash'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { AppBadRequestException } from '../../../utils/exception'
 import {
@@ -12,13 +10,13 @@ import {
 import { IAuthenticationModuleOptions } from '../authentication.module'
 import { AuthenticationService, IBaseTokenPayload } from '../authentication.service'
 
-const getExtractJWT = (req: Request): string => {
-  const cookie = get(req, ['cookies', EnumCookieKeys.REFRESH_TOKEN])
-  if (typeof cookie === 'string' && cookie?.length) {
-    return cookie
-  }
-  return ''
-}
+// const getExtractJWT = (req: Request): string => {
+//   const cookie = get(req, ['cookies', EnumCookieKeys.REFRESH_TOKEN])
+//   if (typeof cookie === 'string' && cookie?.length) {
+//     return cookie
+//   }
+//   return ''
+// }
 @Injectable()
 export class JwtRefreshTokenStrategy extends PassportStrategy(
   Strategy,
@@ -30,7 +28,8 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
     private readonly authenticationService: AuthenticationService
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([getExtractJWT]),
+      // jwtFromRequest: ExtractJwt.fromExtractors([getExtractJWT]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: options.jwt.secret,
     })
