@@ -91,10 +91,11 @@ pipeline {
                     def dockerImageName = "${DOCKER_IMAGE}:demo-app-backend"
                     docker.build(dockerImageName, "-f Dockerfile --build-arg APP_VERSION=${env.APP_VERSION} --build-arg APP_BUILD_VERSION=${env.GIT_COMMIT_VERSION} .")
                    
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", REGISTRY_CREDENTIALS) {
+                    docker.withRegistry('https://index.docker.io/v1/', REGISTRY_CREDENTIALS) {
                         dockerImage = docker.image(dockerImageName)
                         dockerImage.push()
                     }
+                }
                 }
             }
         }
