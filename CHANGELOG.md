@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/punya199/demo-app-backend/compare/v1.0.3...v1.0.4) (2025-09-23)
+
+
+### Fix
+
+* Configures cookie security settings. ([b62363d](https://github.com/punya199/demo-app-backend/commit/b62363d09e5f0b88edded37013c96496c3e3d286))
+
 ## [1.0.3](https://github.com/punya199/demo-app-backend/compare/v1.0.2...v1.0.3) (2025-09-23)
 
 
