@@ -1,3 +1,18 @@
+## [1.0.3](https://github.com/punya199/demo-app-backend/compare/v1.0.2...v1.0.3) (2025-09-23)
+
+
+### Fix
+
+* Adds "[ci skip]" to release commit message ([f023e18](https://github.com/punya199/demo-app-backend/commit/f023e182f074de162a5e568f78ca46b123ab4a34))
+* Adds CI/CD pipeline with Jenkins ([0f16ef5](https://github.com/punya199/demo-app-backend/commit/0f16ef521befce5507f4272c8a7a67f8d6aeabf3))
+* Adds linting for CI environments ([e7d45e5](https://github.com/punya199/demo-app-backend/commit/e7d45e555000b7081c959e7b65c2ca3ebf0c7bef))
+* Fixes JWT decode method typing ([e88fe3f](https://github.com/punya199/demo-app-backend/commit/e88fe3fae485018eb88c4a257916908bc34b4b63))
+* Optimizes Docker image build process ([eb5d776](https://github.com/punya199/demo-app-backend/commit/eb5d776f26d76b61349d71763e39e0f471cbbd14))
+* Removes extraneous closing curly brace ([c4ab32b](https://github.com/punya199/demo-app-backend/commit/c4ab32bb1b843e01e91d6ae81a6600ce78dbb4ef))
+* Switches trigger from branch to tag on push ([a72bcab](https://github.com/punya199/demo-app-backend/commit/a72bcab314b26a28fe4da305773b5d388ed01207))
+* Updates Docker Hub credentials ID ([7a1a226](https://github.com/punya199/demo-app-backend/commit/7a1a226dffe6c39b4b7722158c08a93a0ea31d52))
+* Updates Docker registry address ([b29b5b2](https://github.com/punya199/demo-app-backend/commit/b29b5b2f88cbbe9609fa3ecbade381fd2bfb15e2))
+
 ## [1.0.2](https://github.com/punya199/demo-app-backend/compare/v1.0.1...v1.0.2) (2025-09-17)
 
 
