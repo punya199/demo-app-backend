@@ -2,11 +2,11 @@ name: Release and Build Docker Image
 
 on:
   push:
-    branches:
-      - main
-    # tags:
-    #   - 'v*'
-    #   - 'latest'
+    # branches:
+    #   - main
+    tags:
+      # - 'v*'
+      - 'latest'
 
 env:
   REGISTRY: docker.io
