@@ -96,7 +96,6 @@ pipeline {
                         dockerImage.push()
                     }
                 }
-                }
             }
         }
     }
