@@ -23,8 +23,8 @@ export class AuthenticationService {
     private readonly options: IAuthenticationModuleOptions
   ) {}
 
-  decodeJwt(token: string) {
-    return this.jwtService.decode<IBaseTokenPayload>(token)
+  decodeJwt<D extends IBaseTokenPayload>(token: string) {
+    return this.jwtService.decode<D>(token)
   }
 
   async signToken<T extends IBaseTokenPayload>(payload: Omit<T, 'jti'>) {
