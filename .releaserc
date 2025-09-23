@@ -41,7 +41,7 @@
           "package.json",
           "CHANGELOG.md"
         ],
-        "message": "chore(release): ${nextRelease.version}"
+        "message": "chore(release)[ci skip]: ${nextRelease.version}"
       }
     ]
   ]
