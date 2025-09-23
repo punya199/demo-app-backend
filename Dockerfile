@@ -11,7 +11,7 @@ WORKDIR /usr/src/app
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 
-RUN --mount=type=cache,target="/root/.yarn" yarn install --immutable
+RUN yarn install --immutable
 
 COPY . .
 
@@ -45,7 +45,7 @@ RUN corepack enable \
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 
-RUN --mount=type=cache,target="/root/.yarn" yarn workspaces focus --all --production
+RUN yarn workspaces focus --all --production
 
 COPY --from=builder /usr/src/app/dist ./dist/
 
