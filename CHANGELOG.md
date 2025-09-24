@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/punya199/demo-app-backend/compare/v1.0.4...v1.0.5) (2025-09-24)
+
+
+### Fix
+
+* Updates Node.js version to 22.19.0 ([af47b8f](https://github.com/punya199/demo-app-backend/commit/af47b8f5804dda510149255735a1bc17f1611ea6))
+
 ## [1.0.4](https://github.com/punya199/demo-app-backend/compare/v1.0.3...v1.0.4) (2025-09-23)
 
 
