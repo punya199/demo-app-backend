@@ -55,8 +55,8 @@ export class HouseRentEntity extends BaseModelEntity implements IHouseRent {
   airCondition: IAirCondition
 
   @OneToMany(() => HouseRentDetailEntity, rent => rent.houseRent)
-  rents: IHouseRentDetail[]
+  rents: HouseRentDetailEntity[]
 
   @OneToMany(() => HouseRentMemberEntity, member => member.houseRent)
-  members: IHouseRentMember[]
+  members: HouseRentMemberEntity[]
 }

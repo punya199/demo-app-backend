@@ -38,6 +38,11 @@ export class HouseRentController {
     })
   }
 
+  @Get('overview')
+  async getHouseRentOverview() {
+    return this.houseRentService.getHouseRentOverview()
+  }
+
   @Get('users/:userId')
   async getHouseRentUser(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.houseRentService.getHouseRentUser(userId)

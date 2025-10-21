@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { keyBy, round } from 'lodash'
+import { chain, keyBy, round } from 'lodash'
 import { EntityManager, In, Not, Repository } from 'typeorm'
 import { AttachmentEntity } from '../../db/entities/attachment.entity'
 import { HouseRentEntity } from '../../db/entities/house-rent'
@@ -243,6 +243,97 @@ export class HouseRentService {
       return acc
     }, [])
     return { data, user }
+  }
+
+  async getHouseRentOverview() {
+    const houseRents = await this.houseRentRepository
+      .createQueryBuilder('houseRent')
+      .innerJoinAndSelect('houseRent.rents', 'rents')
+      .innerJoinAndSelect('houseRent.members', 'members')
+      .innerJoinAndSelect('members.user', 'user')
+      .getMany()
+
+    const data = houseRents.reduce((acc: unknown[], houseRent) => {
+      const totalMembers = houseRent?.members?.length ?? 0
+      const totalRents = houseRent?.rents?.length ?? 0
+      houseRent?.rents?.forEach(rent => {
+        const electricityRate = round(rent.electricity.totalPrice / rent.electricity.unit, 2)
+        // const isPayNet = houseRentMember.payInternetMonthIds?.includes(rent.id ?? '')
+        // const isPayElectricity = houseRentMember.payElectricityMonthIds?.includes(rent.id ?? '')
+        let shareElectricityUnit = chain(houseRent?.members ?? [])
+          .map(member => member.electricityUnit.diff)
+          .sum()
+          .divide(totalRents)
+          .subtract(rent.electricity.unit)
+          .round(2)
+          .value()
+        shareElectricityUnit = Math.abs(shareElectricityUnit)
+
+        let shareElectricityPrice = chain(shareElectricityUnit)
+          .multiply(electricityRate)
+          .round(2)
+          .value()
+        shareElectricityPrice = Math.abs(shareElectricityPrice)
+
+        const members = houseRent?.members?.reduce((acc: Record<string, any>, member) => {
+          const waterPrice = round(rent.waterPrice / totalMembers, 2)
+          const individualElectricityPrice = round(
+            (member.electricityUnit.diff * electricityRate) / houseRent?.rents?.length,
+            2
+          )
+          const airConditionPrice = round(
+            member.airConditionUnit * houseRent.airCondition.pricePerUnit,
+            2
+          )
+          const baseHouseRent = round(houseRent.baseHouseRent / totalMembers, 2)
+          const internetPrice = round(houseRent.internet.pricePerMonth / totalMembers, 2)
+          const individualShareElectricityPrice = round(shareElectricityPrice / totalMembers, 2)
+          const totalPrice = chain([
+            waterPrice,
+            individualElectricityPrice,
+            airConditionPrice,
+            baseHouseRent,
+            internetPrice,
+            individualShareElectricityPrice,
+            houseRent.paymentFee / totalMembers,
+          ])
+            .sum()
+            .round(2)
+            .value()
+
+          acc[member.user.username] = {
+            username: member.user.username,
+            airConditionPrice,
+            waterPrice,
+            electricityRate,
+            individualElectricityPrice,
+            electricityUnit: {
+              diff: round(member.electricityUnit.diff / houseRent?.rents?.length, 0),
+              prev: member.electricityUnit.prev,
+              current: member.electricityUnit.current,
+            },
+
+            totalPrice,
+            baseHouseRent,
+          }
+          return acc
+        }, {})
+        acc.push({
+          group: houseRent.name,
+          title: rent.month,
+          electricity: {
+            totalPrice: rent.electricity.totalPrice,
+            unit: rent.electricity.unit,
+            pricePerUnit: electricityRate,
+            shareUnit: shareElectricityUnit,
+            sharePrice: shareElectricityPrice,
+          },
+          members,
+        })
+      })
+      return acc
+    }, [])
+    return { data }
   }
 
   private async updateAttachments(
