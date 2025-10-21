@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/punya199/demo-app-backend/compare/v1.0.5...v1.0.6) (2025-10-21)
+
+
+### Fix
+
+* Adds endpoints for user house rent data ([05579b1](https://github.com/punya199/demo-app-backend/commit/05579b1b89205b87c7d7486c4b2a2f0d7af39d1d))
+
 ## [1.0.5](https://github.com/punya199/demo-app-backend/compare/v1.0.4...v1.0.5) (2025-09-24)
 
 
