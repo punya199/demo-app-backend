@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { keyBy, round } from 'lodash'
 import { EntityManager, In, Not, Repository } from 'typeorm'
 import { AttachmentEntity } from '../../db/entities/attachment.entity'
 import { HouseRentEntity } from '../../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../../db/entities/house-rent-member.entity'
+import { UserEntity } from '../../db/entities/user.entity'
 import { CreateHouseRentBodyDto } from './dto/create-house-rent.dto'
 import { EditHouseRentBodyDto } from './dto/edit-house-rent.dto'
 
@@ -14,7 +16,11 @@ export class HouseRentService {
     @InjectRepository(HouseRentEntity)
     private readonly houseRentRepository: Repository<HouseRentEntity>,
     @InjectRepository(AttachmentEntity)
-    private readonly attachmentRepository: Repository<AttachmentEntity>
+    private readonly attachmentRepository: Repository<AttachmentEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(HouseRentMemberEntity)
+    private readonly houseRentMemberRepository: Repository<HouseRentMemberEntity>
   ) {}
 
   async createHouseRent(params: CreateHouseRentBodyDto, etm: EntityManager) {
@@ -167,6 +173,76 @@ export class HouseRentService {
     return {
       houseRents,
     }
+  }
+
+  async getHouseRentUsers() {
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .select('user.id')
+      .addSelect('user.username')
+      .innerJoin('user.houseRentMembers', 'houseRentMembers')
+      .getMany()
+
+    return { users }
+  }
+
+  async getHouseRentUser(userId: string) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select('user.id')
+      .addSelect('user.username')
+      .innerJoin('user.houseRentMembers', 'houseRentMembers')
+      .where('user.id = :userId', { userId })
+      .getOne()
+    const houseRentMembers = await this.houseRentMemberRepository
+      .createQueryBuilder('houseRentMember')
+      .innerJoin('houseRentMember.houseRent', 'houseRent')
+      .where('houseRentMember.userId = :userId', { userId })
+      .getMany()
+
+    const houseRents = await this.houseRentRepository
+      .createQueryBuilder('houseRent')
+      .innerJoinAndSelect('houseRent.rents', 'rents')
+      .innerJoinAndSelect('houseRent.members', 'members')
+      .where('houseRent.id IN (:...houseRentIds)', {
+        houseRentIds: houseRentMembers.map(houseRentMember => houseRentMember.houseRentId),
+      })
+      .getMany()
+
+    const houseRentsMap = keyBy(houseRents, 'id')
+
+    const data = houseRentMembers.reduce((acc: unknown[], houseRentMember) => {
+      const houseRent = houseRentsMap[houseRentMember.houseRentId]
+      const totalMembers = houseRent?.members?.length ?? 0
+      houseRent?.rents?.forEach(rent => {
+        const electricityRate = round(rent.electricity.totalPrice / rent.electricity.unit, 2)
+        // const isPayNet = houseRentMember.payInternetMonthIds?.includes(rent.id ?? '')
+        // const isPayElectricity = houseRentMember.payElectricityMonthIds?.includes(rent.id ?? '')
+        acc.push({
+          group: houseRent.name,
+          title: rent.month,
+          airConditionPrice: round(
+            houseRentMember.airConditionUnit * houseRent.airCondition.pricePerUnit,
+            2
+          ),
+          // internetPrice: isPayNet ? houseRent.internet.pricePerMonth : 0,
+          waterPrice: round(rent.waterPrice / totalMembers, 2),
+          // electricityPrice: isPayElectricity ? rent.electricity.totalPrice : 0,
+          electricityRate,
+          individualElectricityPrice: round(
+            (houseRentMember.electricityUnit.diff * electricityRate) / houseRent?.rents?.length,
+            2
+          ),
+          electricityUnit: {
+            diff: round(houseRentMember.electricityUnit.diff / houseRent?.rents?.length, 0),
+            prev: houseRentMember.electricityUnit.prev,
+            current: houseRentMember.electricityUnit.current,
+          },
+        })
+      })
+      return acc
+    }, [])
+    return { data, user }
   }
 
   private async updateAttachments(
