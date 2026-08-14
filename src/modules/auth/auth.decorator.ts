@@ -11,6 +11,7 @@ import { JwtAccessTokenAuthGuard } from '../authentication/guard/jwt-access-toke
 import { JwtRefreshTokenAuthGuard } from '../authentication/guard/jwt-refresh-token-auth.guard'
 import { IAppJwtPayload } from './auth.interface'
 import { IPermissionGuardData, PermissionGuard } from './permission.guard'
+import { RolesGuard } from './role.guard'
 
 export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
   const request = ctx.switchToHttp().getRequest<Request>()
@@ -18,7 +19,7 @@ export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
 })
 
 export const AuthUser = (role?: UserRole) =>
-  applyDecorators(SetMetadata('role', role), UseGuards(JwtAccessTokenAuthGuard))
+  applyDecorators(SetMetadata('role', role), UseGuards(JwtAccessTokenAuthGuard, RolesGuard))
 
 export const AuthUserPermission = (permissionRequired: IPermissionGuardData) =>
   applyDecorators(

@@ -1,5 +1,6 @@
 // user.controller.ts
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common'
+import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser } from '../auth/auth.decorator'
 import { BillService } from './bill.service'
 import { BillDto } from './dto/save-bill.dto'
@@ -24,13 +25,13 @@ export class BillController {
     return this.billService.getBills()
   }
 
-  @AuthUser()
+  @AuthUser(UserRole.ADMIN)
   @Put(':billId')
   editBill(@Param('billId', ParseUUIDPipe) billId: string, @Body() dto: BillDto) {
     return this.billService.editBill(billId, dto)
   }
 
-  @AuthUser()
+  @AuthUser(UserRole.SUPER_ADMIN)
   @Delete(':billId')
   deleteBill(@Param('billId', ParseUUIDPipe) billId: string) {
     return this.billService.deleteBill(billId)

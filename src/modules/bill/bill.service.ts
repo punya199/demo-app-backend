@@ -21,7 +21,7 @@ export class BillService {
     const res = await this.billRepo.save(bill)
 
     return {
-      bilId: res.id,
+      billId: res.id,
     }
   }
 
