@@ -1,10 +1,21 @@
 // user.controller.ts
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { EnumPermissionFeatureName } from '../../db/entities/permissions'
 import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser, AuthUserPermission, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
+import { ChangePasswordDto } from './dto/change-password.dto'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { EditUserPermissionsDto } from './dto/edit-user-permissions.dto'
 import { GetUserOptionsParamsDto } from './dto/get-user-options.dto'
@@ -40,6 +51,12 @@ export class UserController {
     return this.userService.registerUser(dto)
   }
 
+  @AuthUser()
+  @Put('me/password')
+  changePassword(@ReqUser() user: IAppJwtPayload, @Body() dto: ChangePasswordDto) {
+    return this.userService.changePassword(user['user-id'], dto)
+  }
+
   @AuthUserPermission({
     featureName: EnumPermissionFeatureName.USER_PERMISSIONS,
     action: { canUpdate: true },
@@ -68,5 +85,11 @@ export class UserController {
   @Get(':userId')
   getUser(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.userService.getUser(userId)
+  }
+
+  @AuthUser(UserRole.SUPER_ADMIN)
+  @Delete(':userId')
+  deleteUser(@ReqUser() user: IAppJwtPayload, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.userService.deleteUser(user['user-id'], userId)
   }
 }

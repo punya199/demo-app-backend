@@ -6,6 +6,7 @@ import { EntityManager, ILike, In, Not, Repository } from 'typeorm'
 import { PermissionsEntity } from '../../db/entities/permissions'
 import { UserEntity, UserRole } from '../../db/entities/user.entity'
 import { permissionActionHelper } from '../../utils/permission-helper'
+import { ChangePasswordDto } from './dto/change-password.dto'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { EditUserPermissionsDto } from './dto/edit-user-permissions.dto'
 import { GetMeResponseDto } from './dto/get-me.dto'
@@ -120,6 +121,36 @@ export class UserService {
     }
     return { user }
   }
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userRepo.findOne({
+      select: { id: true, password: true },
+      where: { id: userId },
+    })
+    if (!user) {
+      throw new HttpException({ message: 'ไม่พบผู้ใช้งาน' }, HttpStatus.NOT_FOUND)
+    }
+    if (user.password !== dto.currentPassword) {
+      throw new HttpException({ message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' }, HttpStatus.BAD_REQUEST)
+    }
+    await this.userRepo.update({ id: userId }, { password: dto.newPassword })
+    return { success: true }
+  }
+
+  async deleteUser(currentUserId: string, userId: string) {
+    if (currentUserId === userId) {
+      throw new HttpException({ message: 'ไม่สามารถลบบัญชีของตัวเองได้' }, HttpStatus.BAD_REQUEST)
+    }
+    const user = await this.userRepo.findOne({
+      select: { id: true },
+      where: { id: userId },
+    })
+    if (!user) {
+      throw new HttpException({ message: 'ไม่พบผู้ใช้งาน' }, HttpStatus.NOT_FOUND)
+    }
+    await this.userRepo.softDelete(userId)
+    return { success: true }
+  }
+
   async getUser(userId: string) {
     const user = await this.userRepo.findOne({
       select: {
