@@ -1,3 +1,14 @@
+## [1.0.8](https://github.com/punya199/demo-app-backend/compare/v1.0.7...v1.0.8) (2026-08-17)
+
+
+### Fix
+
+* Add change-password and delete-user endpoints for user management ([7ac4a2d](https://github.com/punya199/demo-app-backend/commit/7ac4a2d033ce43c43c60a986330284a4d4257927))
+* Add unit tests for auth/password logic and fix Jest typings ([674655f](https://github.com/punya199/demo-app-backend/commit/674655f98851e79c8c940bcf8e68716a16dbf689))
+* Enforce role-based authorization on protected routes ([5568baa](https://github.com/punya199/demo-app-backend/commit/5568baa76b79dd7c816752e751d963677ff2d743))
+* Hash user passwords with bcrypt instead of storing plaintext ([c68aa93](https://github.com/punya199/demo-app-backend/commit/c68aa93504d23a9a035e0c124852884daacedd0a))
+* Restrict register username to English letters and numbers ([1e66148](https://github.com/punya199/demo-app-backend/commit/1e661482a674cc96a27212f1ee301c2716e4c60e))
+
 ## [1.0.7](https://github.com/punya199/demo-app-backend/compare/v1.0.6...v1.0.7) (2025-10-21)
 
 
