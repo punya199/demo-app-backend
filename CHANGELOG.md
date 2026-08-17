@@ -1,3 +1,11 @@
+## [1.0.9](https://github.com/punya199/demo-app-backend/compare/v1.0.8...v1.0.9) (2026-08-17)
+
+
+### Fix
+
+* Bump Node.js version to 22 in docker build workflow ([3261d69](https://github.com/punya199/demo-app-backend/commit/3261d690f097eca04c33a3427c2e765e828f7544))
+* Enable main branch and version tag triggers for docker build workflow ([b2abb3e](https://github.com/punya199/demo-app-backend/commit/b2abb3e8994d681646047c4f8e04553c2051217c))
+
 ## [1.0.8](https://github.com/punya199/demo-app-backend/compare/v1.0.7...v1.0.8) (2026-08-17)
 
 
