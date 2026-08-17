@@ -1,3 +1,10 @@
+## [1.0.10](https://github.com/punya199/demo-app-backend/compare/v1.0.9...v1.0.10) (2026-08-17)
+
+
+### Fix
+
+* Rename docker image tag to demo-app-backend ([5190033](https://github.com/punya199/demo-app-backend/commit/51900337dcb5d70dc5f8a84cb3460ebaae928c16))
+
 ## [1.0.9](https://github.com/punya199/demo-app-backend/compare/v1.0.8...v1.0.9) (2026-08-17)
 
 
