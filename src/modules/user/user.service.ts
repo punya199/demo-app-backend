@@ -6,6 +6,7 @@ import { EntityManager, ILike, In, Not, Repository } from 'typeorm'
 import { PermissionsEntity } from '../../db/entities/permissions'
 import { UserEntity, UserRole } from '../../db/entities/user.entity'
 import { permissionActionHelper } from '../../utils/permission-helper'
+import { comparePassword, hashPassword } from '../../utils/password-helper'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { EditRoleUserDto } from './dto/edit-role-user'
 import { EditUserPermissionsDto } from './dto/edit-user-permissions.dto'
@@ -95,6 +96,7 @@ export class UserService {
     }
     const user = this.userRepo.create({
       ...dto,
+      password: await hashPassword(dto.password),
       role: UserRole.USER,
     })
     return this.userRepo.save(user)
@@ -129,10 +131,10 @@ export class UserService {
     if (!user) {
       throw new HttpException({ message: 'ไม่พบผู้ใช้งาน' }, HttpStatus.NOT_FOUND)
     }
-    if (user.password !== dto.currentPassword) {
+    if (!(await comparePassword(dto.currentPassword, user.password))) {
       throw new HttpException({ message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' }, HttpStatus.BAD_REQUEST)
     }
-    await this.userRepo.update({ id: userId }, { password: dto.newPassword })
+    await this.userRepo.update({ id: userId }, { password: await hashPassword(dto.newPassword) })
     return { success: true }
   }
 

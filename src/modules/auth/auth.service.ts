@@ -6,6 +6,7 @@ import { pick } from 'lodash'
 import { Repository } from 'typeorm'
 import { PermissionsEntity } from '../../db/entities/permissions'
 import { EnumUserStatus, UserEntity } from '../../db/entities/user.entity'
+import { comparePassword } from '../../utils/password-helper'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
 import { IAppJwtPayload } from './auth.interface'
@@ -48,7 +49,7 @@ export class AuthService {
       throw new BadRequestException('บัญชีนี้ถูกระงับการใช้งาน')
     }
 
-    if (user.password !== dto.password) {
+    if (!(await comparePassword(dto.password, user.password))) {
       const failedCount = await this.updateWrongPassword(user.id)
       if (failedCount >= 5) {
         user.status = EnumUserStatus.BLOCKED
