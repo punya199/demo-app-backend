@@ -12,6 +12,7 @@ import { JwtRefreshTokenAuthGuard } from '../authentication/guard/jwt-refresh-to
 import { IAppJwtPayload } from './auth.interface'
 import { IPermissionGuardData, PermissionGuard } from './permission.guard'
 import { RolesGuard } from './role.guard'
+import { UsernameGuard } from './username.guard'
 
 export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
   const request = ctx.switchToHttp().getRequest<Request>()
@@ -20,6 +21,16 @@ export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
 
 export const AuthUser = (role?: UserRole) =>
   applyDecorators(SetMetadata('role', role), UseGuards(JwtAccessTokenAuthGuard, RolesGuard))
+
+// Restricts a route to specific username(s). Role is optional - pass it when the data should
+// also be gated by role, omit it when the username allowlist alone is the access control
+// (e.g. a private ledger shared with a couple of specific accounts regardless of their role).
+export const AuthUserWithUsername = (username: string | string[], role?: UserRole) =>
+  applyDecorators(
+    ...(role ? [SetMetadata('role', role)] : []),
+    SetMetadata('username', username),
+    UseGuards(JwtAccessTokenAuthGuard, RolesGuard, UsernameGuard)
+  )
 
 export const AuthUserPermission = (permissionRequired: IPermissionGuardData) =>
   applyDecorators(
