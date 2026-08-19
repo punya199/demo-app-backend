@@ -2,6 +2,7 @@ import {
   isoDateToExcelSerial,
   parseArchiveOpeningStats,
   parseEntries,
+  parseLiveOpeningStats,
   parseLiveSheet,
   parseRounds,
   parseWages,
@@ -193,6 +194,31 @@ describe('ledger-sheet-parser', () => {
       expect(parseArchiveOpeningStats(archiveGrid).priorWithdraw).toEqual({
         น้าปุ้ม: 10976,
         ปัญญา: 14791,
+      })
+    })
+  })
+
+  describe('parseLiveOpeningStats', () => {
+    it('reads cash/bank/start-date from the live sheet dashboard labels', () => {
+      // Real layout: label and value sit in the same row, value one column to the right. The
+      // cash/bank labels have a literal line break in the cell.
+      const liveGrid: Cell[][] = [
+        row({ 9: 'วันที่เริ่ม', 10: D['2025-01-01'] }),
+        row({ 9: 'เงินในบัญชี\nยกยอดมา', 10: 20091.76 }),
+        row({ 9: 'เงินสด\nยกยอดมา', 10: 10300 }),
+      ]
+      expect(parseLiveOpeningStats(liveGrid)).toEqual({
+        cash: 10300,
+        bank: 20091.76,
+        startDate: '2025-01-01',
+      })
+    })
+
+    it('returns undefined fields when the expected labels are not found', () => {
+      expect(parseLiveOpeningStats([[], []])).toEqual({
+        cash: undefined,
+        bank: undefined,
+        startDate: undefined,
       })
     })
   })

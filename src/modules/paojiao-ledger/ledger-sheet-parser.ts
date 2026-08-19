@@ -35,7 +35,7 @@ const COL = {
   WAGE_AMOUNT: 25, // Z
 } as const
 
-const TABLE_START_ROW = 5 // 1-indexed spreadsheet row where every table's data begins
+export const TABLE_START_ROW = 5 // 1-indexed spreadsheet row where every table's data begins
 
 function toNumber(v: Cell): number {
   if (typeof v === 'number') return v
@@ -226,6 +226,43 @@ function findPriorWithdraw(grid: Grid): Record<LedgerPerson, number> | undefined
       }
       if (result['น้าปุ้ม'] !== undefined && result['ปัญญา'] !== undefined) {
         return result as Record<LedgerPerson, number>
+      }
+    }
+  }
+  return undefined
+}
+
+// The live "ชีต1" tab's own dashboard area (around J8:K13) carries the opening cash/bank balance
+// and start date as label-cell/value-cell pairs sitting in the same row, value one column to the
+// right of the label - found by inspecting the real sheet on 2026-08-20. The cash/bank labels
+// have a literal line break in the cell ("เงินสด" then "ยกยอดมา" on a second line).
+const CASH_LABEL = 'เงินสด\nยกยอดมา'
+const BANK_LABEL = 'เงินในบัญชี\nยกยอดมา'
+const START_DATE_LABEL = 'วันที่เริ่ม'
+
+export function parseLiveOpeningStats(grid: Grid): {
+  cash?: number
+  bank?: number
+  startDate?: string
+} {
+  return {
+    cash: findValueRightOfLabel(grid, CASH_LABEL, toNumber),
+    bank: findValueRightOfLabel(grid, BANK_LABEL, toNumber),
+    startDate: findValueRightOfLabel(grid, START_DATE_LABEL, toIsoDate),
+  }
+}
+
+function findValueRightOfLabel<T>(
+  grid: Grid,
+  label: string,
+  read: (cell: Cell) => T
+): T | undefined {
+  for (let r = 0; r < grid.length; r++) {
+    const row = grid[r]
+    for (let c = 0; c < (row?.length ?? 0); c++) {
+      if (toText(row[c]) === label) {
+        const value = row[c + 1]
+        if (toText(value) !== '') return read(value)
       }
     }
   }
