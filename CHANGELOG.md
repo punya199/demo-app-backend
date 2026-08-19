@@ -1,3 +1,10 @@
+## [1.0.11](https://github.com/punya199/demo-app-backend/compare/v1.0.10...v1.0.11) (2026-08-19)
+
+
+### Fix
+
+* Add paojiao-ledger module with username-based access control ([84c20e0](https://github.com/punya199/demo-app-backend/commit/84c20e0bbf8a72910f9b99bc5148a1d46b7111d8))
+
 ## [1.0.10](https://github.com/punya199/demo-app-backend/compare/v1.0.9...v1.0.10) (2026-08-17)
 
 
