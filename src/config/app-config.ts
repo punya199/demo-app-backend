@@ -38,6 +38,11 @@ export const appConfig = {
   REDIS_HOST: process.env.REDIS_HOST ?? '',
   REDIS_PORT: +(process.env.REDIS_PORT || 6379),
   REDIS_PREFIX: process.env.REDIS_PREFIX ?? '',
+
+  // Optional - paojiao-ledger falls back to its static Phase A snapshot when these aren't set.
+  GOOGLE_SHEETS_SPREADSHEET_ID: process.env.GOOGLE_SHEETS_SPREADSHEET_ID ?? '',
+  GOOGLE_SHEETS_CLIENT_EMAIL: process.env.GOOGLE_SHEETS_CLIENT_EMAIL ?? '',
+  GOOGLE_SHEETS_PRIVATE_KEY: process.env.GOOGLE_SHEETS_PRIVATE_KEY ?? '',
 }
 
 type IConfigKey = keyof typeof appConfig
@@ -82,6 +87,19 @@ const joiObject: IJoiObject = {
     .valid('lax', 'strict', 'none')
     .required()
     .description('Cookie same site'),
+
+  GOOGLE_SHEETS_SPREADSHEET_ID: Joi.string()
+    .allow('')
+    .optional()
+    .description('Spreadsheet ID for the paojiao-ledger Google Sheet (Phase B)'),
+  GOOGLE_SHEETS_CLIENT_EMAIL: Joi.string()
+    .allow('')
+    .optional()
+    .description('Service account email for the paojiao-ledger Google Sheet (Phase B)'),
+  GOOGLE_SHEETS_PRIVATE_KEY: Joi.string()
+    .allow('')
+    .optional()
+    .description('Service account private key for the paojiao-ledger Google Sheet (Phase B)'),
 }
 
 export const validationSchema = Joi.object<IJoiObject>(joiObject)
