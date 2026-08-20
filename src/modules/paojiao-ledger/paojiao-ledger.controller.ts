@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common'
 import { AuthUserWithUsername } from '../auth/auth.decorator'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
+import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { PaojiaoLedgerService } from './paojiao-ledger.service'
 
 // Restricted to specific named accounts, regardless of role - this is a family member's
@@ -23,6 +24,18 @@ export class PaojiaoLedgerController {
   @Post('entries')
   addEntry(@Body() dto: AddLedgerEntryDto) {
     return this.paojiaoLedgerService.addEntry(dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Put('entries/:row')
+  editEntry(@Param('row', ParseIntPipe) row: number, @Body() dto: EditLedgerEntryDto) {
+    return this.paojiaoLedgerService.editEntry(row, dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Delete('entries/:row')
+  deleteEntry(@Param('row', ParseIntPipe) row: number) {
+    return this.paojiaoLedgerService.deleteEntry(row)
   }
 
   @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)

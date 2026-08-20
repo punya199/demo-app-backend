@@ -1,7 +1,14 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import appConfig from '../../config/app-config'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
+import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { getSheetsClient, isGoogleSheetsConfigured } from './google-sheets-client'
 import {
   Grid,
@@ -10,6 +17,7 @@ import {
   parseEntries,
   parseLiveOpeningStats,
   parseLiveSheet,
+  parseRounds,
   parseWages,
   TABLE_START_ROW,
 } from './ledger-sheet-parser'
@@ -31,6 +39,28 @@ const MANUAL_OPENING = {
   cash: 10300,
   bank: 20091.76,
   startDate: '2026-06-10',
+}
+
+// Shared by add/edit/delete - matches both AddLedgerEntryDto/EditLedgerEntryDto and LedgerEntry
+// (the latter's numbers are always present, which still satisfies this optional-number shape).
+function entryRowValues(entry: {
+  date: string
+  item: string
+  inCash?: number
+  inBank?: number
+  outCash?: number
+  outBank?: number
+  note?: string
+}): (string | number)[] {
+  return [
+    isoDateToExcelSerial(entry.date),
+    entry.item,
+    entry.inCash || '',
+    entry.inBank || '',
+    entry.outCash || '',
+    entry.outBank || '',
+    entry.note || '',
+  ]
 }
 
 @Injectable()
@@ -71,19 +101,56 @@ export class PaojiaoLedgerService {
       spreadsheetId,
       range: `'${LIVE_SHEET_NAME}'!A${nextRow}:G${nextRow}`,
       valueInputOption: 'RAW',
-      requestBody: {
-        values: [
-          [
-            isoDateToExcelSerial(dto.date),
-            dto.item,
-            dto.inCash || '',
-            dto.inBank || '',
-            dto.outCash || '',
-            dto.outBank || '',
-            dto.note || '',
-          ],
-        ],
-      },
+      requestBody: { values: [entryRowValues(dto)] },
+    })
+  }
+
+  // In-place update of one row's values - the row number doesn't change, so this is always safe,
+  // including for entries already inside a closed round: the round-closing row's profit formula
+  // reads these same cells live and recalculates automatically when they change.
+  async editEntry(row: number, dto: EditLedgerEntryDto): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!A${row}:G${row}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [entryRowValues(dto)] },
+    })
+  }
+
+  // Unlike edit, deleting changes the entries table's length, which means every entry after the
+  // deleted one has to move up one row - and a round-closing row's profit formula (column I) is
+  // anchored to a physical row number, not to a specific entry, so shifting a row that's already
+  // inside a closed round would silently detach that formula from the entries it's meant to sum.
+  // Only entries after the last closed round (row > lastRoundRow) can be deleted safely.
+  async deleteEntry(row: number): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const grid = await this.fetchLiveGrid(sheets, spreadsheetId)
+    const entries = parseEntries(grid)
+    const { lastRoundRow } = parseRounds(grid)
+
+    const target = entries.find(e => e.row === row)
+    if (!target) {
+      throw new NotFoundException(`No entry found at row ${row}`)
+    }
+    if (row <= lastRoundRow) {
+      throw new BadRequestException(
+        `Row ${row} is inside an already-closed round (rows up to ${lastRoundRow}) - deleting it would desync that round's profit total. Only entries after the last closed round can be deleted.`
+      )
+    }
+
+    const lastRow = entries[entries.length - 1].row
+    const following = entries.filter(e => e.row > row)
+    const values = [...following.map(entryRowValues), ['', '', '', '', '', '', '']]
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!A${row}:G${lastRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
     })
   }
 
