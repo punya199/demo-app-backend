@@ -1,3 +1,12 @@
+## [1.0.12](https://github.com/punya199/demo-app-backend/compare/v1.0.11...v1.0.12) (2026-08-20)
+
+
+### Fix
+
+* Add edit/delete endpoints for paojiao-ledger entries ([c0ef37e](https://github.com/punya199/demo-app-backend/commit/c0ef37eaa8816fe1b0b080f2862f8845a0f20e37))
+* Add Google Sheets read/write for paojiao-ledger (Phase B) ([567fc58](https://github.com/punya199/demo-app-backend/commit/567fc5897fabea0c7f21fbeaaa0f7bab4bc1b3f5))
+* Correct row-shifting bug in paojiao-ledger writes, auto-read opening balance ([8dc6582](https://github.com/punya199/demo-app-backend/commit/8dc6582a1223a6643187ae4227a203f0310f7b7a))
+
 ## [1.0.11](https://github.com/punya199/demo-app-backend/compare/v1.0.10...v1.0.11) (2026-08-19)
 
 
