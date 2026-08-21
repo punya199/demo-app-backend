@@ -1,3 +1,10 @@
+## [1.0.13](https://github.com/punya199/demo-app-backend/compare/v1.0.12...v1.0.13) (2026-08-21)
+
+
+### Fix
+
+* Auto round-closing, server-backed item categories, and date-based row reordering for paojiao-ledger ([cf0989b](https://github.com/punya199/demo-app-backend/commit/cf0989b2f12d80635e0a3d8b28589b93e4dccd7e))
+
 ## [1.0.12](https://github.com/punya199/demo-app-backend/compare/v1.0.11...v1.0.12) (2026-08-20)
 
 
