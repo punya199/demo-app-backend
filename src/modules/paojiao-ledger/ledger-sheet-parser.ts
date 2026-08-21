@@ -11,9 +11,7 @@ export type Cell = string | number | undefined | null
 export type Grid = Cell[][]
 
 // Column positions in the live "ชีต1" tab (0-indexed: A=0, B=1, ...). Verified cell-by-cell
-// against the real spreadsheet on 2026-08-19. The one non-obvious signal: column I only holds
-// a value on the row where a round actually closes - "ขาย น้ำมัน" alone isn't reliable, some
-// rounds have two oil-sale entries but only one closes the round.
+// against the real spreadsheet on 2026-08-19.
 const COL = {
   DATE: 0,
   ITEM: 1,
@@ -22,7 +20,6 @@ const COL = {
   OUT_CASH: 4,
   OUT_BANK: 5,
   NOTE: 6,
-  ROUND_PROFIT: 8, // I
   WD1_DATE: 12, // M - withdrawal table for the first person (น้าปุ้ม)
   WD1_BANK: 13,
   WD1_CASH: 14,
@@ -36,6 +33,8 @@ const COL = {
 } as const
 
 export const TABLE_START_ROW = 5 // 1-indexed spreadsheet row where every table's data begins
+
+const sum = (arr: LedgerEntry[], f: (e: LedgerEntry) => number) => arr.reduce((a, e) => a + f(e), 0)
 
 function toNumber(v: Cell): number {
   if (typeof v === 'number') return v
@@ -104,23 +103,86 @@ export function parseEntries(grid: Grid): LedgerEntry[] {
   return entries
 }
 
-export function parseRounds(grid: Grid): { rounds: LedgerRound[]; lastRoundRow: number } {
+// The item text that settles a round. Reverse-engineered from the real sheet's manual column-I
+// flag (2026-08-19): a round always closes on the LAST entry of an unbroken run of this item -
+// confirmed against all 12 historical rounds with zero mismatches. A single physical settlement
+// is sometimes recorded as two adjacent rows (e.g. a cash portion and a bank portion of the same
+// sale) - only the later one is the actual close, earlier ones in the same run are just normal
+// entries within the still-open round. This replaces the old manual per-row flag entirely, so
+// closing a round no longer requires editing the sheet by hand.
+export const OIL_SALE_ITEM = 'ขาย น้ำมัน'
+
+export function deriveRounds(entries: LedgerEntry[]): {
+  rounds: LedgerRound[]
+  lastRoundRow: number
+} {
   const rounds: LedgerRound[] = []
-  let fromRow = TABLE_START_ROW
-  let lastDate = ''
-  for (let i = TABLE_START_ROW - 1; i < grid.length; i++) {
-    const row = grid[i]
-    if (!row || toText(row[COL.ITEM]) === '') break
-    lastDate = resolveDate(row, lastDate)
-    const profitCell = row[COL.ROUND_PROFIT]
-    if (toText(profitCell) !== '') {
-      const toRow = i + 1
-      rounds.push({ date: lastDate, fromRow, toRow, profit: toNumber(profitCell) })
-      fromRow = toRow + 1
-    }
+  let fromRow = entries[0]?.row ?? TABLE_START_ROW
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    if (entry.item !== OIL_SALE_ITEM) continue
+    if (entries[i + 1]?.item === OIL_SALE_ITEM) continue // same settlement continues on the next row
+    const block = entries.filter(e => e.row >= fromRow && e.row <= entry.row)
+    const profit = sum(block, e => e.inCash + e.inBank) - sum(block, e => e.outCash + e.outBank)
+    rounds.push({ date: entry.date, fromRow, toRow: entry.row, profit })
+    fromRow = entry.row + 1
   }
   const lastRoundRow = rounds.length ? rounds[rounds.length - 1].toRow : 0
   return { rounds, lastRoundRow }
+}
+
+export function parseRounds(grid: Grid): { rounds: LedgerRound[]; lastRoundRow: number } {
+  return deriveRounds(parseEntries(grid))
+}
+
+export interface DateReorderPlan {
+  fromRow: number
+  toRow: number
+  entries: LedgerEntry[] // what should occupy rows [fromRow, toRow], in that order
+}
+
+// Add/edit only ever writes ONE row's values - it never moves anything - so a backdated (or
+// re-dated) entry can end up physically sitting after a round that already closed on an earlier
+// date, and deriveRounds (which slices by row, not date) then silently counts it into the wrong
+// round. This computes the minimal contiguous row window that needs rewriting to put `movedRow`
+// back into date order - ties go AFTER existing same-date entries, matching how a same-day entry
+// has always landed at the end of that day's block when simply appended. Returns null if
+// `movedRow` is already in the correct slot (the common case - most entries use today's date,
+// which is already the latest).
+export function computeDateReorder(
+  entries: LedgerEntry[],
+  movedRow: number
+): DateReorderPlan | null {
+  const movedIdx = entries.findIndex(e => e.row === movedRow)
+  if (movedIdx === -1) return null
+  const moved = entries[movedIdx]
+  const others = entries.filter(e => e.row !== movedRow)
+
+  let insertAt = others.length
+  for (let i = 0; i < others.length; i++) {
+    if (others[i].date > moved.date) {
+      insertAt = i
+      break
+    }
+  }
+
+  const newOrder = [...others.slice(0, insertAt), moved, ...others.slice(insertAt)]
+
+  let start = -1
+  let end = -1
+  for (let i = 0; i < entries.length; i++) {
+    if (newOrder[i].row !== entries[i].row) {
+      if (start === -1) start = i
+      end = i
+    }
+  }
+  if (start === -1) return null
+
+  return {
+    fromRow: entries[start].row,
+    toRow: entries[end].row,
+    entries: newOrder.slice(start, end + 1),
+  }
 }
 
 function parseWithdrawalTable(
@@ -178,7 +240,7 @@ export function parseLiveSheet(
   grid: Grid
 ): Pick<LedgerData, 'entries' | 'rounds' | 'withdrawals' | 'wages' | 'lastRoundRow'> {
   const entries = parseEntries(grid)
-  const { rounds, lastRoundRow } = parseRounds(grid)
+  const { rounds, lastRoundRow } = deriveRounds(entries)
   const withdrawals = parseWithdrawals(grid)
   const wages = parseWages(grid)
   return { entries, rounds, withdrawals, wages, lastRoundRow }

@@ -1,5 +1,7 @@
 import {
+  computeDateReorder,
   isoDateToExcelSerial,
+  OIL_SALE_ITEM,
   parseArchiveOpeningStats,
   parseEntries,
   parseLiveOpeningStats,
@@ -8,6 +10,7 @@ import {
   parseWages,
   parseWithdrawals,
 } from './ledger-sheet-parser'
+import { LedgerEntry } from './paojiao-ledger.interface'
 
 type Cell = string | number | undefined
 type SparseRow = Record<number, Cell>
@@ -17,6 +20,7 @@ const D = {
   '2025-01-01': 45658,
   '2025-01-02': 45659,
   '2025-01-03': 45660,
+  '2025-01-04': 45661,
   '2025-01-05': 45662,
   '2025-01-06': 45663,
 }
@@ -32,8 +36,8 @@ function row(cells: SparseRow): Cell[] {
 // Synthetic data only - never the user's real financial numbers. Mirrors two real-sheet quirks
 // discovered while cross-checking against the actual spreadsheet:
 //  - the date column is only filled on the first row of each day, blank below it (row6, row9)
-//  - the item column repeating ("ขายของ" on both row6 and row7) does NOT mean both close a round
-//    - only the row with a value in column I does (row7, not row6)
+//  - the oil-sale item repeating on two adjacent rows (row6, row7) does NOT mean both close a
+//    round - only the LAST row of that unbroken run does (row7, not row6)
 function buildLiveGrid(): Cell[][] {
   return [
     [], // row1
@@ -55,10 +59,10 @@ function buildLiveGrid(): Cell[][] {
       24: D['2025-01-01'],
       25: 100,
     }), // row5
-    row({ 1: 'ขายของ', 3: 500, 24: D['2025-01-02'], 25: 150 }), // row6 - same day as row5 (A blank), does NOT close a round
-    row({ 0: D['2025-01-02'], 1: 'ขายของ', 3: 300, 8: 900, 24: D['2025-01-03'] }), // row7 - closes round 1 (100+500+300=900); wage amount left blank (not yet entered)
+    row({ 1: OIL_SALE_ITEM, 3: 500, 24: D['2025-01-02'], 25: 150 }), // row6 - same day as row5 (A blank), does NOT close a round (row7 continues the same run)
+    row({ 0: D['2025-01-02'], 1: OIL_SALE_ITEM, 3: 300, 24: D['2025-01-03'] }), // row7 - closes round 1 (100+500+300=900); wage amount left blank (not yet entered)
     row({ 0: D['2025-01-03'], 1: 'ค่าใช้จ่าย', 5: 200 }), // row8
-    row({ 1: 'ขายของ', 3: 1000, 8: 800 }), // row9 - same day as row8 (A blank), closes round 2 (1000-200=800)
+    row({ 1: OIL_SALE_ITEM, 3: 1000 }), // row9 - same day as row8 (A blank), closes round 2 (1000-200=800)
     [], // row10 - blank, data ends
   ]
 }
@@ -83,7 +87,7 @@ describe('ledger-sheet-parser', () => {
         id: 5,
         row: 9,
         date: '2025-01-03',
-        item: 'ขายของ',
+        item: OIL_SALE_ITEM,
         inCash: 0,
         inBank: 1000,
         outCash: 0,
@@ -100,7 +104,7 @@ describe('ledger-sheet-parser', () => {
   })
 
   describe('parseRounds', () => {
-    it('only closes a round on the row with a value in column I, even when the item repeats without one', () => {
+    it('only closes a round on the last row of an unbroken run of the oil-sale item', () => {
       const { rounds, lastRoundRow } = parseRounds(buildLiveGrid())
       expect(rounds).toEqual([
         { date: '2025-01-02', fromRow: 5, toRow: 7, profit: 900 },
@@ -112,6 +116,90 @@ describe('ledger-sheet-parser', () => {
     it('returns no rounds and lastRoundRow 0 when nothing has closed yet', () => {
       const grid = [[], [], [], [], row({ 0: D['2025-01-01'], 1: 'ซื้อของ', 2: 100 })]
       expect(parseRounds(grid)).toEqual({ rounds: [], lastRoundRow: 0 })
+    })
+
+    it('closes a fresh round the moment a new oil-sale row is added, with no sheet edit needed', () => {
+      const grid = buildLiveGrid()
+      grid[9] = row({ 0: D['2025-01-04'], 1: 'มัน ติ๊ก', 5: 150 }) // row10 was blank (data-end); a purchase after round 2 closed
+      grid.push(row({ 0: D['2025-01-05'], 1: OIL_SALE_ITEM, 3: 400 })) // row11 - today's new sale, nothing manually flagged
+      const { rounds, lastRoundRow } = parseRounds(grid)
+      expect(rounds).toHaveLength(3)
+      expect(rounds[2]).toEqual({ date: '2025-01-05', fromRow: 10, toRow: 11, profit: 250 }) // 400 in - 150 out
+      expect(lastRoundRow).toBe(11)
+    })
+  })
+
+  describe('computeDateReorder', () => {
+    // id/item/amounts are irrelevant to the reorder logic itself - only row and date matter.
+    const mkEntry = (row: number, date: string): LedgerEntry => ({
+      id: row,
+      row,
+      date,
+      item: 'ซื้อของ',
+      inCash: 0,
+      inBank: 0,
+      outCash: 0,
+      outBank: 0,
+      note: '',
+    })
+
+    it('returns null when the entry is already in date order', () => {
+      const entries = [mkEntry(5, '2026-01-01'), mkEntry(6, '2026-01-02'), mkEntry(7, '2026-01-03')]
+      expect(computeDateReorder(entries, 6)).toBeNull()
+    })
+
+    it('returns null for an unknown row', () => {
+      const entries = [mkEntry(5, '2026-01-01')]
+      expect(computeDateReorder(entries, 99)).toBeNull()
+    })
+
+    // Reproduces the real bug: a new entry always gets appended at the last row regardless of
+    // its own date, so a backdated entry lands after a round that already closed later.
+    it('moves a backdated entry earlier, past later-dated rows', () => {
+      const entries = [
+        mkEntry(5, '2026-08-19'),
+        mkEntry(6, '2026-08-21'),
+        mkEntry(7, '2026-08-21'),
+        mkEntry(8, '2026-08-20'), // just appended, but dated before rows 6-7
+      ]
+      const plan = computeDateReorder(entries, 8)
+      expect(plan).not.toBeNull()
+      expect(plan?.fromRow).toBe(6)
+      expect(plan?.toRow).toBe(8)
+      expect(plan?.entries.map(e => e.row)).toEqual([8, 6, 7]) // moved entry now goes first
+      expect(plan?.entries.map(e => e.date)).toEqual(['2026-08-20', '2026-08-21', '2026-08-21'])
+    })
+
+    // Reproduces the follow-up: editing an entry's date to something LATER than its neighbors
+    // must move it forward, not just backdated entries moving backward.
+    it('moves a re-dated entry later, past earlier-dated rows', () => {
+      const entries = [
+        mkEntry(5, '2026-08-19'),
+        mkEntry(6, '2026-08-22'), // edited to a later date than rows 7-8
+        mkEntry(7, '2026-08-21'),
+        mkEntry(8, '2026-08-21'),
+      ]
+      const plan = computeDateReorder(entries, 6)
+      expect(plan).not.toBeNull()
+      expect(plan?.fromRow).toBe(6)
+      expect(plan?.toRow).toBe(8)
+      expect(plan?.entries.map(e => e.row)).toEqual([7, 8, 6]) // moved entry now goes last
+    })
+
+    it('places a same-date entry after existing entries with that date, not before', () => {
+      const entries = [
+        mkEntry(5, '2026-08-20'),
+        mkEntry(6, '2026-08-20'),
+        mkEntry(7, '2026-08-22'),
+        mkEntry(8, '2026-08-20'), // edited to match rows 5-6's date - should land after them
+      ]
+      const plan = computeDateReorder(entries, 8)
+      expect(plan).not.toBeNull()
+      // Row 8 (date 20/08) ties with row 6 (also 20/08) but not row 5 - row 5's date is still
+      // equal too, so nothing needs to move past it; only rows 7 and 8 actually change slots.
+      expect(plan?.fromRow).toBe(7)
+      expect(plan?.toRow).toBe(8)
+      expect(plan?.entries.map(e => e.row)).toEqual([8, 7])
     })
   })
 

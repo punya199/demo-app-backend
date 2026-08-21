@@ -1,16 +1,24 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
 import appConfig from '../../config/app-config'
+import { LedgerItemEntity } from '../../db/entities/ledger-item.entity'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
+import { AddLedgerItemDto } from './dto/add-ledger-item.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
+import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
 import { getSheetsClient, isGoogleSheetsConfigured } from './google-sheets-client'
 import {
+  computeDateReorder,
+  deriveRounds,
   Grid,
   isoDateToExcelSerial,
   parseArchiveOpeningStats,
@@ -41,6 +49,14 @@ const MANUAL_OPENING = {
   startDate: '2026-06-10',
 }
 
+// These three item names are matched literally elsewhere in the calculation logic - "ขาย น้ำมัน"
+// by deriveRounds (backend) and computeOilSalesPerRound (frontend) to detect round closes, "ขาย
+// กาก" by computeDraffSales (frontend), and "ค่าแรงยายปิ่น" by computeWageTotals (frontend) and the
+// vendor-spend exclusion list. Renaming or deleting any of them would silently break those
+// calculations for every past and future entry, so both are blocked at the API level (not just
+// hidden in the UI).
+const PROTECTED_ITEM_NAMES = new Set(['ขาย น้ำมัน', 'ขาย กาก', 'ค่าแรงยายปิ่น'])
+
 // Shared by add/edit/delete - matches both AddLedgerEntryDto/EditLedgerEntryDto and LedgerEntry
 // (the latter's numbers are always present, which still satisfies this optional-number shape).
 function entryRowValues(entry: {
@@ -67,18 +83,106 @@ function entryRowValues(entry: {
 export class PaojiaoLedgerService {
   private readonly logger = new Logger(PaojiaoLedgerService.name)
 
+  constructor(
+    @InjectRepository(LedgerItemEntity)
+    private readonly ledgerItemRepo: Repository<LedgerItemEntity>
+  ) {}
+
   async getLedger(): Promise<LedgerData> {
+    const items = await this.getItemNames()
     if (!isGoogleSheetsConfigured()) {
-      return LEDGER_DATA
+      return { ...LEDGER_DATA, items }
     }
     try {
-      return await this.readFromSheets()
+      const data = await this.readFromSheets()
+      return { ...data, items }
     } catch (error) {
       this.logger.error(
         'Failed to read paojiao-ledger from Google Sheets, falling back to static data',
         error
       )
-      return LEDGER_DATA
+      return { ...LEDGER_DATA, items }
+    }
+  }
+
+  // Category names for the add-entry dropdown - DB-backed (shared across both users), not the
+  // sheet or the old hardcoded list. Sorted with Thai-locale collation here in application code,
+  // not an SQL ORDER BY, since Postgres's default collation doesn't sort Thai the way a Thai
+  // reader expects (consonant/vowel reordering that plain byte/codepoint order gets wrong).
+  private async getItemNames(): Promise<string[]> {
+    const rows = await this.ledgerItemRepo.find()
+    if (rows.length === 0) return LEDGER_DATA.items
+    return rows.map(r => r.name).sort((a, b) => a.localeCompare(b, 'th'))
+  }
+
+  // `protected` tells the editor UI which rows to disable rename/delete on - renameItem and
+  // deleteItem below are the actual enforcement, this is just so the UI doesn't offer a button
+  // that will only 400.
+  async listItems(): Promise<{ id: string; name: string; protected: boolean }[]> {
+    const rows = await this.ledgerItemRepo.find()
+    return rows
+      .map(r => ({ id: r.id, name: r.name, protected: PROTECTED_ITEM_NAMES.has(r.name) }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  }
+
+  async addItem(dto: AddLedgerItemDto): Promise<{ id: string; name: string }> {
+    const name = dto.name.trim()
+    try {
+      const saved = await this.ledgerItemRepo.save(this.ledgerItemRepo.create({ name }))
+      return { id: saved.id, name: saved.name }
+    } catch (error) {
+      this.throwIfDuplicateName(error, name)
+      throw error
+    }
+  }
+
+  // Also retroactively relabels every past entry in the live sheet that used the old name (see
+  // syncItemRename) - the point of renaming a category is that old entries should read the new
+  // name too, not just future ones.
+  async renameItem(id: string, dto: EditLedgerItemDto): Promise<{ id: string; name: string }> {
+    const existing = await this.ledgerItemRepo.findOneBy({ id })
+    if (!existing) {
+      throw new NotFoundException(`No item found with id ${id}`)
+    }
+    const oldName = existing.name
+    const name = dto.name.trim()
+    if (PROTECTED_ITEM_NAMES.has(oldName)) {
+      throw new BadRequestException(
+        `ไม่สามารถแก้ไข "${oldName}" ได้ - ระบบใช้ชื่อนี้อ้างอิงการคำนวณโดยตรง (ปิดรอบขายน้ำมัน/ยอดขายกาก/ค่าแรง)`
+      )
+    }
+    try {
+      await this.ledgerItemRepo.update({ id }, { name })
+    } catch (error) {
+      this.throwIfDuplicateName(error, name)
+      throw error
+    }
+    if (name !== oldName) {
+      await this.syncItemRename(oldName, name)
+    }
+    return { id, name }
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    const existing = await this.ledgerItemRepo.findOneBy({ id })
+    if (!existing) {
+      throw new NotFoundException(`No item found with id ${id}`)
+    }
+    if (PROTECTED_ITEM_NAMES.has(existing.name)) {
+      throw new BadRequestException(
+        `ไม่สามารถลบ "${existing.name}" ได้ - ระบบใช้ชื่อนี้อ้างอิงการคำนวณโดยตรง (ปิดรอบขายน้ำมัน/ยอดขายกาก/ค่าแรง)`
+      )
+    }
+    await this.ledgerItemRepo.softDelete({ id })
+  }
+
+  // The partial unique index on (name) where not deleted is what actually prevents duplicates -
+  // this just turns Postgres's generic unique-violation (23505) into a message the UI can show.
+  // Throws and returns nothing when it IS a duplicate; otherwise returns so the caller re-throws
+  // the original error unchanged.
+  private throwIfDuplicateName(error: unknown, name: string): void {
+    if (error instanceof Object && 'code' in error && error.code === '23505') {
+      throw new ConflictException(`มีรายการชื่อ "${name}" อยู่แล้ว`)
     }
   }
 
@@ -103,11 +207,17 @@ export class PaojiaoLedgerService {
       valueInputOption: 'RAW',
       requestBody: { values: [entryRowValues(dto)] },
     })
+    // A brand-new entry is always appended after the last row, so it's already in date order
+    // unless its date is earlier than something above it (a backdated entry) - repositionByDate
+    // handles that case the same way it handles an edited date.
+    await this.repositionByDate(sheets, spreadsheetId, nextRow)
+    await this.syncRoundColumn(sheets, spreadsheetId)
   }
 
   // In-place update of one row's values - the row number doesn't change, so this is always safe,
-  // including for entries already inside a closed round: the round-closing row's profit formula
-  // reads these same cells live and recalculates automatically when they change.
+  // including for entries already inside a closed round: round profit is derived fresh from
+  // entries on every read (see deriveRounds in ledger-sheet-parser.ts), so an edited amount is
+  // picked up automatically without touching anything else.
   async editEntry(row: number, dto: EditLedgerEntryDto): Promise<void> {
     this.assertGoogleSheetsConfigured()
     const sheets = getSheetsClient()
@@ -118,13 +228,42 @@ export class PaojiaoLedgerService {
       valueInputOption: 'RAW',
       requestBody: { values: [entryRowValues(dto)] },
     })
+    // Rounds are computed from row position, not date (see the design handoff spec), so a date
+    // edit that leaves the row out of date order would otherwise silently misattribute this
+    // entry's amount to whichever round happens to occupy its old row position. Reposition first
+    // so syncRoundColumn below sees the entries in their final physical order.
+    await this.repositionByDate(sheets, spreadsheetId, row)
+    // Covers the user's other request directly: if this row's item changed away from an oil
+    // sale, it's no longer a round-closing row, so syncRoundColumn below clears column I here.
+    await this.syncRoundColumn(sheets, spreadsheetId)
+  }
+
+  // Moves one row to keep column A sorted by date, shifting only the minimal contiguous window
+  // of rows between its old and new position (see computeDateReorder) - never a full-table
+  // rewrite. Same-date entries keep their relative order (ties resolved after existing rows with
+  // that date), matching how a normal append would have placed them.
+  private async repositionByDate(
+    sheets: ReturnType<typeof getSheetsClient>,
+    spreadsheetId: string,
+    movedRow: number
+  ): Promise<void> {
+    const entries = parseEntries(await this.fetchLiveGrid(sheets, spreadsheetId))
+    const plan = computeDateReorder(entries, movedRow)
+    if (!plan) return
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!A${plan.fromRow}:G${plan.toRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: plan.entries.map(entryRowValues) },
+    })
   }
 
   // Unlike edit, deleting changes the entries table's length, which means every entry after the
-  // deleted one has to move up one row - and a round-closing row's profit formula (column I) is
-  // anchored to a physical row number, not to a specific entry, so shifting a row that's already
-  // inside a closed round would silently detach that formula from the entries it's meant to sum.
-  // Only entries after the last closed round (row > lastRoundRow) can be deleted safely.
+  // deleted one has to move up one row. Rows already inside a closed round are historical
+  // settlements the user has already acted on (profit taken, shares split) - shifting them is a
+  // correctness risk even though round profit is derived fresh each read, so only entries after
+  // the last closed round (row > lastRoundRow) can be deleted safely.
   async deleteEntry(row: number): Promise<void> {
     this.assertGoogleSheetsConfigured()
     const sheets = getSheetsClient()
@@ -152,6 +291,7 @@ export class PaojiaoLedgerService {
       valueInputOption: 'RAW',
       requestBody: { values },
     })
+    await this.syncRoundColumn(sheets, spreadsheetId)
   }
 
   async addWage(dto: AddLedgerWageDto): Promise<void> {
@@ -165,6 +305,69 @@ export class PaojiaoLedgerService {
       range: `'${LIVE_SHEET_NAME}'!Y${nextRow}:Z${nextRow}`,
       valueInputOption: 'RAW',
       requestBody: { values: [[isoDateToExcelSerial(dto.date), dto.amount]] },
+    })
+  }
+
+  // Relabels every past entry in the live sheet whose item text matches oldName, so a category
+  // rename covers history too, not just what's picked from the dropdown going forward. Skipped
+  // silently when Sheets isn't configured (the DB rename above still succeeds on its own) - only
+  // writes column B (item) on the exact rows that match, never touching anything else.
+  private async syncItemRename(oldName: string, newName: string): Promise<void> {
+    if (!isGoogleSheetsConfigured()) return
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const entries = parseEntries(await this.fetchLiveGrid(sheets, spreadsheetId))
+    const matches = entries.filter(e => e.item === oldName)
+    if (matches.length === 0) return
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: matches.map(e => ({
+          range: `'${LIVE_SHEET_NAME}'!B${e.row}`,
+          values: [[newName]],
+        })),
+      },
+    })
+  }
+
+  // Keeps the live sheet's column I in sync with round-closing as derived from item text (see
+  // deriveRounds) - so opening the spreadsheet directly still shows a summary number on every
+  // round-closing row, same as when this was maintained by hand. Re-fetches fresh state rather
+  // than reasoning about the write that just happened, so it's correct regardless of which write
+  // path called it. Only touches cells whose value actually needs to change: writes a plain
+  // number where a round now closes, and blanks any row that used to hold one but no longer
+  // closes anything (e.g. its item was edited away from an oil sale).
+  private async syncRoundColumn(
+    sheets: ReturnType<typeof getSheetsClient>,
+    spreadsheetId: string
+  ): Promise<void> {
+    const grid = await this.fetchLiveGrid(sheets, spreadsheetId)
+    const entries = parseEntries(grid)
+    const { rounds } = deriveRounds(entries)
+    const profitByRow = new Map(rounds.map(r => [r.toRow, r.profit]))
+    const lastRow = entries.length ? entries[entries.length - 1].row : TABLE_START_ROW - 1
+
+    const data: { range: string; values: (string | number)[][] }[] = []
+    for (let row = TABLE_START_ROW; row <= lastRow; row++) {
+      const cell = grid[row - 1]?.[8] // column I, 0-indexed 8
+      const current = cell === undefined || cell === null || cell === '' ? undefined : Number(cell)
+      const want = profitByRow.get(row)
+
+      if (want !== undefined) {
+        if (current === undefined || Number.isNaN(current) || Math.abs(current - want) > 0.005) {
+          data.push({ range: `'${LIVE_SHEET_NAME}'!I${row}`, values: [[want]] })
+        }
+      } else if (current !== undefined) {
+        data.push({ range: `'${LIVE_SHEET_NAME}'!I${row}`, values: [['']] })
+      }
+    }
+    if (data.length === 0) return
+
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: 'RAW', data },
     })
   }
 

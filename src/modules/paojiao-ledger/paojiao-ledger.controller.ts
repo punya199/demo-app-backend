@@ -1,8 +1,20 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Post,
+  Put,
+} from '@nestjs/common'
 import { AuthUserWithUsername } from '../auth/auth.decorator'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
+import { AddLedgerItemDto } from './dto/add-ledger-item.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
+import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
 import { PaojiaoLedgerService } from './paojiao-ledger.service'
 
 // Restricted to specific named accounts, regardless of role - this is a family member's
@@ -42,5 +54,29 @@ export class PaojiaoLedgerController {
   @Post('wages')
   addWage(@Body() dto: AddLedgerWageDto) {
     return this.paojiaoLedgerService.addWage(dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Get('items')
+  listItems() {
+    return this.paojiaoLedgerService.listItems()
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Post('items')
+  addItem(@Body() dto: AddLedgerItemDto) {
+    return this.paojiaoLedgerService.addItem(dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Put('items/:id')
+  renameItem(@Param('id', ParseUUIDPipe) id: string, @Body() dto: EditLedgerItemDto) {
+    return this.paojiaoLedgerService.renameItem(id, dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Delete('items/:id')
+  deleteItem(@Param('id', ParseUUIDPipe) id: string) {
+    return this.paojiaoLedgerService.deleteItem(id)
   }
 }

@@ -5,6 +5,7 @@ import { BillEntity } from '../db/entities/bill.entity'
 import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
+import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
 import { PermissionsEntity } from '../db/entities/permissions'
 import { UserEntity } from '../db/entities/user.entity'
 import { AuditSubscriber } from '../db/subscribers/audit.subscriber'
@@ -21,6 +22,7 @@ export const entities = [
   HouseRentDetailEntity,
   AttachmentEntity,
   PermissionsEntity,
+  LedgerItemEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
