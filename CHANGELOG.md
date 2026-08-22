@@ -1,3 +1,10 @@
+## [1.0.14](https://github.com/punya199/demo-app-backend/compare/v1.0.13...v1.0.14) (2026-08-22)
+
+
+### Fix
+
+* Log before/after values on every paojiao-ledger sheet write ([677ca7c](https://github.com/punya199/demo-app-backend/commit/677ca7ce1fd311ccae4e18a3b423428c2d696c93))
+
 ## [1.0.13](https://github.com/punya199/demo-app-backend/compare/v1.0.12...v1.0.13) (2026-08-21)
 
 
