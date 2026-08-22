@@ -13,6 +13,7 @@ import { LedgerItemEntity } from '../../db/entities/ledger-item.entity'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
 import { AddLedgerItemDto } from './dto/add-ledger-item.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
+import { AddLedgerWithdrawalDto } from './dto/add-ledger-withdrawal.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
 import { getSheetsClient, isGoogleSheetsConfigured } from './google-sheets-client'
@@ -27,6 +28,7 @@ import {
   parseLiveSheet,
   parseRounds,
   parseWages,
+  parseWithdrawals,
   TABLE_START_ROW,
 } from './ledger-sheet-parser'
 import { LEDGER_DATA } from './paojiao-ledger-data'
@@ -333,6 +335,35 @@ export class PaojiaoLedgerService {
       range: `'${LIVE_SHEET_NAME}'!Y${nextRow}:Z${nextRow}`,
       valueInputOption: 'RAW',
       requestBody: { values: [[isoDateToExcelSerial(dto.date), dto.amount]] },
+    })
+  }
+
+  // Each person's withdrawal history lives in its own column block (M-P for น้าปุ้ม, Q-T for
+  // ปัญญา) at the same row numbers as everything else on the sheet - same append-to-the-first-
+  // blank-row approach as addWage, just scoped to whichever person's block this withdrawal is for.
+  async addWithdrawal(dto: AddLedgerWithdrawalDto): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const withdrawals = parseWithdrawals(await this.fetchLiveGrid(sheets, spreadsheetId))
+    const forPerson = withdrawals.filter(w => w.who === dto.who)
+    const nextRow = TABLE_START_ROW + forPerson.length
+    const columns = dto.who === 'น้าปุ้ม' ? 'M:P' : 'Q:T'
+    const [fromCol, toCol] = columns.split(':')
+    const values = [
+      [isoDateToExcelSerial(dto.date), dto.bank || '', dto.cash || '', dto.note || ''],
+    ]
+    this.logSheetWrite('addWithdrawal', {
+      who: dto.who,
+      row: nextRow,
+      before: null,
+      after: values[0],
+    })
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!${fromCol}${nextRow}:${toCol}${nextRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
     })
   }
 

@@ -13,6 +13,7 @@ import { AuthUserWithUsername } from '../auth/auth.decorator'
 import { AddLedgerEntryDto } from './dto/add-ledger-entry.dto'
 import { AddLedgerItemDto } from './dto/add-ledger-item.dto'
 import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
+import { AddLedgerWithdrawalDto } from './dto/add-ledger-withdrawal.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
 import { PaojiaoLedgerService } from './paojiao-ledger.service'
@@ -54,6 +55,12 @@ export class PaojiaoLedgerController {
   @Post('wages')
   addWage(@Body() dto: AddLedgerWageDto) {
     return this.paojiaoLedgerService.addWage(dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Post('withdrawals')
+  addWithdrawal(@Body() dto: AddLedgerWithdrawalDto) {
+    return this.paojiaoLedgerService.addWithdrawal(dto)
   }
 
   @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
