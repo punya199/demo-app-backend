@@ -201,6 +201,7 @@ export class PaojiaoLedgerService {
     const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
     const entries = parseEntries(await this.fetchLiveGrid(sheets, spreadsheetId))
     const nextRow = entries.length ? entries[entries.length - 1].row + 1 : TABLE_START_ROW
+    this.logSheetWrite('addEntry', { row: nextRow, before: null, after: entryRowValues(dto) })
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${LIVE_SHEET_NAME}'!A${nextRow}:G${nextRow}`,
@@ -222,6 +223,20 @@ export class PaojiaoLedgerService {
     this.assertGoogleSheetsConfigured()
     const sheets = getSheetsClient()
     const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    // Read the row's current value right before overwriting it, purely so the log below can show
+    // what was actually replaced - if a mystery change ever turns up later (e.g. a date that
+    // nobody remembers editing), this before/after trail is what makes it possible to tell
+    // whether it was this call's own doing or something else entirely.
+    const before = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!A${row}:G${row}`,
+      valueRenderOption: 'UNFORMATTED_VALUE',
+    })
+    this.logSheetWrite('editEntry', {
+      row,
+      before: before.data.values?.[0] ?? null,
+      after: entryRowValues(dto),
+    })
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${LIVE_SHEET_NAME}'!A${row}:G${row}`,
@@ -251,6 +266,13 @@ export class PaojiaoLedgerService {
     const plan = computeDateReorder(entries, movedRow)
     if (!plan) return
 
+    const before = entries.filter(e => e.row >= plan.fromRow && e.row <= plan.toRow)
+    this.logSheetWrite('repositionByDate', {
+      movedRow,
+      range: `${plan.fromRow}:${plan.toRow}`,
+      before: before.map(entryRowValues),
+      after: plan.entries.map(entryRowValues),
+    })
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${LIVE_SHEET_NAME}'!A${plan.fromRow}:G${plan.toRow}`,
@@ -285,6 +307,12 @@ export class PaojiaoLedgerService {
     const lastRow = entries[entries.length - 1].row
     const following = entries.filter(e => e.row > row)
     const values = [...following.map(entryRowValues), ['', '', '', '', '', '', '']]
+    this.logSheetWrite('deleteEntry', {
+      row,
+      range: `${row}:${lastRow}`,
+      before: entries.filter(e => e.row >= row).map(entryRowValues),
+      after: values,
+    })
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${LIVE_SHEET_NAME}'!A${row}:G${lastRow}`,
@@ -320,6 +348,11 @@ export class PaojiaoLedgerService {
     const matches = entries.filter(e => e.item === oldName)
     if (matches.length === 0) return
 
+    this.logSheetWrite('syncItemRename', {
+      rows: matches.map(e => e.row),
+      before: oldName,
+      after: newName,
+    })
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -350,6 +383,7 @@ export class PaojiaoLedgerService {
     const lastRow = entries.length ? entries[entries.length - 1].row : TABLE_START_ROW - 1
 
     const data: { range: string; values: (string | number)[][] }[] = []
+    const changes: { row: number; before: unknown; after: unknown }[] = []
     for (let row = TABLE_START_ROW; row <= lastRow; row++) {
       const cell = grid[row - 1]?.[8] // column I, 0-indexed 8
       const current = cell === undefined || cell === null || cell === '' ? undefined : Number(cell)
@@ -358,13 +392,16 @@ export class PaojiaoLedgerService {
       if (want !== undefined) {
         if (current === undefined || Number.isNaN(current) || Math.abs(current - want) > 0.005) {
           data.push({ range: `'${LIVE_SHEET_NAME}'!I${row}`, values: [[want]] })
+          changes.push({ row, before: cell ?? null, after: want })
         }
       } else if (current !== undefined) {
         data.push({ range: `'${LIVE_SHEET_NAME}'!I${row}`, values: [['']] })
+        changes.push({ row, before: cell ?? null, after: null })
       }
     }
     if (data.length === 0) return
 
+    this.logSheetWrite('syncRoundColumn', { changes })
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: { valueInputOption: 'RAW', data },
@@ -455,5 +492,15 @@ export class PaojiaoLedgerService {
         'Google Sheets is not configured yet - adding entries/wages needs GOOGLE_SHEETS_* env vars set'
       )
     }
+  }
+
+  // No locking or staleness check guards the sheet writes above (read-fresh -> compute -> write,
+  // with no version check in between) - fine for how this app is actually used (normally one
+  // person at a time), but it does mean two edits landing close enough together could still have
+  // one silently overwrite the other with stale data. This is the audit trail for that case: if a
+  // value ever turns up changed with nobody able to account for why, these before/after log lines
+  // are what let it be traced back to which write did it, rather than staying a mystery.
+  private logSheetWrite(op: string, details: Record<string, unknown>): void {
+    this.logger.log(`[sheet-write] ${op} ${JSON.stringify(details)}`)
   }
 }
