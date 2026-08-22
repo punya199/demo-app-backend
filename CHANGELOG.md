@@ -1,3 +1,10 @@
+## [1.0.15](https://github.com/punya199/demo-app-backend/compare/v1.0.14...v1.0.15) (2026-08-22)
+
+
+### Fix
+
+* Add withdrawal endpoint for paojiao-ledger ([166d371](https://github.com/punya199/demo-app-backend/commit/166d3713e36a193aab9f02cd7ae905f7cdc3896d))
+
 ## [1.0.14](https://github.com/punya199/demo-app-backend/compare/v1.0.13...v1.0.14) (2026-08-22)
 
 
