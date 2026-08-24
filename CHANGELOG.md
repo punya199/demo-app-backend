@@ -1,3 +1,10 @@
+## [1.0.16](https://github.com/punya199/demo-app-backend/compare/v1.0.15...v1.0.16) (2026-08-24)
+
+
+### Fix
+
+* Add edit/delete endpoints for paojiao-ledger wages and edit for withdrawals ([014baeb](https://github.com/punya199/demo-app-backend/commit/014baeb7d35d3deccb787cf6a4a60bdc01dad6b4))
+
 ## [1.0.15](https://github.com/punya199/demo-app-backend/compare/v1.0.14...v1.0.15) (2026-08-22)
 
 
