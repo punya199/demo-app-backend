@@ -16,6 +16,9 @@ import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
 import { AddLedgerWithdrawalDto } from './dto/add-ledger-withdrawal.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
+import { EditLedgerWageDto } from './dto/edit-ledger-wage.dto'
+import { EditLedgerWithdrawalDto } from './dto/edit-ledger-withdrawal.dto'
+import { LedgerPerson } from './paojiao-ledger.interface'
 import { PaojiaoLedgerService } from './paojiao-ledger.service'
 
 // Restricted to specific named accounts, regardless of role - this is a family member's
@@ -58,9 +61,39 @@ export class PaojiaoLedgerController {
   }
 
   @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Put('wages/:row')
+  editWage(@Param('row', ParseIntPipe) row: number, @Body() dto: EditLedgerWageDto) {
+    return this.paojiaoLedgerService.editWage(row, dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Delete('wages/:row')
+  deleteWage(@Param('row', ParseIntPipe) row: number) {
+    return this.paojiaoLedgerService.deleteWage(row)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
   @Post('withdrawals')
   addWithdrawal(@Body() dto: AddLedgerWithdrawalDto) {
     return this.paojiaoLedgerService.addWithdrawal(dto)
+  }
+
+  // `who` isn't validated with an enum pipe here - an invalid value just won't match any
+  // withdrawal, and the service throws NotFoundException for that same reason.
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Put('withdrawals/:who/:row')
+  editWithdrawal(
+    @Param('who') who: string,
+    @Param('row', ParseIntPipe) row: number,
+    @Body() dto: EditLedgerWithdrawalDto
+  ) {
+    return this.paojiaoLedgerService.editWithdrawal(who as LedgerPerson, row, dto)
+  }
+
+  @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)
+  @Delete('withdrawals/:who/:row')
+  deleteWithdrawal(@Param('who') who: string, @Param('row', ParseIntPipe) row: number) {
+    return this.paojiaoLedgerService.deleteWithdrawal(who as LedgerPerson, row)
   }
 
   @AuthUserWithUsername(LEDGER_ALLOWED_USERNAMES)

@@ -185,6 +185,10 @@ export function computeDateReorder(
   }
 }
 
+// Skips blank rows instead of stopping at the first one, unlike the other tables in this file -
+// deleteWithdrawal shifts rows up on delete so this shouldn't normally happen through the app,
+// but a row cleared by hand directly in the sheet (outside the delete flow) would otherwise
+// silently hide every real withdrawal after that gap from the whole app.
 function parseWithdrawalTable(
   grid: Grid,
   who: LedgerPerson,
@@ -194,9 +198,10 @@ function parseWithdrawalTable(
   const checkCols = [cols.date, cols.bank, cols.cash, cols.note]
   for (let i = TABLE_START_ROW - 1; i < grid.length; i++) {
     const row = grid[i]
-    if (isBlankRow(row, checkCols)) break
+    if (isBlankRow(row, checkCols)) continue
     withdrawals.push({
       who,
+      row: i + 1,
       date: toIsoDate(row[cols.date]),
       bank: toNumber(row[cols.bank]),
       cash: toNumber(row[cols.cash]),
@@ -231,7 +236,11 @@ export function parseWages(grid: Grid): LedgerWage[] {
   for (let i = TABLE_START_ROW - 1; i < grid.length; i++) {
     const row = grid[i]
     if (!row || toText(row[COL.WAGE_AMOUNT]) === '') break
-    wages.push({ date: toIsoDate(row[COL.WAGE_DATE]), amount: toNumber(row[COL.WAGE_AMOUNT]) })
+    wages.push({
+      row: i + 1,
+      date: toIsoDate(row[COL.WAGE_DATE]),
+      amount: toNumber(row[COL.WAGE_AMOUNT]),
+    })
   }
   return wages
 }

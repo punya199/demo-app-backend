@@ -16,6 +16,8 @@ import { AddLedgerWageDto } from './dto/add-ledger-wage.dto'
 import { AddLedgerWithdrawalDto } from './dto/add-ledger-withdrawal.dto'
 import { EditLedgerEntryDto } from './dto/edit-ledger-entry.dto'
 import { EditLedgerItemDto } from './dto/edit-ledger-item.dto'
+import { EditLedgerWageDto } from './dto/edit-ledger-wage.dto'
+import { EditLedgerWithdrawalDto } from './dto/edit-ledger-withdrawal.dto'
 import { getSheetsClient, isGoogleSheetsConfigured } from './google-sheets-client'
 import {
   computeDateReorder,
@@ -338,16 +340,75 @@ export class PaojiaoLedgerService {
     })
   }
 
+  // In-place update of one row's date/amount, same shape as editEntry - the row number never
+  // changes, so this is always safe. No repositioning needed: unlike the entries table, the wage
+  // table's row order is just entry order (pre-filled dates ahead of time), not something that
+  // gets re-sorted after an edit.
+  async editWage(row: number, dto: EditLedgerWageDto): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const wages = parseWages(await this.fetchLiveGrid(sheets, spreadsheetId))
+    if (!wages.some(w => w.row === row)) {
+      throw new NotFoundException(`No wage found at row ${row}`)
+    }
+    this.logSheetWrite('editWage', { row, after: [isoDateToExcelSerial(dto.date), dto.amount] })
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!Y${row}:Z${row}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[isoDateToExcelSerial(dto.date), dto.amount]] },
+    })
+  }
+
+  // Shifts every later wage up by one row, then blanks the last one - same shift-up approach as
+  // deleteWithdrawal, not deleteEntry's approach, since the wage table has no "closed round"
+  // concept restricting which rows can be removed. The blanked amount cell becomes the new
+  // end-of-data signal parseWages stops at; each shifted row keeps its own recorded date, so the
+  // pre-filled-calendar convenience the (now unused) rows below it had is simply lost, same as it
+  // already is for every row past real data.
+  async deleteWage(row: number): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const wages = parseWages(await this.fetchLiveGrid(sheets, spreadsheetId))
+    const target = wages.find(w => w.row === row)
+    if (!target) {
+      throw new NotFoundException(`No wage found at row ${row}`)
+    }
+
+    const lastRow = wages[wages.length - 1].row
+    const following = wages.filter(w => w.row > row)
+    const values = [
+      ...following.map(w => [isoDateToExcelSerial(w.date), w.amount]),
+      ['', ''],
+    ]
+    this.logSheetWrite('deleteWage', {
+      row,
+      range: `${row}:${lastRow}`,
+      before: wages.filter(w => w.row >= row).map(w => [isoDateToExcelSerial(w.date), w.amount]),
+      after: values,
+    })
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!Y${row}:Z${lastRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    })
+  }
+
   // Each person's withdrawal history lives in its own column block (M-P for น้าปุ้ม, Q-T for
-  // ปัญญา) at the same row numbers as everything else on the sheet - same append-to-the-first-
-  // blank-row approach as addWage, just scoped to whichever person's block this withdrawal is for.
+  // ปัญญา) at the same row numbers as everything else on the sheet. Appends after the highest
+  // existing row for that person, not TABLE_START_ROW + count - parseWithdrawalTable now skips
+  // (rather than stops at) blank rows, so a gap from a manually-cleared row must not make this
+  // undercount and write into an already-blank slot that sits before real, later rows.
   async addWithdrawal(dto: AddLedgerWithdrawalDto): Promise<void> {
     this.assertGoogleSheetsConfigured()
     const sheets = getSheetsClient()
     const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
     const withdrawals = parseWithdrawals(await this.fetchLiveGrid(sheets, spreadsheetId))
     const forPerson = withdrawals.filter(w => w.who === dto.who)
-    const nextRow = TABLE_START_ROW + forPerson.length
+    const nextRow = forPerson.length ? Math.max(...forPerson.map(w => w.row)) + 1 : TABLE_START_ROW
     const columns = dto.who === 'น้าปุ้ม' ? 'M:P' : 'Q:T'
     const [fromCol, toCol] = columns.split(':')
     const values = [
@@ -364,6 +425,146 @@ export class PaojiaoLedgerService {
       range: `'${LIVE_SHEET_NAME}'!${fromCol}${nextRow}:${toCol}${nextRow}`,
       valueInputOption: 'RAW',
       requestBody: { values },
+    })
+    // Only the first several rows of this column block ever got a date number format applied
+    // when the sheet was originally set up - a brand new row past that point has no format of
+    // its own, so the raw serial this just wrote (e.g. 46256) displays as that literal number
+    // instead of a date until this is set explicitly.
+    await this.formatWithdrawalDateCells(sheets, spreadsheetId, dto.who, nextRow, nextRow)
+  }
+
+  // In-place update of one row's values within that person's own column block - same shape as
+  // editEntry/editWage. Row number and column block never change (who isn't editable - it's a
+  // path param, not part of the body), so this is always safe.
+  async editWithdrawal(
+    who: LedgerPerson,
+    row: number,
+    dto: EditLedgerWithdrawalDto
+  ): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const withdrawals = parseWithdrawals(await this.fetchLiveGrid(sheets, spreadsheetId)).filter(
+      w => w.who === who
+    )
+    if (!withdrawals.some(w => w.row === row)) {
+      throw new NotFoundException(`No withdrawal found for ${who} at row ${row}`)
+    }
+    const columns = who === 'น้าปุ้ม' ? 'M:P' : 'Q:T'
+    const [fromCol, toCol] = columns.split(':')
+    const values = [
+      [isoDateToExcelSerial(dto.date), dto.bank || '', dto.cash || '', dto.note || ''],
+    ]
+    this.logSheetWrite('editWithdrawal', { who, row, after: values[0] })
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!${fromCol}${row}:${toCol}${row}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    })
+    // Same reasoning as addWithdrawal - a row's date cell only has date formatting applied to it
+    // once something actually writes to it with the format explicitly set.
+    await this.formatWithdrawalDateCells(sheets, spreadsheetId, who, row, row)
+  }
+
+  // Deleting shifts every later withdrawal for the SAME person up by one row, then blanks the
+  // last row - same shift-up approach as deleteEntry, but scoped to just that one person's own
+  // column block so it never touches the other person's withdrawal history.
+  async deleteWithdrawal(who: LedgerPerson, row: number): Promise<void> {
+    this.assertGoogleSheetsConfigured()
+    const sheets = getSheetsClient()
+    const spreadsheetId = appConfig.GOOGLE_SHEETS_SPREADSHEET_ID
+    const withdrawals = parseWithdrawals(await this.fetchLiveGrid(sheets, spreadsheetId)).filter(
+      w => w.who === who
+    )
+    const target = withdrawals.find(w => w.row === row)
+    if (!target) {
+      throw new NotFoundException(`No withdrawal found for ${who} at row ${row}`)
+    }
+
+    const toValues = (w: { date: string; bank: number; cash: number; note: string }) => [
+      isoDateToExcelSerial(w.date),
+      w.bank || '',
+      w.cash || '',
+      w.note || '',
+    ]
+    const lastRow = withdrawals[withdrawals.length - 1].row
+    const following = withdrawals.filter(w => w.row > row)
+    const values = [...following.map(toValues), ['', '', '', '']]
+    const columns = who === 'น้าปุ้ม' ? 'M:P' : 'Q:T'
+    const [fromCol, toCol] = columns.split(':')
+    this.logSheetWrite('deleteWithdrawal', {
+      who,
+      row,
+      range: `${row}:${lastRow}`,
+      before: withdrawals.filter(w => w.row >= row).map(toValues),
+      after: values,
+    })
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${LIVE_SHEET_NAME}'!${fromCol}${row}:${toCol}${lastRow}`,
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    })
+    // Same reasoning as addWithdrawal: a shifted-up row's date cell may be landing somewhere that
+    // never had date formatting applied before (every row here shifts one position earlier), so
+    // reassert it for the whole range that just got new values (excluding the final blanked row).
+    if (lastRow > row) {
+      await this.formatWithdrawalDateCells(sheets, spreadsheetId, who, row, lastRow - 1)
+    }
+  }
+
+  // Only looked up when a withdrawal is actually added/deleted, not cached across calls - this
+  // service has no per-request state to cache it in anyway, and it's a cheap read alongside the
+  // values.get calls those flows already make.
+  private async getLiveSheetId(
+    sheets: ReturnType<typeof getSheetsClient>,
+    spreadsheetId: string
+  ): Promise<number> {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId })
+    const sheetId = meta.data.sheets?.find(s => s.properties?.title === LIVE_SHEET_NAME)?.properties
+      ?.sheetId
+    if (sheetId == null) {
+      throw new Error(`Could not find sheet "${LIVE_SHEET_NAME}" to set date formatting on`)
+    }
+    return sheetId
+  }
+
+  // Forces the withdrawal date column back to a real date display (dd/mm/yy, matching the rest of
+  // this sheet) for the given row range - values.update only ever changes a cell's *value*, never
+  // its number format, so a row that never had date formatting applied before (only the sheet's
+  // first several rows did, from when it was originally set up) writes a raw excel serial (e.g.
+  // 46256) that displays as that literal number instead of a date.
+  private async formatWithdrawalDateCells(
+    sheets: ReturnType<typeof getSheetsClient>,
+    spreadsheetId: string,
+    who: LedgerPerson,
+    fromRow: number,
+    toRow: number
+  ): Promise<void> {
+    const sheetId = await this.getLiveSheetId(sheets, spreadsheetId)
+    const dateCol = who === 'น้าปุ้ม' ? 12 : 16 // M or Q, 0-indexed
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId,
+                startRowIndex: fromRow - 1,
+                endRowIndex: toRow,
+                startColumnIndex: dateCol,
+                endColumnIndex: dateCol + 1,
+              },
+              cell: {
+                userEnteredFormat: { numberFormat: { type: 'DATE', pattern: 'dd/mm/yy' } },
+              },
+              fields: 'userEnteredFormat.numberFormat',
+            },
+          },
+        ],
+      },
     })
   }
 

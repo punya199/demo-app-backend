@@ -21,6 +21,7 @@ export interface LedgerRound {
 
 export interface LedgerWithdrawal {
   who: LedgerPerson
+  row: number
   date: string
   bank: number
   cash: number
@@ -28,6 +29,7 @@ export interface LedgerWithdrawal {
 }
 
 export interface LedgerWage {
+  row: number
   date: string
   amount: number
 }

@@ -207,8 +207,21 @@ describe('ledger-sheet-parser', () => {
     it('reads both people from their separate column blocks', () => {
       const withdrawals = parseWithdrawals(buildLiveGrid())
       expect(withdrawals).toEqual([
-        { who: 'น้าปุ้ม', date: '2025-01-05', bank: 1000, cash: 50, note: 'note-a' },
-        { who: 'ปัญญา', date: '2025-01-06', bank: 200, cash: 0, note: 'note-b' },
+        { who: 'น้าปุ้ม', row: 5, date: '2025-01-05', bank: 1000, cash: 50, note: 'note-a' },
+        { who: 'ปัญญา', row: 5, date: '2025-01-06', bank: 200, cash: 0, note: 'note-b' },
+      ])
+    })
+
+    // Unlike the entries/wages tables, a blank row here isn't "end of data" - deleteWithdrawal
+    // shifts rows up on delete so this shouldn't normally happen through the app, but a row
+    // cleared by hand directly in the sheet must not hide every real withdrawal after it.
+    it('keeps reading past a blank row instead of stopping there', () => {
+      const grid = buildLiveGrid()
+      grid[6] = row({ 12: D['2025-01-04'], 13: 400 }) // row7 - blank was row6, real data resumes here
+      const withdrawals = parseWithdrawals(grid).filter(w => w.who === 'น้าปุ้ม')
+      expect(withdrawals).toEqual([
+        { who: 'น้าปุ้ม', row: 5, date: '2025-01-05', bank: 1000, cash: 50, note: 'note-a' },
+        { who: 'น้าปุ้ม', row: 7, date: '2025-01-04', bank: 400, cash: 0, note: '' },
       ])
     })
   })
@@ -216,8 +229,8 @@ describe('ledger-sheet-parser', () => {
   describe('parseWages', () => {
     it('reads the wage table independently of how long the entries table is', () => {
       expect(parseWages(buildLiveGrid())).toEqual([
-        { date: '2025-01-01', amount: 100 },
-        { date: '2025-01-02', amount: 150 },
+        { row: 5, date: '2025-01-01', amount: 100 },
+        { row: 6, date: '2025-01-02', amount: 150 },
       ])
     })
 
