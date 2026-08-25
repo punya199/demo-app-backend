@@ -1,3 +1,10 @@
+## [1.0.17](https://github.com/punya199/demo-app-backend/compare/v1.0.16...v1.0.17) (2026-08-25)
+
+
+### Fix
+
+* Remove throwaway 'test' account from paojiao-ledger allowlist ([fe4e23e](https://github.com/punya199/demo-app-backend/commit/fe4e23e394eb1a0020ff65a68816aef80471c67d))
+
 ## [1.0.16](https://github.com/punya199/demo-app-backend/compare/v1.0.15...v1.0.16) (2026-08-24)
 
 
