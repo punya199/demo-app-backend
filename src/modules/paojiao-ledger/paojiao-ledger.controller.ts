@@ -22,9 +22,8 @@ import { LedgerPerson } from './paojiao-ledger.interface'
 import { PaojiaoLedgerService } from './paojiao-ledger.service'
 
 // Restricted to specific named accounts, regardless of role - this is a family member's
-// private ledger, not a role-level feature. 'test' is a throwaway account the owner
-// created so this feature can be verified before going live.
-const LEDGER_ALLOWED_USERNAMES = ['punya', 'test']
+// private ledger, not a role-level feature.
+const LEDGER_ALLOWED_USERNAMES = ['punya']
 
 @Controller('paojiao-ledger')
 export class PaojiaoLedgerController {
