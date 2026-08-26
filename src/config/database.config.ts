@@ -34,7 +34,7 @@ export default new DataSource({
   password: appConfig.DATABASE_PASSWORD,
   database: appConfig.DATABASE_NAME,
   ssl: appConfig.DATABASE_SSL ? { rejectUnauthorized: false } : false,
-  entities: isProduction ? ['dist/**/*.entity.js'] : entities,
+  entities,
   subscribers: isProduction ? ['dist/**/*.subscriber.js'] : subscribers,
   migrations: isProduction ? ['dist/db/migrations/*.js'] : ['src/db/migrations/*.ts'],
   migrationsTableName: 'migrations',
