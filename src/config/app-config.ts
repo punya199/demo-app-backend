@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { CookieOptions } from 'express'
 import Joi from 'joi'
 import ms from 'ms'
+import fs from 'fs'
 
 export const ALLOW_LOG_LEVEL = ['debug', 'production'] as const
 
@@ -42,7 +43,7 @@ export const appConfig = {
   // Optional - paojiao-ledger falls back to its static Phase A snapshot when these aren't set.
   GOOGLE_SHEETS_SPREADSHEET_ID: process.env.GOOGLE_SHEETS_SPREADSHEET_ID ?? '',
   GOOGLE_SHEETS_CLIENT_EMAIL: process.env.GOOGLE_SHEETS_CLIENT_EMAIL ?? '',
-  GOOGLE_SHEETS_PRIVATE_KEY: process.env.GOOGLE_SHEETS_PRIVATE_KEY ?? '',
+  GOOGLE_SHEETS_PRIVATE_KEY: fs.readFileSync('private/secret/google_sheets.key', 'utf8'),
 }
 
 type IConfigKey = keyof typeof appConfig

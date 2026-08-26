@@ -48,6 +48,7 @@ COPY .yarn/ ./.yarn/
 RUN yarn workspaces focus --all --production
 
 COPY --from=builder /usr/src/app/dist ./dist/
+COPY --from=builder /usr/src/app/private ./private/
 
 EXPOSE 3000
 CMD ["node", "dist/main"]
