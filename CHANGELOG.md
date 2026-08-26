@@ -1,3 +1,10 @@
+## [1.0.18](https://github.com/punya199/demo-app-backend/compare/v1.0.17...v1.0.18) (2026-08-26)
+
+
+### Fix
+
+* Read GOOGLE_SHEETS_PRIVATE_KEY from file instead of env var ([9ecb7c9](https://github.com/punya199/demo-app-backend/commit/9ecb7c979bdef2aac51436ada3ed249f069fb2d4))
+
 ## [1.0.17](https://github.com/punya199/demo-app-backend/compare/v1.0.16...v1.0.17) (2026-08-25)
 
 
