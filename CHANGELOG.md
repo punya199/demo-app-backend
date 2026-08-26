@@ -1,3 +1,14 @@
+## [1.0.19](https://github.com/punya199/demo-app-backend/compare/v1.0.18...v1.0.19) (2026-08-26)
+
+
+### Fix
+
+* Enable graceful application shutdown ([0fe0505](https://github.com/punya199/demo-app-backend/commit/0fe0505297a986fcfc825f4a0a1a99d3fc0b218c))
+
+### Refactor
+
+* Use direct entity imports for all environments ([b07b01f](https://github.com/punya199/demo-app-backend/commit/b07b01f21e7feb65a1ad1b0e40713cc9894dca81))
+
 ## [1.0.18](https://github.com/punya199/demo-app-backend/compare/v1.0.17...v1.0.18) (2026-08-26)
 
 
