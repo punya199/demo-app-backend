@@ -26,7 +26,7 @@ const D = {
 }
 
 // Builds a 26-column row (A..Z) from a sparse { colIndex: value } map, matching the shape the
-// real "ชีต1" tab returns from the Sheets API (UNFORMATTED_VALUE).
+// real live sheet tab returns from the Sheets API (UNFORMATTED_VALUE).
 function row(cells: SparseRow): Cell[] {
   const r: Cell[] = new Array(26).fill('')
   for (const [i, v] of Object.entries(cells)) r[Number(i)] = v

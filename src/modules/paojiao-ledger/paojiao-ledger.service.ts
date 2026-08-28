@@ -33,15 +33,17 @@ import {
   parseWithdrawals,
   TABLE_START_ROW,
 } from './ledger-sheet-parser'
-import { LEDGER_DATA } from './paojiao-ledger-data'
 import { LedgerData, LedgerPerson } from './paojiao-ledger.interface'
 
 // Confirmed with the user 2026-08-19: only this tab is live data. "สำเนาของ ชีต1" is a manual
-// backup copy that has already drifted from it and must not be read.
-const LIVE_SHEET_NAME = 'ชีต1'
-// Sheet names with non-ASCII characters must be single-quoted inside an A1 range, or the Sheets
-// API rejects the whole range with "Unable to parse range" (learned the hard way against the
-// user's real spreadsheet - this is not optional here since every tab name is Thai).
+// backup copy that has already drifted from it and must not be read. Renamed from "ชีต1" to
+// "main" per a later request - archive tab names (e.g. "สำเนาของ ชีต1", date-string tabs) are
+// unaffected, only the live tab's own name changed.
+const LIVE_SHEET_NAME = 'main'
+// Sheet names with non-ASCII characters (or spaces) must be single-quoted inside an A1 range, or
+// the Sheets API rejects the whole range with "Unable to parse range" (learned the hard way
+// against the user's real spreadsheet) - kept quoted here even though "main" itself doesn't
+// strictly need it, since this range string is built from LIVE_SHEET_NAME generically.
 const LIVE_SHEET_RANGE = `'${LIVE_SHEET_NAME}'!A1:Z1010`
 const ARCHIVE_TAB_EXCLUDE = new Set([LIVE_SHEET_NAME, 'สำเนาของ ชีต1'])
 
@@ -55,11 +57,11 @@ const MANUAL_OPENING = {
 
 // These three item names are matched literally elsewhere in the calculation logic - "ขาย น้ำมัน"
 // by deriveRounds (backend) and computeOilSalesPerRound (frontend) to detect round closes, "ขาย
-// กาก" by computeDraffSales (frontend), and "ค่าแรงยายปิ่น" by computeWageTotals (frontend) and the
+// กาก" by computeDraffSales (frontend), and "ค่าแรง" by computeWageTotals (frontend) and the
 // vendor-spend exclusion list. Renaming or deleting any of them would silently break those
 // calculations for every past and future entry, so both are blocked at the API level (not just
 // hidden in the UI).
-const PROTECTED_ITEM_NAMES = new Set(['ขาย น้ำมัน', 'ขาย กาก', 'ค่าแรงยายปิ่น'])
+const PROTECTED_ITEM_NAMES = new Set(['ขาย น้ำมัน', 'ขาย กาก', 'ค่าแรง'])
 
 // Shared by add/edit/delete - matches both AddLedgerEntryDto/EditLedgerEntryDto and LedgerEntry
 // (the latter's numbers are always present, which still satisfies this optional-number shape).
@@ -92,30 +94,29 @@ export class PaojiaoLedgerService {
     private readonly ledgerItemRepo: Repository<LedgerItemEntity>
   ) {}
 
+  // No more silent fallback to hardcoded demo data on a failed Sheets read - that used to mask
+  // real connection problems (wrong spreadsheet ID, wrong tab name, missing env vars) behind a
+  // 200 response full of stale sample numbers, which looked enough like real data that a broken
+  // connection went unnoticed more than once. Letting this throw means a real failure now surfaces
+  // as an actual error (PaojiaoLedgerShell already has a "โหลดข้อมูลไม่สำเร็จ" state for exactly this).
   async getLedger(): Promise<LedgerData> {
+    this.assertGoogleSheetsConfigured()
     const items = await this.getItemNames()
-    if (!isGoogleSheetsConfigured()) {
-      return { ...LEDGER_DATA, items }
-    }
     try {
       const data = await this.readFromSheets()
       return { ...data, items }
     } catch (error) {
-      this.logger.error(
-        'Failed to read paojiao-ledger from Google Sheets, falling back to static data',
-        error
-      )
-      return { ...LEDGER_DATA, items }
+      this.logger.error('Failed to read paojiao-ledger from Google Sheets', error)
+      throw error
     }
   }
 
-  // Category names for the add-entry dropdown - DB-backed (shared across both users), not the
-  // sheet or the old hardcoded list. Sorted with Thai-locale collation here in application code,
-  // not an SQL ORDER BY, since Postgres's default collation doesn't sort Thai the way a Thai
-  // reader expects (consonant/vowel reordering that plain byte/codepoint order gets wrong).
+  // Category names for the add-entry dropdown - DB-backed (shared across both users). Sorted
+  // with Thai-locale collation here in application code, not an SQL ORDER BY, since Postgres's
+  // default collation doesn't sort Thai the way a Thai reader expects (consonant/vowel reordering
+  // that plain byte/codepoint order gets wrong).
   private async getItemNames(): Promise<string[]> {
     const rows = await this.ledgerItemRepo.find()
-    if (rows.length === 0) return LEDGER_DATA.items
     return rows.map(r => r.name).sort((a, b) => a.localeCompare(b, 'th'))
   }
 
@@ -379,10 +380,7 @@ export class PaojiaoLedgerService {
 
     const lastRow = wages[wages.length - 1].row
     const following = wages.filter(w => w.row > row)
-    const values = [
-      ...following.map(w => [isoDateToExcelSerial(w.date), w.amount]),
-      ['', ''],
-    ]
+    const values = [...following.map(w => [isoDateToExcelSerial(w.date), w.amount]), ['', '']]
     this.logSheetWrite('deleteWage', {
       row,
       range: `${row}:${lastRow}`,
@@ -714,7 +712,7 @@ export class PaojiaoLedgerService {
       rounds,
       withdrawals,
       wages,
-      items: LEDGER_DATA.items, // fixed category list for the add-entry dropdown, not sheet-derived
+      items: [], // placeholder - getLedger() always overwrites this with the DB-backed list
     }
   }
 

@@ -10,8 +10,8 @@ import {
 export type Cell = string | number | undefined | null
 export type Grid = Cell[][]
 
-// Column positions in the live "ชีต1" tab (0-indexed: A=0, B=1, ...). Verified cell-by-cell
-// against the real spreadsheet on 2026-08-19.
+// Column positions in the live sheet tab (named "main", 0-indexed: A=0, B=1, ...). Verified
+// cell-by-cell against the real spreadsheet on 2026-08-19.
 const COL = {
   DATE: 0,
   ITEM: 1,
@@ -303,7 +303,7 @@ function findPriorWithdraw(grid: Grid): Record<LedgerPerson, number> | undefined
   return undefined
 }
 
-// The live "ชีต1" tab's own dashboard area (around J8:K13) carries the opening cash/bank balance
+// The live sheet tab's own dashboard area (around J8:K13) carries the opening cash/bank balance
 // and start date as label-cell/value-cell pairs sitting in the same row, value one column to the
 // right of the label - found by inspecting the real sheet on 2026-08-20. The cash/bank labels
 // have a literal line break in the cell ("เงินสด" then "ยกยอดมา" on a second line).
