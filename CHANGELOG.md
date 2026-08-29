@@ -1,3 +1,10 @@
+## [1.0.20](https://github.com/punya199/demo-app-backend/compare/v1.0.19...v1.0.20) (2026-08-29)
+
+
+### Fix
+
+* Remove hardcoded ledger fallback data, rename live tab to "main" ([28f43bd](https://github.com/punya199/demo-app-backend/commit/28f43bd1bdbbfe4bb812e7a7a0ca0de3c154a227))
+
 ## [1.0.19](https://github.com/punya199/demo-app-backend/compare/v1.0.18...v1.0.19) (2026-08-26)
 
 
