@@ -1,0 +1,33 @@
+pipeline:
+  name: Build demo-app-backend
+  identifier: Build_demo_app_backend_1788874466914
+  projectIdentifier: default_project
+  orgIdentifier: default
+  stages:
+    - stage:
+        name: Build
+        identifier: Build
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Echo Welcome Message
+                  identifier: Echo_Welcome_Message
+                  spec:
+                    shell: Sh
+                    command: echo "Welcome to Harness CI"
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+  properties:
+    ci:
+      codebase:
+        connectorRef: account.github_punya
+        repoName: demo-app-backend
+        build: <+input>
