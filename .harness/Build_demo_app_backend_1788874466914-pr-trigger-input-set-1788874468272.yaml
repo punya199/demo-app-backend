@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_demo_app_backend_1788874466914-pr-trigger-input-set
+  identifier: Build_demo_app_backend_1788874466914prtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: default_project
+  pipeline:
+    identifier: Build_demo_app_backend_1788874466914
+    properties:
+      ci:
+        codebase:
+          build:
+            type: PR
+            spec:
+              number: <+trigger.prNumber>
