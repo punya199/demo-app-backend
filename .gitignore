@@ -69,3 +69,6 @@ private/secret/*
 !**/*/.gitkeep
 
 package-lock.json
+VERSION
+
+.claude/
