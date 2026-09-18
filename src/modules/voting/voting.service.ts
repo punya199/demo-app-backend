@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { nanoid } from 'nanoid'
@@ -10,6 +15,7 @@ import { PollVoteEntity } from '../../db/entities/poll-vote.entity'
 import { CreatePollBodyDto } from './dto/create-poll.dto'
 import { SubmitVoteBodyDto } from './dto/submit-vote.dto'
 import { buildVoteSelections } from './vote-selection.helper'
+import { computeBordaScores, computeOptionCounts } from './vote-tally.helper'
 
 export const VOTING_ANON_COOKIE = 'votingAnonId'
 
@@ -174,6 +180,39 @@ export class VotingService {
       selections,
     })
     return { vote }
+  }
+
+  async getResults(slug: string, identity: IVoterIdentity) {
+    const poll = await this.pollRepository.findOne({
+      where: { slug },
+      relations: { options: true },
+      order: { options: { order: 'ASC' } },
+    })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+
+    const myVote = await this.findExistingVote(poll.id, identity)
+    if (!myVote) {
+      throw new ForbiddenException('Vote on this poll before viewing its results')
+    }
+
+    const votes = await this.pollVoteRepository.find({ where: { pollId: poll.id } })
+    const optionIds = poll.options.map(option => option.id)
+    const scores =
+      poll.pollType === EnumPollType.RANKING
+        ? computeBordaScores(votes, optionIds)
+        : computeOptionCounts(votes, optionIds)
+
+    return {
+      pollType: poll.pollType,
+      totalVotes: votes.length,
+      results: poll.options.map(option => ({
+        optionId: option.id,
+        label: option.label,
+        score: scores[option.id] ?? 0,
+      })),
+    }
   }
 
   private findExistingVote(pollId: string, identity: IVoterIdentity) {

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { Test } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
@@ -15,6 +15,7 @@ describe('VotingService', () => {
   }
   let pollVoteRepo: {
     findOne: jest.Mock
+    find: jest.Mock
     update: jest.Mock
     save: jest.Mock
   }
@@ -33,6 +34,7 @@ describe('VotingService', () => {
     }
     pollVoteRepo = {
       findOne: jest.fn(),
+      find: jest.fn(),
       update: jest.fn(),
       save: jest.fn((entity: object) => Promise.resolve({ id: 'vote-1', ...entity })),
     }
@@ -275,6 +277,83 @@ describe('VotingService', () => {
         selections: [{ optionId: 'b', rank: null }],
       })
       expect(pollVoteRepo.save).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('getResults', () => {
+    const singleChoicePoll = {
+      id: 'poll-1',
+      pollType: EnumPollType.SINGLE,
+      options: [
+        { id: 'a', label: 'Pizza' },
+        { id: 'b', label: 'Sushi' },
+      ],
+    }
+
+    it('throws a NotFoundException for an unknown slug', async () => {
+      pollRepo.findOne.mockResolvedValue(null)
+
+      await expect(
+        service.getResults('missing', { voterUserId: null, voterToken: 't' })
+      ).rejects.toThrow(NotFoundException)
+    })
+
+    it('refuses results to an identity that has not voted', async () => {
+      pollRepo.findOne.mockResolvedValue(singleChoicePoll)
+      pollVoteRepo.findOne.mockResolvedValue(null)
+
+      await expect(
+        service.getResults('slug', { voterUserId: null, voterToken: 't' })
+      ).rejects.toThrow(ForbiddenException)
+      expect(pollVoteRepo.find).not.toHaveBeenCalled()
+    })
+
+    it('returns aggregate counts for a single-choice poll, never per-voter data', async () => {
+      pollRepo.findOne.mockResolvedValue(singleChoicePoll)
+      pollVoteRepo.findOne.mockResolvedValue({ id: 'vote-1', selections: [] })
+      pollVoteRepo.find.mockResolvedValue([
+        { selections: [{ optionId: 'a', rank: null }] },
+        { selections: [{ optionId: 'a', rank: null }] },
+        { selections: [{ optionId: 'b', rank: null }] },
+      ])
+
+      const result = await service.getResults('slug', { voterUserId: 'user-1', voterToken: null })
+
+      expect(result).toEqual({
+        pollType: EnumPollType.SINGLE,
+        totalVotes: 3,
+        results: [
+          { optionId: 'a', label: 'Pizza', score: 2 },
+          { optionId: 'b', label: 'Sushi', score: 1 },
+        ],
+      })
+    })
+
+    it('returns Borda scores for a ranking poll', async () => {
+      pollRepo.findOne.mockResolvedValue({
+        id: 'poll-1',
+        pollType: EnumPollType.RANKING,
+        options: [
+          { id: 'a', label: 'Pizza' },
+          { id: 'b', label: 'Sushi' },
+        ],
+      })
+      pollVoteRepo.findOne.mockResolvedValue({ id: 'vote-1', selections: [] })
+      pollVoteRepo.find.mockResolvedValue([
+        {
+          selections: [
+            { optionId: 'a', rank: 0 },
+            { optionId: 'b', rank: 1 },
+          ],
+        },
+      ])
+
+      const result = await service.getResults('slug', { voterUserId: 'user-1', voterToken: null })
+
+      expect(result.results).toEqual([
+        { optionId: 'a', label: 'Pizza', score: 1 },
+        { optionId: 'b', label: 'Sushi', score: 0 },
+      ])
     })
   })
 })

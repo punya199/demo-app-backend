@@ -47,4 +47,13 @@ export class VotingPublicController {
     }
     return this.votingService.submitVote(slug, body, identity)
   }
+
+  @Get(':slug/results')
+  async getResults(@Param('slug') slug: string, @Req() req: Request) {
+    const identity = this.votingService.resolveVoterIdentity(
+      getCookie(req, EnumCookieKeys.ACCESS_TOKEN),
+      getCookie(req, VOTING_ANON_COOKIE)
+    )
+    return this.votingService.getResults(slug, identity)
+  }
 }
