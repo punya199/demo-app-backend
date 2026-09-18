@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/punya199/demo-app-backend/compare/v1.2.0...v1.2.1) (2026-09-18)
+
+
+### Fix
+
+* enable ValidationPipe transform so DTO @Type() coercion runs ([f4dd464](https://github.com/punya199/demo-app-backend/commit/f4dd4645cbcdfed25bf4ec0698999fde5fbc4a4d))
+
 # [1.2.0](https://github.com/punya199/demo-app-backend/compare/v1.1.1...v1.2.0) (2026-09-18)
 
 
