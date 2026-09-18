@@ -1,17 +1,52 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { nanoid } from 'nanoid'
 import { EntityManager, Repository } from 'typeorm'
+import { IBaseTokenPayload } from '../authentication/authentication.service'
 import { EnumPollType, PollEntity } from '../../db/entities/poll.entity'
 import { PollOptionEntity } from '../../db/entities/poll-option.entity'
+import { PollVoteEntity } from '../../db/entities/poll-vote.entity'
 import { CreatePollBodyDto } from './dto/create-poll.dto'
+import { SubmitVoteBodyDto } from './dto/submit-vote.dto'
+import { buildVoteSelections } from './vote-selection.helper'
+
+export const VOTING_ANON_COOKIE = 'votingAnonId'
+
+export interface IVoterIdentity {
+  voterUserId: string | null
+  voterToken: string | null
+  // Set only when the caller had no anonymous token yet - the controller must set this as a cookie.
+  newAnonToken?: string
+}
 
 @Injectable()
 export class VotingService {
   constructor(
     @InjectRepository(PollEntity)
-    private readonly pollRepository: Repository<PollEntity>
+    private readonly pollRepository: Repository<PollEntity>,
+    @InjectRepository(PollVoteEntity)
+    private readonly pollVoteRepository: Repository<PollVoteEntity>,
+    private readonly jwtService: JwtService
   ) {}
+
+  // A missing/invalid/expired access token cookie just means "vote as anonymous" here - this
+  // route has no guard, so it must never throw on a bad token the way JwtAccessTokenAuthGuard does.
+  resolveVoterIdentity(accessTokenCookie?: string, anonTokenCookie?: string): IVoterIdentity {
+    if (accessTokenCookie) {
+      try {
+        const payload = this.jwtService.verify<IBaseTokenPayload>(accessTokenCookie)
+        return { voterUserId: payload['user-id'], voterToken: null }
+      } catch {
+        // invalid/expired token - fall through to anonymous identity
+      }
+    }
+    if (anonTokenCookie) {
+      return { voterUserId: null, voterToken: anonTokenCookie }
+    }
+    const newAnonToken = nanoid(21)
+    return { voterUserId: null, voterToken: newAnonToken, newAnonToken }
+  }
 
   async createPoll(params: CreatePollBodyDto, etm: EntityManager) {
     if (params.maxSelections && params.pollType !== EnumPollType.MULTIPLE) {
@@ -78,5 +113,85 @@ export class VotingService {
       order: { createdAt: 'DESC', options: { order: 'ASC' } },
     })
     return { polls }
+  }
+
+  async getPublicPoll(slug: string, identity: IVoterIdentity) {
+    const poll = await this.pollRepository.findOne({
+      where: { slug },
+      relations: { options: true },
+      order: { options: { order: 'ASC' } },
+    })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+
+    const existingVote = await this.findExistingVote(poll.id, identity)
+
+    return {
+      poll: {
+        id: poll.id,
+        title: poll.title,
+        description: poll.description,
+        slug: poll.slug,
+        pollType: poll.pollType,
+        maxSelections: poll.maxSelections,
+        isClosed: !this.isPollOpen(poll),
+        options: poll.options,
+      },
+      myVote: existingVote?.selections ?? null,
+    }
+  }
+
+  async submitVote(slug: string, params: SubmitVoteBodyDto, identity: IVoterIdentity) {
+    const poll = await this.pollRepository.findOne({
+      where: { slug },
+      relations: { options: true },
+    })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+    if (!this.isPollOpen(poll)) {
+      throw new BadRequestException('This poll is closed')
+    }
+
+    const selections = buildVoteSelections({
+      pollType: poll.pollType,
+      optionIds: params.optionIds,
+      pollOptionIds: poll.options.map(option => option.id),
+      maxSelections: poll.maxSelections,
+    })
+
+    const existingVote = await this.findExistingVote(poll.id, identity)
+    if (existingVote) {
+      await this.pollVoteRepository.update(existingVote.id, { selections })
+      return { vote: { ...existingVote, selections } }
+    }
+
+    const vote = await this.pollVoteRepository.save({
+      pollId: poll.id,
+      voterUserId: identity.voterUserId,
+      voterToken: identity.voterToken,
+      selections,
+    })
+    return { vote }
+  }
+
+  private findExistingVote(pollId: string, identity: IVoterIdentity) {
+    // resolveVoterIdentity always sets exactly one of voterUserId/voterToken.
+    return this.pollVoteRepository.findOne({
+      where: identity.voterUserId
+        ? { pollId, voterUserId: identity.voterUserId }
+        : { pollId, voterToken: identity.voterToken as string },
+    })
+  }
+
+  private isPollOpen(poll: PollEntity): boolean {
+    if (poll.closedAt) {
+      return false
+    }
+    if (poll.closesAt && poll.closesAt.getTime() <= Date.now()) {
+      return false
+    }
+    return true
   }
 }
