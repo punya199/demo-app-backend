@@ -121,6 +121,20 @@ export class VotingService {
     return { polls }
   }
 
+  async closePoll(pollId: string, userId: string) {
+    const poll = await this.pollRepository.findOne({ where: { id: pollId } })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+    if (poll.creatorId !== userId) {
+      throw new ForbiddenException('Only the poll creator can close it')
+    }
+    if (!poll.closedAt) {
+      await this.pollRepository.update(pollId, { closedAt: new Date() })
+    }
+    return { poll: await this.getPoll(pollId) }
+  }
+
   async getPublicPoll(slug: string, identity: IVoterIdentity) {
     const poll = await this.pollRepository.findOne({
       where: { slug },

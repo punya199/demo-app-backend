@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { EnumPermissionFeatureName } from '../../db/entities/permissions'
 import { AuthUserPermission, ReqUser } from '../auth/auth.decorator'
@@ -31,5 +31,14 @@ export class VotingController {
   @Get('mine')
   async getMyPolls(@ReqUser() user: IAppJwtPayload) {
     return this.votingService.getMyPolls(user['user-id'])
+  }
+
+  @AuthUserPermission({
+    featureName: EnumPermissionFeatureName.VOTING,
+    action: { canUpdate: true },
+  })
+  @Post(':pollId/close')
+  async closePoll(@Param('pollId', ParseUUIDPipe) pollId: string, @ReqUser() user: IAppJwtPayload) {
+    return this.votingService.closePoll(pollId, user['user-id'])
   }
 }

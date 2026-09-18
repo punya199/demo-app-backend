@@ -12,6 +12,7 @@ describe('VotingService', () => {
   let pollRepo: {
     findOne: jest.Mock
     find: jest.Mock
+    update: jest.Mock
   }
   let pollVoteRepo: {
     findOne: jest.Mock
@@ -31,6 +32,7 @@ describe('VotingService', () => {
     pollRepo = {
       findOne: jest.fn(),
       find: jest.fn(),
+      update: jest.fn(),
     }
     pollVoteRepo = {
       findOne: jest.fn(),
@@ -354,6 +356,41 @@ describe('VotingService', () => {
         { optionId: 'a', label: 'Pizza', score: 1 },
         { optionId: 'b', label: 'Sushi', score: 0 },
       ])
+    })
+  })
+
+  describe('closePoll', () => {
+    it('throws a NotFoundException for an unknown poll', async () => {
+      pollRepo.findOne.mockResolvedValue(null)
+
+      await expect(service.closePoll('missing', 'user-1')).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws a ForbiddenException when the requester is not the creator', async () => {
+      pollRepo.findOne.mockResolvedValue({ id: 'poll-1', creatorId: 'user-1', closedAt: null })
+
+      await expect(service.closePoll('poll-1', 'someone-else')).rejects.toThrow(ForbiddenException)
+      expect(pollRepo.update).not.toHaveBeenCalled()
+    })
+
+    it('sets closedAt when the creator closes an open poll', async () => {
+      pollRepo.findOne.mockResolvedValue({ id: 'poll-1', creatorId: 'user-1', closedAt: null })
+
+      await service.closePoll('poll-1', 'user-1')
+
+      expect(pollRepo.update).toHaveBeenCalledWith('poll-1', { closedAt: expect.any(Date) })
+    })
+
+    it('is a no-op when the poll is already closed', async () => {
+      pollRepo.findOne.mockResolvedValue({
+        id: 'poll-1',
+        creatorId: 'user-1',
+        closedAt: new Date('2020-01-01'),
+      })
+
+      await service.closePoll('poll-1', 'user-1')
+
+      expect(pollRepo.update).not.toHaveBeenCalled()
     })
   })
 })
