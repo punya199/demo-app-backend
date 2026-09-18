@@ -1,5 +1,6 @@
 import { InjectRedis } from '@nestjs-modules/ioredis'
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomBytes } from 'crypto'
 import Redis from 'ioredis'
@@ -15,9 +16,11 @@ import { decryptTotpSecret, encryptTotpSecret } from '../../utils/totp-crypto'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
 import { IAppJwtPayload } from './auth.interface'
+import { TWO_FACTOR_PENDING_SCOPE } from './two-factor-pending.guard'
 
 const TOTP_ISSUER = 'YaYa'
 const BACKUP_CODE_COUNT = 10
+const TWO_FACTOR_PENDING_EXPIRES_IN = '5m'
 
 @Injectable()
 export class AuthService {
@@ -27,6 +30,7 @@ export class AuthService {
     @InjectRedis()
     private redis: Redis,
     private readonly authenticationService: AuthenticationService,
+    private readonly jwtService: JwtService,
     @InjectRepository(PermissionsEntity)
     private permissionsRepo: Repository<PermissionsEntity>
   ) {}
@@ -39,6 +43,7 @@ export class AuthService {
         role: true,
         status: true,
         password: true,
+        twoFactorEnabled: true,
       },
       where: {
         username: dto.username,
@@ -68,6 +73,44 @@ export class AuthService {
       }
     }
 
+    if (user.twoFactorEnabled) {
+      const pendingToken = this.jwtService.sign(
+        { sub: user.id, scope: TWO_FACTOR_PENDING_SCOPE },
+        { expiresIn: TWO_FACTOR_PENDING_EXPIRES_IN }
+      )
+      return { twoFactorRequired: true as const, pendingToken }
+    }
+
+    return { twoFactorRequired: false as const, ...(await this.issueTokens(user)) }
+  }
+
+  async completeTwoFactorLogin(userId: string, code: string) {
+    const user = await this.userRepo.findOne({
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        status: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true,
+      },
+      where: { id: userId },
+    })
+
+    // Re-check status: the pending token can outlive a block/deactivation that happens
+    // after login() issued it (account BLOCKED mid-window, admin deactivation, etc.).
+    if (!user?.twoFactorEnabled || !user.twoFactorSecret || user.status !== EnumUserStatus.ACTIVE) {
+      throw new AppBadRequestException({ code: 'AUT4012' })
+    }
+
+    if (!authenticator.check(code, decryptTotpSecret(user.twoFactorSecret))) {
+      throw new AppBadRequestException({ code: 'AUT4013' })
+    }
+
+    return this.issueTokens(user)
+  }
+
+  private async issueTokens(user: Pick<UserEntity, 'id' | 'username' | 'role'>) {
     const payload: IAppJwtPayload = {
       sub: user.id,
       username: user.username,

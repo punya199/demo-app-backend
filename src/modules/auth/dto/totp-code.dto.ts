@@ -1,6 +1,6 @@
 import { IsString } from 'class-validator'
 
-export class ConfirmTotpDto {
+export class TotpCodeDto {
   @IsString()
   code: string
 }

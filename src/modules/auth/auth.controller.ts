@@ -5,9 +5,15 @@ import { AppBadRequestException } from '../../utils/exception'
 import { EnumCookieKeys } from '../authentication/authentication.constant'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
-import { AuthUser, ReqUser, RefreshTokenAuthGuard } from './auth.decorator'
+import {
+  AuthUser,
+  ReqTwoFactorPendingUserId,
+  ReqUser,
+  RefreshTokenAuthGuard,
+  TwoFactorPendingAuthGuard,
+} from './auth.decorator'
 import { AuthService } from './auth.service'
-import { ConfirmTotpDto } from './dto/confirm-totp.dto'
+import { TotpCodeDto } from './dto/totp-code.dto'
 import { IAppJwtPayload } from './auth.interface'
 
 @Controller('auth')
@@ -21,6 +27,12 @@ export class AuthController {
   @Post('login')
   async azureAdSignIn(@Body() body: LoginDto, @Res() res: Response) {
     const result = await this.authService.login(body)
+
+    if (result.twoFactorRequired) {
+      res.send({ twoFactorRequired: true, pendingToken: result.pendingToken })
+      return
+    }
+
     this.authenticationService.setCookie(res, EnumCookieKeys.ACCESS_TOKEN, result.accessToken)
     this.authenticationService.setCookie(res, EnumCookieKeys.REFRESH_TOKEN, result.refreshToken)
     res.send({
@@ -60,7 +72,23 @@ export class AuthController {
 
   @AuthUser()
   @Post('2fa/confirm')
-  async confirmTwoFactorEnrollment(@ReqUser() user: IAppJwtPayload, @Body() body: ConfirmTotpDto) {
+  async confirmTwoFactorEnrollment(@ReqUser() user: IAppJwtPayload, @Body() body: TotpCodeDto) {
     return this.authService.confirmTwoFactorEnrollment(user['user-id'], body.code)
+  }
+
+  @TwoFactorPendingAuthGuard()
+  @Post('2fa/verify')
+  async verifyTwoFactor(
+    @ReqTwoFactorPendingUserId() userId: string,
+    @Body() body: TotpCodeDto,
+    @Res() res: Response
+  ) {
+    const result = await this.authService.completeTwoFactorLogin(userId, body.code)
+    this.authenticationService.setCookie(res, EnumCookieKeys.ACCESS_TOKEN, result.accessToken)
+    this.authenticationService.setCookie(res, EnumCookieKeys.REFRESH_TOKEN, result.refreshToken)
+    res.send({
+      user: result.user,
+      refreshToken: result.refreshToken,
+    })
   }
 }

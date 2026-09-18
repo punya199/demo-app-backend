@@ -12,11 +12,17 @@ import { JwtRefreshTokenAuthGuard } from '../authentication/guard/jwt-refresh-to
 import { IAppJwtPayload } from './auth.interface'
 import { IPermissionGuardData, PermissionGuard } from './permission.guard'
 import { RolesGuard } from './role.guard'
+import { ITwoFactorPendingPayload, TwoFactorPendingGuard } from './two-factor-pending.guard'
 import { UsernameGuard } from './username.guard'
 
 export const ReqUser = createParamDecorator((data, ctx: ExecutionContext) => {
   const request = ctx.switchToHttp().getRequest<Request>()
   return request.user as IAppJwtPayload
+})
+
+export const ReqTwoFactorPendingUserId = createParamDecorator((data, ctx: ExecutionContext) => {
+  const request = ctx.switchToHttp().getRequest<Request>()
+  return (request.user as ITwoFactorPendingPayload).sub
 })
 
 export const AuthUser = (role?: UserRole) =>
@@ -39,3 +45,5 @@ export const AuthUserPermission = (permissionRequired: IPermissionGuardData) =>
   )
 
 export const RefreshTokenAuthGuard = () => applyDecorators(UseGuards(JwtRefreshTokenAuthGuard))
+
+export const TwoFactorPendingAuthGuard = () => applyDecorators(UseGuards(TwoFactorPendingGuard))

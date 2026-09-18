@@ -1,5 +1,6 @@
 import { getRedisConnectionToken } from '@nestjs-modules/ioredis'
 import { BadRequestException } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 import { Test } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
 import { authenticator } from 'otplib'
@@ -16,6 +17,7 @@ describe('AuthService', () => {
   let userRepo: { findOne: jest.Mock; save: jest.Mock }
   let redis: { get: jest.Mock; set: jest.Mock; incr: jest.Mock }
   let authenticationService: { signToken: jest.Mock }
+  let jwtService: { sign: jest.Mock }
 
   const baseUser = {
     id: 'user-1',
@@ -35,6 +37,7 @@ describe('AuthService', () => {
     authenticationService = {
       signToken: jest.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
     }
+    jwtService = { sign: jest.fn().mockReturnValue('pending-token') }
 
     const module = await Test.createTestingModule({
       providers: [
@@ -43,6 +46,7 @@ describe('AuthService', () => {
         { provide: getRepositoryToken(PermissionsEntity), useValue: {} },
         { provide: getRedisConnectionToken(), useValue: redis },
         { provide: AuthenticationService, useValue: authenticationService },
+        { provide: JwtService, useValue: jwtService },
       ],
     }).compile()
 
@@ -58,6 +62,10 @@ describe('AuthService', () => {
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
 
     const result = await service.login({ username: 'tester', password: 'correct' })
+
+    if (result.twoFactorRequired) {
+      throw new Error('expected full tokens, got a pending 2FA challenge')
+    }
 
     expect(result.user).toEqual({
       id: baseUser.id,
@@ -106,6 +114,78 @@ describe('AuthService', () => {
     userRepo.findOne.mockResolvedValue(null)
 
     await expect(service.login({ username: 'ghost', password: 'anything' })).rejects.toThrow()
+  })
+
+  it('returns a pending token instead of full tokens when 2FA is enabled', async () => {
+    userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: true })
+    jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
+
+    const result = await service.login({ username: 'tester', password: 'correct' })
+
+    expect(result).toEqual({ twoFactorRequired: true, pendingToken: 'pending-token' })
+    expect(jwtService.sign).toHaveBeenCalledWith(
+      { sub: baseUser.id, scope: 'two-factor-pending' },
+      { expiresIn: '5m' }
+    )
+    expect(authenticationService.signToken).not.toHaveBeenCalled()
+  })
+
+  describe('completeTwoFactorLogin', () => {
+    it('issues full tokens when the code is correct', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      const result = await service.completeTwoFactorLogin(
+        baseUser.id,
+        authenticator.generate(secret)
+      )
+
+      expect(result.accessToken).toBe('access')
+      expect(result.user).toEqual({
+        id: baseUser.id,
+        username: baseUser.username,
+        role: baseUser.role,
+      })
+    })
+
+    it('rejects an incorrect code', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      await expect(service.completeTwoFactorLogin(baseUser.id, '000000')).rejects.toThrow(
+        BadRequestException
+      )
+    })
+
+    it('rejects when the user does not have 2FA enabled', async () => {
+      userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: false })
+
+      await expect(service.completeTwoFactorLogin(baseUser.id, '123456')).rejects.toThrow(
+        BadRequestException
+      )
+    })
+
+    it('rejects a blocked account even with a correct code', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        status: EnumUserStatus.BLOCKED,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      await expect(
+        service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
+      ).rejects.toThrow(BadRequestException)
+    })
   })
 
   describe('startTwoFactorEnrollment', () => {

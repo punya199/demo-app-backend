@@ -6,6 +6,7 @@ import { UserEntity } from '../../db/entities/user.entity'
 import { AuthenticationModule } from '../authentication/authentication.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
+import { TwoFactorPendingGuard } from './two-factor-pending.guard'
 
 @Module({
   imports: [
@@ -31,6 +32,6 @@ import { AuthService } from './auth.service'
   ],
 
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, TwoFactorPendingGuard],
 })
 export class AuthModule {}
