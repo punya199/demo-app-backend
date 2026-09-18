@@ -7,12 +7,13 @@ import {
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { nanoid } from 'nanoid'
-import { EntityManager, Repository } from 'typeorm'
+import { EntityManager, In, Repository } from 'typeorm'
 import { IBaseTokenPayload } from '../authentication/authentication.service'
 import { EnumPollType, PollEntity } from '../../db/entities/poll.entity'
 import { PollOptionEntity } from '../../db/entities/poll-option.entity'
 import { PollVoteEntity } from '../../db/entities/poll-vote.entity'
 import { CreatePollBodyDto } from './dto/create-poll.dto'
+import { EditPollBodyDto } from './dto/edit-poll.dto'
 import { SubmitVoteBodyDto } from './dto/submit-vote.dto'
 import { buildVoteSelections } from './vote-selection.helper'
 import { computeBordaScores, computeOptionCounts } from './vote-tally.helper'
@@ -112,13 +113,80 @@ export class VotingService {
     return poll
   }
 
+  async editPoll(pollId: string, params: EditPollBodyDto, userId: string, etm: EntityManager) {
+    const poll = await etm.findOne(PollEntity, { where: { id: pollId } })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+    if (poll.creatorId !== userId) {
+      throw new ForbiddenException('Only the poll creator can edit it')
+    }
+
+    const updates: Partial<Pick<PollEntity, 'title' | 'description'>> = {}
+    if (params.title !== undefined) {
+      updates.title = params.title
+    }
+    if (params.description !== undefined) {
+      updates.description = params.description
+    }
+    if (Object.keys(updates).length) {
+      await etm.update(PollEntity, pollId, updates)
+    }
+
+    if (params.options !== undefined) {
+      const voteCount = await etm.count(PollVoteEntity, { where: { pollId } })
+      if (voteCount > 0) {
+        throw new BadRequestException('Options cannot be changed once voting has started')
+      }
+      await etm.softDelete(PollOptionEntity, { pollId })
+      await etm.save(
+        PollOptionEntity,
+        params.options.map((label, order) => ({ pollId, label, order }))
+      )
+    }
+
+    return { poll: await this.getPollByEntityManager(pollId, etm) }
+  }
+
   async getMyPolls(userId: string) {
     const polls = await this.pollRepository.find({
       where: { creatorId: userId },
       relations: { options: true },
       order: { createdAt: 'DESC', options: { order: 'ASC' } },
     })
-    return { polls }
+
+    const votedPollIds = await this.pollIdsWithVotes(polls.map(poll => poll.id))
+    return {
+      polls: polls.map(poll => ({ ...poll, hasVotes: votedPollIds.has(poll.id) })),
+    }
+  }
+
+  async getPollForCreator(pollId: string, userId: string) {
+    const poll = await this.pollRepository.findOne({
+      where: { id: pollId },
+      relations: { options: true },
+      order: { options: { order: 'ASC' } },
+    })
+    if (!poll) {
+      throw new NotFoundException('Poll not found')
+    }
+    if (poll.creatorId !== userId) {
+      throw new ForbiddenException('Only the poll creator can view this')
+    }
+
+    const hasVotes = (await this.pollIdsWithVotes([poll.id])).has(poll.id)
+    return { poll: { ...poll, hasVotes } }
+  }
+
+  private async pollIdsWithVotes(pollIds: string[]): Promise<Set<string>> {
+    if (!pollIds.length) {
+      return new Set()
+    }
+    const votes = await this.pollVoteRepository.find({
+      where: { pollId: In(pollIds) },
+      select: { pollId: true },
+    })
+    return new Set(votes.map(vote => vote.pollId))
   }
 
   async closePoll(pollId: string, userId: string) {

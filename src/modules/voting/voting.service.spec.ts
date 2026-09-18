@@ -26,6 +26,9 @@ describe('VotingService', () => {
   let etm: {
     save: jest.Mock
     findOne: jest.Mock
+    update: jest.Mock
+    count: jest.Mock
+    softDelete: jest.Mock
   }
 
   beforeEach(async () => {
@@ -48,6 +51,9 @@ describe('VotingService', () => {
         Promise.resolve(Array.isArray(data) ? data : { id: 'poll-1', ...(data as object) })
       ),
       findOne: jest.fn().mockResolvedValue({ id: 'poll-1', options: [] }),
+      update: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+      softDelete: jest.fn(),
     }
 
     const module = await Test.createTestingModule({
@@ -140,6 +146,45 @@ describe('VotingService', () => {
       expect(pollRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: { creatorId: 'user-1' } })
       )
+    })
+
+    it('flags each poll with whether it has at least one vote', async () => {
+      pollRepo.find.mockResolvedValue([{ id: 'poll-1' }, { id: 'poll-2' }])
+      pollVoteRepo.find.mockResolvedValue([{ pollId: 'poll-1' }])
+
+      const result = await service.getMyPolls('user-1')
+
+      expect(result.polls).toEqual([
+        expect.objectContaining({ id: 'poll-1', hasVotes: true }),
+        expect.objectContaining({ id: 'poll-2', hasVotes: false }),
+      ])
+    })
+  })
+
+  describe('getPollForCreator', () => {
+    it('throws a NotFoundException for an unknown poll', async () => {
+      pollRepo.findOne.mockResolvedValue(null)
+
+      await expect(service.getPollForCreator('missing', 'user-1')).rejects.toThrow(
+        NotFoundException
+      )
+    })
+
+    it('throws a ForbiddenException when the requester is not the creator', async () => {
+      pollRepo.findOne.mockResolvedValue({ id: 'poll-1', creatorId: 'user-1' })
+
+      await expect(service.getPollForCreator('poll-1', 'someone-else')).rejects.toThrow(
+        ForbiddenException
+      )
+    })
+
+    it('includes hasVotes for the creator', async () => {
+      pollRepo.findOne.mockResolvedValue({ id: 'poll-1', creatorId: 'user-1' })
+      pollVoteRepo.find.mockResolvedValue([{ pollId: 'poll-1' }])
+
+      const result = await service.getPollForCreator('poll-1', 'user-1')
+
+      expect(result.poll.hasVotes).toBe(true)
     })
   })
 
@@ -391,6 +436,81 @@ describe('VotingService', () => {
       await service.closePoll('poll-1', 'user-1')
 
       expect(pollRepo.update).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('editPoll', () => {
+    it('throws a NotFoundException for an unknown poll', async () => {
+      etm.findOne.mockResolvedValueOnce(null)
+
+      await expect(
+        service.editPoll('missing', { title: 'New' }, 'user-1', etm as unknown as EntityManager)
+      ).rejects.toThrow(NotFoundException)
+    })
+
+    it('throws a ForbiddenException when the requester is not the creator', async () => {
+      etm.findOne.mockResolvedValueOnce({ id: 'poll-1', creatorId: 'user-1' })
+
+      await expect(
+        service.editPoll(
+          'poll-1',
+          { title: 'New' },
+          'someone-else',
+          etm as unknown as EntityManager
+        )
+      ).rejects.toThrow(ForbiddenException)
+      expect(etm.update).not.toHaveBeenCalled()
+    })
+
+    it('updates title/description regardless of whether votes exist', async () => {
+      etm.findOne.mockResolvedValueOnce({ id: 'poll-1', creatorId: 'user-1' })
+      etm.count.mockResolvedValue(3)
+
+      await service.editPoll(
+        'poll-1',
+        { title: 'New title', description: 'New description' },
+        'user-1',
+        etm as unknown as EntityManager
+      )
+
+      expect(etm.update).toHaveBeenCalledWith(PollEntity, 'poll-1', {
+        title: 'New title',
+        description: 'New description',
+      })
+      expect(etm.softDelete).not.toHaveBeenCalled()
+    })
+
+    it('replaces the options when no vote exists yet', async () => {
+      etm.findOne.mockResolvedValueOnce({ id: 'poll-1', creatorId: 'user-1' })
+      etm.count.mockResolvedValue(0)
+
+      await service.editPoll(
+        'poll-1',
+        { options: ['New option A', 'New option B'] },
+        'user-1',
+        etm as unknown as EntityManager
+      )
+
+      expect(etm.softDelete).toHaveBeenCalledWith(expect.anything(), { pollId: 'poll-1' })
+      expect(etm.save).toHaveBeenCalledWith(expect.anything(), [
+        expect.objectContaining({ pollId: 'poll-1', label: 'New option A', order: 0 }),
+        expect.objectContaining({ pollId: 'poll-1', label: 'New option B', order: 1 }),
+      ])
+    })
+
+    it('rejects an options change once the poll has a vote', async () => {
+      etm.findOne.mockResolvedValueOnce({ id: 'poll-1', creatorId: 'user-1' })
+      etm.count.mockResolvedValue(1)
+
+      await expect(
+        service.editPoll(
+          'poll-1',
+          { options: ['New option A', 'New option B'] },
+          'user-1',
+          etm as unknown as EntityManager
+        )
+      ).rejects.toThrow(BadRequestException)
+      expect(etm.softDelete).not.toHaveBeenCalled()
     })
   })
 })
