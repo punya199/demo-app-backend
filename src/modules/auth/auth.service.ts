@@ -109,12 +109,19 @@ export class AuthService {
       throw new AppBadRequestException({ code: 'AUT4012' })
     }
 
+    // Separate cooldown from the password-lockout counter: a mistyped 6-digit code is far
+    // more likely than an attack, so this throttles instead of blocking the account outright.
+    if (await this.isTwoFactorVerifyLocked(userId)) {
+      throw new AppBadRequestException({ code: 'AUT4014' })
+    }
+
     const writes: Promise<unknown>[] = []
 
     if (!authenticator.check(code, decryptTotpSecret(user.twoFactorSecret))) {
       const backupCodes = user.backupCodes ?? []
       const usedIndex = await this.findUnusedBackupCodeIndex(backupCodes, code)
       if (usedIndex === -1) {
+        await this.recordTwoFactorVerifyFailure(userId)
         throw new AppBadRequestException({ code: 'AUT4013' })
       }
 
@@ -129,6 +136,7 @@ export class AuthService {
         'NX'
       )
       if (!claimed) {
+        await this.recordTwoFactorVerifyFailure(userId)
         throw new AppBadRequestException({ code: 'AUT4013' })
       }
 
@@ -147,12 +155,42 @@ export class AuthService {
         '1',
         'PX',
         REMEMBER_DEVICE_MAX_AGE_MS
-      )
+      ),
+      this.redis.del(this.getTwoFactorVerifyFailedKey(userId))
     )
 
     const [tokens] = await Promise.all([this.issueTokens(user), ...writes])
 
     return { ...tokens, rememberDeviceToken }
+  }
+
+  private async recordTwoFactorVerifyFailure(userId: string) {
+    const count = await this.bumpFailureCounter(this.getTwoFactorVerifyFailedKey(userId), 60)
+    if (count >= 5) {
+      await this.redis.set(this.getTwoFactorVerifyLockKey(userId), '1', 'EX', 60)
+    }
+  }
+
+  // Atomic INCR (auto-initializes to 1) + EXPIRE only on that first increment, so concurrent
+  // callers can't race a get-then-set/incr into undercounting failures past a lockout threshold.
+  private async bumpFailureCounter(key: string, ttlSeconds: number) {
+    const count = await this.redis.incr(key)
+    if (count === 1) {
+      await this.redis.expire(key, ttlSeconds)
+    }
+    return count
+  }
+
+  private async isTwoFactorVerifyLocked(userId: string) {
+    return Boolean(await this.redis.get(this.getTwoFactorVerifyLockKey(userId)))
+  }
+
+  private getTwoFactorVerifyFailedKey(userId: string) {
+    return `two_factor_verify_failed:${userId}`
+  }
+
+  private getTwoFactorVerifyLockKey(userId: string) {
+    return `two_factor_verify_locked:${userId}`
   }
 
   private async findUnusedBackupCodeIndex(
@@ -235,16 +273,6 @@ export class AuthService {
   }
 
   private async updateWrongPassword(userId: string) {
-    const redisKey = `login_password_failed:${userId}`
-    const wrongPassword = await this.redis.get(redisKey)
-    const wrongPasswordNumber = +(wrongPassword || 0)
-
-    if (!wrongPasswordNumber) {
-      await this.redis.set(redisKey, 1, 'EX', 5 * 60)
-    } else {
-      await this.redis.incr(redisKey)
-    }
-    const result = await this.redis.get(redisKey)
-    return +(result || 0)
+    return this.bumpFailureCounter(`login_password_failed:${userId}`, 5 * 60)
   }
 }

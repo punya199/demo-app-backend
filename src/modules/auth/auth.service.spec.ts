@@ -15,7 +15,7 @@ import { AuthService } from './auth.service'
 describe('AuthService', () => {
   let service: AuthService
   let userRepo: { findOne: jest.Mock; save: jest.Mock }
-  let redis: { get: jest.Mock; set: jest.Mock; incr: jest.Mock }
+  let redis: { get: jest.Mock; set: jest.Mock; incr: jest.Mock; expire: jest.Mock; del: jest.Mock }
   let authenticationService: { signToken: jest.Mock }
   let jwtService: { sign: jest.Mock }
 
@@ -33,7 +33,13 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     userRepo = { findOne: jest.fn(), save: jest.fn() }
-    redis = { get: jest.fn(), set: jest.fn().mockResolvedValue('OK'), incr: jest.fn() }
+    redis = {
+      get: jest.fn(),
+      set: jest.fn().mockResolvedValue('OK'),
+      incr: jest.fn().mockResolvedValue(1),
+      expire: jest.fn(),
+      del: jest.fn(),
+    }
     authenticationService = {
       signToken: jest.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
     }
@@ -79,7 +85,7 @@ describe('AuthService', () => {
   it('rejects a wrong password without blocking on the first attempts', async () => {
     userRepo.findOne.mockResolvedValue({ ...baseUser })
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(false)
-    redis.get.mockResolvedValue(null)
+    redis.incr.mockResolvedValue(1)
 
     await expect(service.login({ username: 'tester', password: 'wrong' })).rejects.toThrow(
       BadRequestException
@@ -90,7 +96,7 @@ describe('AuthService', () => {
   it('blocks the account after the 5th wrong password attempt', async () => {
     userRepo.findOne.mockResolvedValue({ ...baseUser })
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(false)
-    redis.get.mockResolvedValueOnce('4').mockResolvedValueOnce('5')
+    redis.incr.mockResolvedValue(5)
 
     await expect(service.login({ username: 'tester', password: 'wrong' })).rejects.toThrow(
       BadRequestException
@@ -181,6 +187,7 @@ describe('AuthService', () => {
         'PX',
         30 * 24 * 60 * 60 * 1000
       )
+      expect(redis.del).toHaveBeenCalledWith(`two_factor_verify_failed:${baseUser.id}`)
     })
 
     it('rejects an incorrect code', async () => {
@@ -194,6 +201,37 @@ describe('AuthService', () => {
       await expect(service.completeTwoFactorLogin(baseUser.id, '000000')).rejects.toThrow(
         BadRequestException
       )
+    })
+
+    it('locks out further attempts after the 5th wrong code, even a correct one', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      const store = new Map<string, string>()
+      redis.get.mockImplementation((key: string) => store.get(key) ?? null)
+      redis.set.mockImplementation((key: string, value: string | number) => {
+        store.set(key, String(value))
+        return 'OK'
+      })
+      redis.incr.mockImplementation((key: string) => {
+        const next = +(store.get(key) ?? '0') + 1
+        store.set(key, String(next))
+        return next
+      })
+
+      for (let i = 0; i < 5; i++) {
+        await expect(service.completeTwoFactorLogin(baseUser.id, '000000')).rejects.toThrow(
+          BadRequestException
+        )
+      }
+
+      await expect(
+        service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
+      ).rejects.toThrow(BadRequestException)
     })
 
     it('rejects when the user does not have 2FA enabled', async () => {
