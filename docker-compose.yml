@@ -1,6 +1,7 @@
-name: saiyasat-api
+name: yaya-app
 services:
   api:
+    image: docker.io/acelectic/yaya-developer:demo-app-backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,3 +9,40 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-yaya}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-yaya}
+      POSTGRES_DB: ${DATABASE_NAME:-yaya}
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-yaya}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
