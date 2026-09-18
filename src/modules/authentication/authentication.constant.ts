@@ -3,6 +3,7 @@ export const AUTHENTICATION_MODULE_OPTIONS = 'AUTHENTICATION_MODULE_OPTIONS'
 export enum EnumCookieKeys {
   ACCESS_TOKEN = 'accessToken',
   REFRESH_TOKEN = 'refreshToken',
+  REMEMBER_DEVICE = 'rememberDeviceToken',
 }
 
 export enum EnumJwtStrategy {

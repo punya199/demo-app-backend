@@ -21,6 +21,7 @@ import { TWO_FACTOR_PENDING_SCOPE } from './two-factor-pending.guard'
 const TOTP_ISSUER = 'YaYa'
 const BACKUP_CODE_COUNT = 10
 const TWO_FACTOR_PENDING_EXPIRES_IN = '5m'
+export const REMEMBER_DEVICE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 
 @Injectable()
 export class AuthService {
@@ -35,7 +36,7 @@ export class AuthService {
     private permissionsRepo: Repository<PermissionsEntity>
   ) {}
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, rememberDeviceToken?: string) {
     const user = await this.userRepo.findOne({
       select: {
         id: true,
@@ -74,6 +75,10 @@ export class AuthService {
     }
 
     if (user.twoFactorEnabled) {
+      if (rememberDeviceToken && (await this.isDeviceRemembered(user.id, rememberDeviceToken))) {
+        return { twoFactorRequired: false as const, ...(await this.issueTokens(user)) }
+      }
+
       const pendingToken = this.jwtService.sign(
         { sub: user.id, scope: TWO_FACTOR_PENDING_SCOPE },
         { expiresIn: TWO_FACTOR_PENDING_EXPIRES_IN }
@@ -107,7 +112,26 @@ export class AuthService {
       throw new AppBadRequestException({ code: 'AUT4013' })
     }
 
-    return this.issueTokens(user)
+    const rememberDeviceToken = randomBytes(32).toString('hex')
+    const [tokens] = await Promise.all([
+      this.issueTokens(user),
+      this.redis.set(
+        this.getRememberDeviceKey(user.id, rememberDeviceToken),
+        '1',
+        'PX',
+        REMEMBER_DEVICE_MAX_AGE_MS
+      ),
+    ])
+
+    return { ...tokens, rememberDeviceToken }
+  }
+
+  private async isDeviceRemembered(userId: string, token: string) {
+    return Boolean(await this.redis.get(this.getRememberDeviceKey(userId, token)))
+  }
+
+  private getRememberDeviceKey(userId: string, token: string) {
+    return `remember_device:${userId}:${token}`
   }
 
   private async issueTokens(user: Pick<UserEntity, 'id' | 'username' | 'role'>) {

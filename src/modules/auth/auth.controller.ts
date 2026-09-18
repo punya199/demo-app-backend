@@ -12,7 +12,7 @@ import {
   RefreshTokenAuthGuard,
   TwoFactorPendingAuthGuard,
 } from './auth.decorator'
-import { AuthService } from './auth.service'
+import { AuthService, REMEMBER_DEVICE_MAX_AGE_MS } from './auth.service'
 import { TotpCodeDto } from './dto/totp-code.dto'
 import { IAppJwtPayload } from './auth.interface'
 
@@ -25,8 +25,9 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  async azureAdSignIn(@Body() body: LoginDto, @Res() res: Response) {
-    const result = await this.authService.login(body)
+  async azureAdSignIn(@Body() body: LoginDto, @Req() req: Request, @Res() res: Response) {
+    const rememberDeviceToken = req.cookies?.[EnumCookieKeys.REMEMBER_DEVICE] as string | undefined
+    const result = await this.authService.login(body, rememberDeviceToken)
 
     if (result.twoFactorRequired) {
       res.send({ twoFactorRequired: true, pendingToken: result.pendingToken })
@@ -86,6 +87,12 @@ export class AuthController {
     const result = await this.authService.completeTwoFactorLogin(userId, body.code)
     this.authenticationService.setCookie(res, EnumCookieKeys.ACCESS_TOKEN, result.accessToken)
     this.authenticationService.setCookie(res, EnumCookieKeys.REFRESH_TOKEN, result.refreshToken)
+    this.authenticationService.setCookie(
+      res,
+      EnumCookieKeys.REMEMBER_DEVICE,
+      result.rememberDeviceToken,
+      { maxAge: REMEMBER_DEVICE_MAX_AGE_MS }
+    )
     res.send({
       user: result.user,
       refreshToken: result.refreshToken,

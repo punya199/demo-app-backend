@@ -85,18 +85,14 @@ export class AuthenticationService {
     return this.redis.del(this.getTokenKey(userId, jti, type))
   }
 
+  // maxAge defaults to the JWT refresh expiry - correct for ACCESS_TOKEN/REFRESH_TOKEN, but any
+  // other cookie type (e.g. REMEMBER_DEVICE) MUST pass its own `options.maxAge` explicitly.
   setCookie(res: Response, type: EnumCookieKeys, token: string, options?: CookieOptions) {
-    res.cookie(
-      type === EnumCookieKeys.ACCESS_TOKEN
-        ? EnumCookieKeys.ACCESS_TOKEN
-        : EnumCookieKeys.REFRESH_TOKEN,
-      token,
-      {
-        ...this.options.cookies,
-        ...options,
-        maxAge: ms(this.options.jwt.refreshExpiresIn),
-      }
-    )
+    res.cookie(type, token, {
+      ...this.options.cookies,
+      maxAge: ms(this.options.jwt.refreshExpiresIn),
+      ...options,
+    })
     return res
   }
 

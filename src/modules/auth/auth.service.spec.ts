@@ -130,6 +130,30 @@ describe('AuthService', () => {
     expect(authenticationService.signToken).not.toHaveBeenCalled()
   })
 
+  it('skips the 2FA challenge when a valid remember-device token is presented', async () => {
+    userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: true })
+    jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
+    redis.get.mockResolvedValue('1')
+
+    const result = await service.login({ username: 'tester', password: 'correct' }, 'device-token')
+
+    if (result.twoFactorRequired) {
+      throw new Error('expected full tokens, got a pending 2FA challenge')
+    }
+    expect(result.accessToken).toBe('access')
+    expect(jwtService.sign).not.toHaveBeenCalled()
+  })
+
+  it('still requires the 2FA challenge when the remember-device token is unknown/expired', async () => {
+    userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: true })
+    jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
+    redis.get.mockResolvedValue(null)
+
+    const result = await service.login({ username: 'tester', password: 'correct' }, 'stale-token')
+
+    expect(result).toEqual({ twoFactorRequired: true, pendingToken: 'pending-token' })
+  })
+
   describe('completeTwoFactorLogin', () => {
     it('issues full tokens when the code is correct', async () => {
       const secret = authenticator.generateSecret()
@@ -150,6 +174,13 @@ describe('AuthService', () => {
         username: baseUser.username,
         role: baseUser.role,
       })
+      expect(result.rememberDeviceToken).toEqual(expect.any(String))
+      expect(redis.set).toHaveBeenCalledWith(
+        `remember_device:${baseUser.id}:${result.rememberDeviceToken}`,
+        '1',
+        'PX',
+        30 * 24 * 60 * 60 * 1000
+      )
     })
 
     it('rejects an incorrect code', async () => {
