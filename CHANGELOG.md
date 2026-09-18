@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/punya199/demo-app-backend/compare/v1.1.1...v1.2.0) (2026-09-18)
+
+
+### Update
+
+* add postgres and redis services to docker-compose ([022c71e](https://github.com/punya199/demo-app-backend/commit/022c71e04b9100f7395cd538f4200905f66b349d))
+
 ## [1.1.1](https://github.com/punya199/demo-app-backend/compare/v1.1.0...v1.1.1) (2026-09-18)
 
 
