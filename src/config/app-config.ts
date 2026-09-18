@@ -19,6 +19,9 @@ export const appConfig = {
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN as ms.StringValue,
   JWT_RENEW_REFRESH_TOKEN: process.env.JWT_RENEW_REFRESH_TOKEN === 'true',
 
+  // 32-byte key, hex-encoded (64 hex chars), used to AES-256-GCM encrypt TOTP secrets at rest.
+  TOTP_ENCRYPTION_KEY: process.env.TOTP_ENCRYPTION_KEY ?? '',
+
   COOKIE_HTTP_ONLY: process.env.COOKIE_HTTP_ONLY === 'true',
   COOKIE_SECURE: process.env.COOKIE_SECURE === 'true',
   COOKIE_SAME_SITE: process.env.COOKIE_SAME_SITE as CookieOptions['sameSite'],
@@ -64,6 +67,12 @@ const joiObject: IJoiObject = {
   JWT_EXPIRES_IN: Joi.string().required().description('JWT expires in'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
   JWT_RENEW_REFRESH_TOKEN: Joi.boolean().required(),
+
+  TOTP_ENCRYPTION_KEY: Joi.string()
+    .length(64)
+    .hex()
+    .required()
+    .description('32-byte hex key for encrypting TOTP secrets at rest'),
 
   DATABASE_HOST: Joi.string().required().description('Database host'),
   DATABASE_USER: Joi.string().required().description('Database user'),

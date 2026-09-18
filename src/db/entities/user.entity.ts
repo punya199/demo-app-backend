@@ -51,6 +51,17 @@ export class UserEntity extends BaseModelEntity {
   })
   status: EnumUserStatus
 
+  @Column({ name: 'two_factor_enabled', type: 'boolean', default: false, nullable: false })
+  twoFactorEnabled: boolean
+
+  @Exclude()
+  @Column({ name: 'two_factor_secret', type: 'varchar', select: false, nullable: true })
+  twoFactorSecret: string | null
+
+  @Exclude()
+  @Column({ name: 'backup_codes', type: 'jsonb', select: false, nullable: true })
+  backupCodes: { hash: string; usedAt: string | null }[] | null
+
   @OneToMany(() => HouseRentMemberEntity, houseRentMember => houseRentMember.user)
   houseRentMembers: HouseRentMemberEntity[]
 
