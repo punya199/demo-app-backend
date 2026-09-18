@@ -33,7 +33,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     userRepo = { findOne: jest.fn(), save: jest.fn() }
-    redis = { get: jest.fn(), set: jest.fn(), incr: jest.fn() }
+    redis = { get: jest.fn(), set: jest.fn().mockResolvedValue('OK'), incr: jest.fn() }
     authenticationService = {
       signToken: jest.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
     }
@@ -200,6 +200,85 @@ describe('AuthService', () => {
       userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: false })
 
       await expect(service.completeTwoFactorLogin(baseUser.id, '123456')).rejects.toThrow(
+        BadRequestException
+      )
+    })
+
+    it('accepts a valid unused backup code and marks it consumed', async () => {
+      const secret = authenticator.generateSecret()
+      const backupCode = 'ABCD1234EF'
+      const backupCodes = [
+        { hash: await passwordHelper.hashPassword(backupCode), usedAt: null },
+        { hash: await passwordHelper.hashPassword('OTHERCODE1'), usedAt: null },
+      ]
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+        backupCodes,
+      })
+
+      const result = await service.completeTwoFactorLogin(baseUser.id, backupCode)
+
+      expect(result.accessToken).toBe('access')
+      expect(userRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: baseUser.id,
+          backupCodes: [
+            expect.objectContaining({ hash: backupCodes[0].hash, usedAt: expect.any(String) }),
+            backupCodes[1],
+          ],
+        })
+      )
+    })
+
+    it('rejects a valid backup code when a concurrent request already claimed it', async () => {
+      const secret = authenticator.generateSecret()
+      const backupCode = 'ABCD1234EF'
+      const backupCodes = [{ hash: await passwordHelper.hashPassword(backupCode), usedAt: null }]
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+        backupCodes,
+      })
+      redis.set.mockResolvedValue(null)
+
+      await expect(service.completeTwoFactorLogin(baseUser.id, backupCode)).rejects.toThrow(
+        BadRequestException
+      )
+      expect(userRepo.save).not.toHaveBeenCalled()
+    })
+
+    it('rejects a backup code that was already used', async () => {
+      const secret = authenticator.generateSecret()
+      const backupCode = 'ABCD1234EF'
+      const backupCodes = [
+        { hash: await passwordHelper.hashPassword(backupCode), usedAt: new Date().toISOString() },
+      ]
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+        backupCodes,
+      })
+
+      await expect(service.completeTwoFactorLogin(baseUser.id, backupCode)).rejects.toThrow(
+        BadRequestException
+      )
+      expect(userRepo.save).not.toHaveBeenCalled()
+    })
+
+    it('rejects a code that matches neither the TOTP secret nor any backup code', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+        backupCodes: [{ hash: await passwordHelper.hashPassword('REALCODE01'), usedAt: null }],
+      })
+
+      await expect(service.completeTwoFactorLogin(baseUser.id, 'WRONGCODE1')).rejects.toThrow(
         BadRequestException
       )
     })
