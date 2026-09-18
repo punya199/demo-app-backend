@@ -1,6 +1,7 @@
 import { JwtModule, JwtService } from '@nestjs/jwt'
 import { Request } from 'express'
 import { ClsModuleAsyncOptions, ClsService } from 'nestjs-cls'
+import { EnumCookieKeys } from '../modules/authentication/authentication.constant'
 import { IAppJwtPayload } from '../modules/auth/auth.interface'
 
 export const clsServiceConfig: ClsModuleAsyncOptions = {
@@ -13,7 +14,7 @@ export const clsServiceConfig: ClsModuleAsyncOptions = {
       mount: true,
       generateId: true,
       setup: (cls: ClsService, request: Request) => {
-        const token = request.headers['authorization']?.split(' ')?.[1]?.toString()
+        const token = request.cookies?.[EnumCookieKeys.ACCESS_TOKEN] as string | undefined
 
         if (token) {
           const payload: IAppJwtPayload = jwt.decode(token)
