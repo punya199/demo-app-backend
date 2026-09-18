@@ -28,7 +28,16 @@ yarn migration:run / :revert / :show   # against src/config/database.config.ts (
 
 Pre-commit (husky) runs `lint-staged` (eslint --fix + prettier on staged `*.ts/js`) then a full `yarn build`. There is no local test runner in the hook — CI/Jenkins is the enforcement point for tests.
 
-Releases are automated via `semantic-release` (`.releaserc`) on `main`, using Angular/eslint-style commit messages to drive version bumps and CHANGELOG.md generation — commit message conventions matter here.
+Releases are automated via `semantic-release` (`.releaserc`) on `main`, using the ESLint commit-message convention to drive version bumps and CHANGELOG.md generation. Commit summary format is `Tag: description` (e.g. `Fix: reject votes on a closed poll`) — a commit whose summary doesn't start with one of these tags is invisible to the release tooling (no version bump, no changelog entry):
+
+- `Fix` — a bug fix
+- `Update` — a backwards-compatible enhancement
+- `New` — a new feature
+- `Breaking` — a backwards-incompatible change
+- `Docs` — documentation only
+- `Build` — build process only
+- `Upgrade` — a dependency upgrade
+- `Chore` — refactoring, tests, anything non-user-facing
 
 ## Architecture
 
