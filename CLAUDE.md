@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Package manager is Yarn (Berry, `yarn@4.9.2` via `.yarnrc.yml`) — use `yarn`, not `npm`, except where a script itself shells out to `npm run` (see migrations below).
 
+Copy `.env.example` to `.env` before running any dev/migration command — startup fails the Joi validation in `app-config.ts` without it.
+
 ```bash
 yarn start:dev          # nest start --watch (local dev)
 yarn build               # nest build
@@ -31,6 +33,10 @@ Releases are automated via `semantic-release` (`.releaserc`) on `main`, using An
 ## Architecture
 
 NestJS 11 + TypeORM (Postgres) + Redis, single deployable service (`src/main.ts` → `AppModule`). Feature modules live under `src/modules/<name>/` each with its own `*.module.ts`, `*.controller.ts`, `*.service.ts`, and a `dto/` folder; entities are centralized in `src/db/entities/` (not colocated with modules) and registered in one place: `src/config/database.config.ts` (`entities` / `subscribers` arrays consumed by both the CLI DataSource and `AppModule`'s `TypeOrmModule.forRoot`).
+
+### HTTP pipeline (`src/main.ts`)
+
+Global, app-wide, set once at bootstrap: `ValidationPipe` (DTOs are validated/transformed via `class-validator`/`class-transformer` on every route), `ClassSerializerInterceptor` (response shaping honors `@Exclude`/`@Expose` on entities/DTOs), and `GlobalExceptionFilter` (see Logging below). CORS origin comes from `appConfig.ORIGIN_ALLOWED` (comma-separated list, or `*`); `credentials: true` is always on, so `*` and cookie-based auth don't mix in practice. Body size limit is 50mb (`json`/`urlencoded`).
 
 ### Auth & permissions (two independent gates, often combined)
 
@@ -59,3 +65,13 @@ Distinct from the rest of the app: it treats a specific Google Sheet as the prim
 ### Logging
 
 `nestjs-pino` (`src/config/pino-config.ts`) is the structured logger wired at the framework level; `GlobalExceptionFilter` (`src/utils/filters/global-exception-filter.ts`) additionally normalizes all uncaught/`HttpException` errors into a consistent `{ statusCode, message, path, timestamp }` JSON body.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (via `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

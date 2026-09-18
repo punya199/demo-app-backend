@@ -21,6 +21,7 @@ import { HouseRentModule } from './modules/house-rent/house-rent.module'
 import { PaojiaoLedgerModule } from './modules/paojiao-ledger/paojiao-ledger.module'
 import { PermissionModule } from './modules/permission/permission.module'
 import { UserModule } from './modules/user/user.module'
+import { VotingModule } from './modules/voting/voting.module'
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { UserModule } from './modules/user/user.module'
     AttachmentModule,
     PermissionModule,
     PaojiaoLedgerModule,
+    VotingModule,
   ],
   providers: [AppService],
   controllers: [AppController],
