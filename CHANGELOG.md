@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/punya199/demo-app-backend/compare/v1.1.0...v1.1.1) (2026-09-18)
+
+
+### Fix
+
+* document the ESLint commit-message tag format ([cc9fdde](https://github.com/punya199/demo-app-backend/commit/cc9fdde5207ae4d5629d12767cfd11c71295898b))
+
 ## [1.0.20](https://github.com/punya199/demo-app-backend/compare/v1.0.19...v1.0.20) (2026-08-29)
 
 
