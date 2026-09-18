@@ -18,7 +18,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter())
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
   // เปิด ValidationPipe
-  app.useGlobalPipes(new ValidationPipe())
+  app.useGlobalPipes(new ValidationPipe({ transform: true }))
   app.enableCors({
     origin: appConfig.ORIGIN_ALLOWED.includes('*') ? '*' : appConfig.ORIGIN_ALLOWED,
     credentials: true,
