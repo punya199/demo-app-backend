@@ -1,3 +1,14 @@
+# [1.3.0](https://github.com/punya199/demo-app-backend/compare/v1.2.1...v1.3.0) (2026-09-18)
+
+
+### Chore
+
+* add e2e regression test for the ValidationPipe transform fix ([3ea14f7](https://github.com/punya199/demo-app-backend/commit/3ea14f78195b6b74ea42467f6846f80506e96f99))
+
+### Update
+
+* read CLS userId from the accessToken cookie instead of the Authorization header ([30941b8](https://github.com/punya199/demo-app-backend/commit/30941b80ba7d5a1d8527146e986582b208f10448))
+
 ## [1.2.1](https://github.com/punya199/demo-app-backend/compare/v1.2.0...v1.2.1) (2026-09-18)
 
 
