@@ -1,15 +1,23 @@
 import { InjectRedis } from '@nestjs-modules/ioredis'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { randomBytes } from 'crypto'
 import Redis from 'ioredis'
 import { pick } from 'lodash'
+import { authenticator } from 'otplib'
+import * as QRCode from 'qrcode'
 import { Repository } from 'typeorm'
 import { PermissionsEntity } from '../../db/entities/permissions'
 import { EnumUserStatus, UserEntity } from '../../db/entities/user.entity'
-import { comparePassword } from '../../utils/password-helper'
+import { AppBadRequestException } from '../../utils/exception'
+import { comparePassword, hashPassword } from '../../utils/password-helper'
+import { decryptTotpSecret, encryptTotpSecret } from '../../utils/totp-crypto'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
 import { IAppJwtPayload } from './auth.interface'
+
+const TOTP_ISSUER = 'YaYa'
+const BACKUP_CODE_COUNT = 10
 
 @Injectable()
 export class AuthService {
@@ -71,6 +79,47 @@ export class AuthService {
     const { accessToken, refreshToken } =
       await this.authenticationService.signToken<IAppJwtPayload>(payload)
     return { accessToken, refreshToken, user: pick(user, ['id', 'username', 'role']) }
+  }
+
+  async startTwoFactorEnrollment(userId: string, username: string) {
+    const secret = authenticator.generateSecret()
+
+    // save(), not update() - update() bypasses AuditSubscriber and leaves updaterId/updatedAt stale.
+    await this.userRepo.save({ id: userId, twoFactorSecret: encryptTotpSecret(secret) })
+
+    const otpauthUri = authenticator.keyuri(username, TOTP_ISSUER, secret)
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUri)
+
+    return { secret, qrCodeDataUrl }
+  }
+
+  async confirmTwoFactorEnrollment(userId: string, code: string) {
+    const user = await this.userRepo.findOne({
+      select: { id: true, twoFactorSecret: true },
+      where: { id: userId },
+    })
+
+    if (
+      !user?.twoFactorSecret ||
+      !authenticator.check(code, decryptTotpSecret(user.twoFactorSecret))
+    ) {
+      throw new AppBadRequestException({ code: 'AUT4010' })
+    }
+
+    const backupCodes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
+      randomBytes(5).toString('hex').toUpperCase()
+    )
+    const hashedBackupCodes = await Promise.all(
+      backupCodes.map(async backupCode => ({ hash: await hashPassword(backupCode), usedAt: null }))
+    )
+
+    await this.userRepo.save({
+      id: userId,
+      twoFactorEnabled: true,
+      backupCodes: hashedBackupCodes,
+    })
+
+    return { backupCodes }
   }
 
   private async updateWrongPassword(userId: string) {

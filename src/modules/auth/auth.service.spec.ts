@@ -2,9 +2,12 @@ import { getRedisConnectionToken } from '@nestjs-modules/ioredis'
 import { BadRequestException } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { getRepositoryToken } from '@nestjs/typeorm'
+import { authenticator } from 'otplib'
 import { EnumUserStatus, UserEntity, UserRole } from '../../db/entities/user.entity'
 import { PermissionsEntity } from '../../db/entities/permissions'
+import appConfig from '../../config/app-config'
 import * as passwordHelper from '../../utils/password-helper'
+import { encryptTotpSecret } from '../../utils/totp-crypto'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { AuthService } from './auth.service'
 
@@ -21,6 +24,10 @@ describe('AuthService', () => {
     status: EnumUserStatus.ACTIVE,
     password: 'hashed-password',
   }
+
+  beforeAll(() => {
+    appConfig.TOTP_ENCRYPTION_KEY = '0'.repeat(64)
+  })
 
   beforeEach(async () => {
     userRepo = { findOne: jest.fn(), save: jest.fn() }
@@ -99,5 +106,58 @@ describe('AuthService', () => {
     userRepo.findOne.mockResolvedValue(null)
 
     await expect(service.login({ username: 'ghost', password: 'anything' })).rejects.toThrow()
+  })
+
+  describe('startTwoFactorEnrollment', () => {
+    it('stores an encrypted secret and returns it with a QR code data URL', async () => {
+      const result = await service.startTwoFactorEnrollment(baseUser.id, baseUser.username)
+
+      expect(userRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: baseUser.id, twoFactorSecret: expect.any(String) })
+      )
+      expect(result.secret).toEqual(expect.any(String))
+      expect(result.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/)
+    })
+  })
+
+  describe('confirmTwoFactorEnrollment', () => {
+    it('activates 2FA and returns backup codes when the code is correct', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      const result = await service.confirmTwoFactorEnrollment(
+        baseUser.id,
+        authenticator.generate(secret)
+      )
+
+      expect(result.backupCodes).toHaveLength(10)
+      expect(userRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: baseUser.id, twoFactorEnabled: true })
+      )
+    })
+
+    it('rejects an incorrect code without activating 2FA', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      await expect(service.confirmTwoFactorEnrollment(baseUser.id, '000000')).rejects.toThrow(
+        BadRequestException
+      )
+      expect(userRepo.save).not.toHaveBeenCalled()
+    })
+
+    it('rejects confirmation when enrollment was never started', async () => {
+      userRepo.findOne.mockResolvedValue({ id: baseUser.id, twoFactorSecret: null })
+
+      await expect(service.confirmTwoFactorEnrollment(baseUser.id, '123456')).rejects.toThrow(
+        BadRequestException
+      )
+    })
   })
 })

@@ -5,8 +5,10 @@ import { AppBadRequestException } from '../../utils/exception'
 import { EnumCookieKeys } from '../authentication/authentication.constant'
 import { AuthenticationService } from '../authentication/authentication.service'
 import { LoginDto } from '../user/dto/login.dto'
-import { AuthUser, RefreshTokenAuthGuard } from './auth.decorator'
+import { AuthUser, ReqUser, RefreshTokenAuthGuard } from './auth.decorator'
 import { AuthService } from './auth.service'
+import { ConfirmTotpDto } from './dto/confirm-totp.dto'
+import { IAppJwtPayload } from './auth.interface'
 
 @Controller('auth')
 export class AuthController {
@@ -48,5 +50,17 @@ export class AuthController {
     res.send({
       refreshToken: result.refreshToken,
     })
+  }
+
+  @AuthUser()
+  @Post('2fa/enroll')
+  async startTwoFactorEnrollment(@ReqUser() user: IAppJwtPayload) {
+    return this.authService.startTwoFactorEnrollment(user['user-id'], user.username)
+  }
+
+  @AuthUser()
+  @Post('2fa/confirm')
+  async confirmTwoFactorEnrollment(@ReqUser() user: IAppJwtPayload, @Body() body: ConfirmTotpDto) {
+    return this.authService.confirmTwoFactorEnrollment(user['user-id'], body.code)
   }
 }
