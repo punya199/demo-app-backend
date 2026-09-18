@@ -59,3 +59,13 @@ Distinct from the rest of the app: it treats a specific Google Sheet as the prim
 ### Logging
 
 `nestjs-pino` (`src/config/pino-config.ts`) is the structured logger wired at the framework level; `GlobalExceptionFilter` (`src/utils/filters/global-exception-filter.ts`) additionally normalizes all uncaught/`HttpException` errors into a consistent `{ statusCode, message, path, timestamp }` JSON body.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (via `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
