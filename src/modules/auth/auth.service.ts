@@ -156,6 +156,13 @@ export class AuthService {
         'PX',
         REMEMBER_DEVICE_MAX_AGE_MS
       ),
+      // Tracked in a per-user set (not just KEYS-scanned) so disableTwoFactor can revoke every
+      // remembered device in one shot instead of leaving stale tokens that survive a re-enroll.
+      this.redis.sadd(this.getRememberDeviceTokensSetKey(user.id), rememberDeviceToken),
+      this.redis.expire(
+        this.getRememberDeviceTokensSetKey(user.id),
+        REMEMBER_DEVICE_MAX_AGE_MS / 1000
+      ),
       this.redis.del(this.getTwoFactorVerifyFailedKey(userId))
     )
 
@@ -217,6 +224,18 @@ export class AuthService {
     return `remember_device:${userId}:${token}`
   }
 
+  private getRememberDeviceTokensSetKey(userId: string) {
+    return `remember_device_tokens:${userId}`
+  }
+
+  private async revokeRememberedDevices(userId: string) {
+    const tokens = await this.redis.smembers(this.getRememberDeviceTokensSetKey(userId))
+    if (tokens.length) {
+      await this.redis.del(...tokens.map(token => this.getRememberDeviceKey(userId, token)))
+    }
+    await this.redis.del(this.getRememberDeviceTokensSetKey(userId))
+  }
+
   private async issueTokens(user: Pick<UserEntity, 'id' | 'username' | 'role'>) {
     const payload: IAppJwtPayload = {
       sub: user.id,
@@ -270,6 +289,39 @@ export class AuthService {
     })
 
     return { backupCodes }
+  }
+
+  async disableTwoFactor(userId: string, code: string) {
+    const user = await this.userRepo.findOne({
+      select: { id: true, twoFactorEnabled: true, twoFactorSecret: true },
+      where: { id: userId },
+    })
+
+    if (!user?.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new AppBadRequestException({ code: 'AUT4015' })
+    }
+
+    // Same lock/counter completeTwoFactorLogin uses: a stolen session token without the TOTP
+    // secret shouldn't get unlimited guesses to turn 2FA off.
+    if (await this.isTwoFactorVerifyLocked(userId)) {
+      throw new AppBadRequestException({ code: 'AUT4014' })
+    }
+
+    if (!authenticator.check(code, decryptTotpSecret(user.twoFactorSecret))) {
+      await this.recordTwoFactorVerifyFailure(userId)
+      throw new AppBadRequestException({ code: 'AUT4015' })
+    }
+
+    await Promise.all([
+      this.userRepo.save({
+        id: userId,
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        backupCodes: null,
+      }),
+      this.revokeRememberedDevices(userId),
+      this.redis.del(this.getTwoFactorVerifyFailedKey(userId)),
+    ])
   }
 
   private async updateWrongPassword(userId: string) {

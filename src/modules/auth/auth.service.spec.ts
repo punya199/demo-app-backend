@@ -15,7 +15,15 @@ import { AuthService } from './auth.service'
 describe('AuthService', () => {
   let service: AuthService
   let userRepo: { findOne: jest.Mock; save: jest.Mock }
-  let redis: { get: jest.Mock; set: jest.Mock; incr: jest.Mock; expire: jest.Mock; del: jest.Mock }
+  let redis: {
+    get: jest.Mock
+    set: jest.Mock
+    incr: jest.Mock
+    expire: jest.Mock
+    del: jest.Mock
+    sadd: jest.Mock
+    smembers: jest.Mock
+  }
   let authenticationService: { signToken: jest.Mock }
   let jwtService: { sign: jest.Mock }
 
@@ -39,6 +47,8 @@ describe('AuthService', () => {
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn(),
       del: jest.fn(),
+      sadd: jest.fn(),
+      smembers: jest.fn().mockResolvedValue([]),
     }
     authenticationService = {
       signToken: jest.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
@@ -386,6 +396,102 @@ describe('AuthService', () => {
       await expect(service.confirmTwoFactorEnrollment(baseUser.id, '123456')).rejects.toThrow(
         BadRequestException
       )
+    })
+  })
+
+  describe('disableTwoFactor', () => {
+    it('clears 2FA state when the code is correct', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      await service.disableTwoFactor(baseUser.id, authenticator.generate(secret))
+
+      expect(userRepo.save).toHaveBeenCalledWith({
+        id: baseUser.id,
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        backupCodes: null,
+      })
+    })
+
+    it('rejects an incorrect code without disabling 2FA', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      await expect(service.disableTwoFactor(baseUser.id, '000000')).rejects.toThrow(
+        BadRequestException
+      )
+      expect(userRepo.save).not.toHaveBeenCalled()
+    })
+
+    it('rejects when 2FA is not enabled', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+      })
+
+      await expect(service.disableTwoFactor(baseUser.id, '123456')).rejects.toThrow(
+        BadRequestException
+      )
+    })
+
+    it('revokes every remembered device for the user', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+      redis.smembers.mockResolvedValue(['device-a', 'device-b'])
+
+      await service.disableTwoFactor(baseUser.id, authenticator.generate(secret))
+
+      expect(redis.del).toHaveBeenCalledWith(
+        `remember_device:${baseUser.id}:device-a`,
+        `remember_device:${baseUser.id}:device-b`
+      )
+      expect(redis.del).toHaveBeenCalledWith(`remember_device_tokens:${baseUser.id}`)
+    })
+
+    it('is rate-limited the same way completeTwoFactorLogin is', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue({
+        id: baseUser.id,
+        twoFactorEnabled: true,
+        twoFactorSecret: encryptTotpSecret(secret),
+      })
+
+      const store = new Map<string, string>()
+      redis.get.mockImplementation((key: string) => store.get(key) ?? null)
+      redis.set.mockImplementation((key: string, value: string | number) => {
+        store.set(key, String(value))
+        return 'OK'
+      })
+      redis.incr.mockImplementation((key: string) => {
+        const next = +(store.get(key) ?? '0') + 1
+        store.set(key, String(next))
+        return next
+      })
+
+      for (let i = 0; i < 5; i++) {
+        await expect(service.disableTwoFactor(baseUser.id, '000000')).rejects.toThrow(
+          BadRequestException
+        )
+      }
+
+      await expect(
+        service.disableTwoFactor(baseUser.id, authenticator.generate(secret))
+      ).rejects.toThrow(BadRequestException)
+      expect(userRepo.save).not.toHaveBeenCalled()
     })
   })
 })

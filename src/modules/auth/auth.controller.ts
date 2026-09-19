@@ -98,4 +98,11 @@ export class AuthController {
       refreshToken: result.refreshToken,
     })
   }
+
+  @AuthUser()
+  @Post('2fa/disable')
+  async disableTwoFactor(@ReqUser() user: IAppJwtPayload, @Body() body: TotpCodeDto) {
+    await this.authService.disableTwoFactor(user['user-id'], body.code)
+    return { status: 'success' }
+  }
 }
