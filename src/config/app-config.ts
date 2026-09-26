@@ -39,6 +39,8 @@ export const appConfig = {
   AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME ?? '',
   AWS_REGION: process.env.AWS_REGION ?? '',
 
+  ATTACHMENT_MAX_FILE_SIZE_MB: +(process.env.ATTACHMENT_MAX_FILE_SIZE_MB || 10),
+
   REDIS_HOST: process.env.REDIS_HOST ?? '',
   REDIS_PORT: +(process.env.REDIS_PORT || 6379),
   REDIS_PREFIX: process.env.REDIS_PREFIX ?? '',
@@ -86,6 +88,11 @@ const joiObject: IJoiObject = {
   AWS_SECRET_ACCESS_KEY: Joi.string().required().description('AWS secret access key'),
   AWS_BUCKET_NAME: Joi.string().required().description('AWS bucket name'),
   AWS_REGION: Joi.string().required().description('AWS region'),
+
+  ATTACHMENT_MAX_FILE_SIZE_MB: Joi.number()
+    .positive()
+    .default(10)
+    .description('Max attachment upload size in MB'),
 
   REDIS_HOST: Joi.string().required().description('Redis host'),
   REDIS_PORT: Joi.number().default(6379).description('Redis port'),

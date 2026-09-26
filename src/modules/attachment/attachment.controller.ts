@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
+import { appConfig } from '../../config/app-config'
 import { UserRole } from '../../db/entities/user.entity'
 import { AuthUser } from '../auth/auth.decorator'
 import { AttachmentService } from './attachment.service'
@@ -31,14 +32,14 @@ export class AttachmentController {
         file: Express.Multer.File,
         callback: (error: Error | null, acceptFile: boolean) => void
       ) => {
-        if (file.mimetype.includes('image/')) {
+        if (file.mimetype.includes('image/') || file.mimetype === 'application/pdf') {
           callback(null, true)
         } else {
-          callback(new BadRequestException('File is not an image'), false)
+          callback(new BadRequestException('File must be an image or a PDF'), false)
         }
       },
       limits: {
-        fileSize: 5 * 1024 * 1024, // 10MB limit
+        fileSize: appConfig.ATTACHMENT_MAX_FILE_SIZE_MB * 1024 * 1024,
       },
     })
   )

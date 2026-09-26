@@ -38,8 +38,9 @@ export class AttachmentService {
 
     let body = file.buffer
     const s3key = path.join('uploads', fileName)
+    const isImage = mimeType.includes('image/')
 
-    if (mimeType.includes('image/')) {
+    if (isImage) {
       body = await sharp(file.buffer)
         .resize({
           width: 1200,
@@ -78,7 +79,7 @@ export class AttachmentService {
     const attachment = this.attachmentRepository.create({
       fileName,
       filePath: s3key,
-      mimeType: 'image/png',
+      mimeType: isImage ? 'image/png' : mimeType,
       size,
     })
 
