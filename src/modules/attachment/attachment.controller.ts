@@ -79,30 +79,6 @@ export class AttachmentController {
     const presignedUrl = await this.attachmentService.getAttachmentFilePresignedUrl(id, query)
 
     res.redirect(HttpStatus.TEMPORARY_REDIRECT, presignedUrl)
-
-    // const { readable, filename, contentType } = await this.attachmentService.getAttachmentFile(id)
-    // res.setHeader('cross-origin-resource-policy', 'cross-origin')
-
-    // res.setHeader('Cache-Control', 'public, max-age=86400') // 1 day in seconds
-
-    // if (contentType) {
-    //   res.setHeader('Content-Type', contentType)
-    // }
-    // if (filename) {
-    //   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`)
-    // }
-
-    // if (contentType.includes('image/') && query.thumbnail) {
-    //   readable
-    //     .pipe(
-    //       sharp().resize({
-    //         width: 200,
-    //       })
-    //     )
-    //     .pipe(res)
-    // } else {
-    //   readable.pipe(res)
-    // }
   }
 
   @AuthUser(UserRole.ADMIN)
