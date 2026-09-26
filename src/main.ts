@@ -20,8 +20,9 @@ async function bootstrap() {
   // เปิด ValidationPipe
   app.useGlobalPipes(new ValidationPipe({ transform: true }))
   app.enableCors({
-    origin: appConfig.ORIGIN_ALLOWED.includes('*') ? '*' : appConfig.ORIGIN_ALLOWED,
+    origin: appConfig.ORIGIN_ALLOWED,
     credentials: true,
+    exposedHeaders: ['X-App-Version'],
   })
   app.use(helmet())
 
