@@ -1,3 +1,18 @@
+## [1.4.1](https://github.com/punya199/demo-app-backend/compare/v1.4.0...v1.4.1) (2026-09-26)
+
+
+### Chore
+
+* remove dead commented-out code in attachment file route ([3a5e4b7](https://github.com/punya199/demo-app-backend/commit/3a5e4b7d1433d55b12c36d424e516983326e382f))
+
+### Docs
+
+* document commit-tag requirement for semantic-release/docker-build ([37403f0](https://github.com/punya199/demo-app-backend/commit/37403f03f558f11f1a25f2c09a53af13daf63bce))
+
+### Fix
+
+* correct CORS config to expose X-App-Version and fix wildcard+credentials conflict ([5ff5526](https://github.com/punya199/demo-app-backend/commit/5ff552689223ddedf11d68f8d94db6c74605969c))
+
 # [1.4.0](https://github.com/punya199/demo-app-backend/compare/v1.3.0...v1.4.0) (2026-09-26)
 
 
