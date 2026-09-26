@@ -1,3 +1,17 @@
+# [1.4.0](https://github.com/punya199/demo-app-backend/compare/v1.3.0...v1.4.0) (2026-09-26)
+
+
+### New
+
+* accept a backup code at 2FA verify when TOTP is unavailable (ticket 5/7) ([32a9131](https://github.com/punya199/demo-app-backend/commit/32a9131cc84333f476ea0d38d5393b85a2413ca8))
+* add TOTP 2FA schema, encryption helper, and spec (ticket 1/7) ([9a68205](https://github.com/punya199/demo-app-backend/commit/9a68205992c279b904ed27f216954f3b0ef404bb))
+* add TOTP enrollment start/confirm endpoints (ticket 2/7) ([2d30a95](https://github.com/punya199/demo-app-backend/commit/2d30a9568c9118e0630c1d5c10d52bd6ce9bae73))
+* allow PDF attachment uploads, make max file size configurable ([81a1c54](https://github.com/punya199/demo-app-backend/commit/81a1c5417b90370ab05a2eed6d8118ac1ed0f90e))
+* let users disable 2FA with a valid TOTP code (ticket 7/7) ([780a97b](https://github.com/punya199/demo-app-backend/commit/780a97bd112351065962b9afffa4f12503107152))
+* rate-limit wrong 2FA verify attempts (ticket 6/7) ([38335a9](https://github.com/punya199/demo-app-backend/commit/38335a9734c9f4905d828c1daf721fa1e82ae04b))
+* remember trusted devices for 30 days after 2FA (ticket 4/7) ([a8a1313](https://github.com/punya199/demo-app-backend/commit/a8a13131578e6f3258ec237a99ddd797a5d996fb))
+* require TOTP code to complete login when 2FA is enabled (ticket 3/7) ([a494374](https://github.com/punya199/demo-app-backend/commit/a4943744e83f8ee817661bd0bdc3af0d253d161e))
+
 # [1.3.0](https://github.com/punya199/demo-app-backend/compare/v1.2.1...v1.3.0) (2026-09-18)
 
 
