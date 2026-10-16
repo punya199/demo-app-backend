@@ -46,3 +46,5 @@ lerna-debug.log*
 
 .yarn/cache
 .yarn/install-state.gz
+# Secrets are mounted at runtime (Cloud Run Secret Manager), never baked into the image
+private/secret

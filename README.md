@@ -57,18 +57,49 @@ $ yarn run test:e2e
 $ yarn run test:cov
 ```
 
-## Deployment
+## Deployment (Google Cloud Run + Neon)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Every release on `main` publishes the image to Docker Hub (unchanged) and, once GCP is set up, the
+`deploy-cloud-run` job in `.github/workflows/docker-build.yml` builds a `linux/amd64` image, pushes it
+to Artifact Registry, runs the migration Job, then deploys the service at that image digest. The job is
+skipped while `vars.GCP_PROJECT_ID` is unset, so CI keeps passing before setup.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### One-time setup (manual)
 
-```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
-```
+1. **GCP project**: link a billing account and create a **$1 budget alert**. Enable the Cloud Run,
+   Artifact Registry, Secret Manager, IAM Credentials and STS APIs.
+2. **Artifact Registry**: a Docker repository in `asia-southeast1`.
+3. **Service accounts**:
+   - runtime account (used by the service and the Job): `roles/secretmanager.secretAccessor`.
+   - deployer account (used by GitHub Actions): `roles/run.admin`, `roles/artifactregistry.writer`, and
+     `roles/iam.serviceAccountUser` on the runtime account.
+4. **Workload Identity Federation**: a pool + GitHub OIDC provider whose attribute condition pins
+   `assertion.repository` to this repo; grant the deployer account `roles/iam.workloadIdentityUser` to
+   that principal. No JSON key is stored in GitHub.
+5. **Neon**: a free project in the Singapore region. `pg_dump` the current database, restore it, and
+   check it fits in 1 GB. Use the **pooled** host with `DATABASE_SSL=true` for the service (the direct
+   host is safer for the migration Job).
+6. **Secret Manager**: database credentials, `JWT_SECRET`, cookie settings, `TOTP_ENCRYPTION_KEY`, R2
+   (`AWS_*`) credentials, and the Google Sheets private key. The key is mounted as a **file** at
+   `/usr/src/app/private/secret/google_sheets.key` (config reads it at startup, so the Job needs it too).
+7. **Cloud Run service** in `asia-southeast1`: min instances 0, request-based billing, startup probe on
+   `/health`, env vars and secrets from step 6. Deploy once by hand with any image.
+8. **Cloud Run Job** for migrations: same image, same env/secrets, command
+   `node node_modules/typeorm/cli.js migration:run -d dist/config/database.config.js`.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### GitHub repository variables
+
+| Variable | Example |
+|---|---|
+| `GCP_PROJECT_ID` | `my-project` (leave unset to skip deploys) |
+| `GCP_REGION` | `asia-southeast1` |
+| `GCP_WIF_PROVIDER` | `projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>` |
+| `GCP_SERVICE_ACCOUNT` | deployer account email |
+| `AR_REPOSITORY` | Artifact Registry repository name |
+| `CLOUD_RUN_SERVICE` | Cloud Run service name |
+| `CLOUD_RUN_MIGRATE_JOB` | Cloud Run Job name |
+
+No new GitHub secrets are needed; app secrets live in Secret Manager.
 
 ## Resources
 
