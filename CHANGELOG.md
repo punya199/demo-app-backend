@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/punya199/demo-app-backend/compare/v1.9.0...v1.10.0) (2026-10-16)
+
+
+### Update
+
+* require rebasing main onto origin before pushing (CLAUDE.md) ([a527767](https://github.com/punya199/demo-app-backend/commit/a527767e21b9f13dc933c4362bfc32f7a5fdfdac))
+
 # [1.9.0](https://github.com/punya199/demo-app-backend/compare/v1.8.0...v1.9.0) (2026-10-16)
 
 
