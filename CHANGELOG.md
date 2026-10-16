@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/punya199/demo-app-backend/compare/v1.6.0...v1.7.0) (2026-10-16)
+
+
+### Update
+
+* send X-App-Version header on every handled response ([853c79d](https://github.com/punya199/demo-app-backend/commit/853c79d2feeb253c22a52ef0a71bf87a2f0d803f))
+
 # [1.6.0](https://github.com/punya199/demo-app-backend/compare/v1.5.0...v1.6.0) (2026-10-16)
 
 
