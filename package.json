@@ -34,6 +34,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.872.0",
     "@aws-sdk/s3-request-presigner": "^3.872.0",
+    "@googleapis/sheets": "^18.1.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -49,7 +50,6 @@
     "cookie-parser": "^1.4.7",
     "dayjs": "^1.11.18",
     "dotenv": "^16.5.0",
-    "googleapis": "^176.0.0",
     "helmet": "^8.1.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",

@@ -37,18 +37,16 @@ ENV APP_BUILD_VERSION=${APP_BUILD_VERSION}
 
 WORKDIR /usr/src/app
 
-RUN corepack enable \
-    && yarn set version berry \
-    && yarn config set nodeLinker node-modules \
-    && yarn
-
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 
-RUN yarn workspaces focus --all --production
+# Drop Yarn's download cache in the same layer, or it ships in the image
+RUN yarn workspaces focus --all --production \
+    && rm -rf /root/.yarn /root/.cache /tmp/*
 
 COPY --from=builder /usr/src/app/dist ./dist/
 COPY --from=builder /usr/src/app/private ./private/
 
+USER node
 EXPOSE 3000
 CMD ["node", "dist/main"]
