@@ -1,3 +1,16 @@
+# [1.5.0](https://github.com/punya199/demo-app-backend/compare/v1.4.1...v1.5.0) (2026-10-16)
+
+
+### New
+
+* Add serverless migration specification and issues ([1854ddf](https://github.com/punya199/demo-app-backend/commit/1854ddfc4001bd35a18190e9330ec09e79bf32ac))
+* deploy backend to Cloud Run from the release workflow ([d0a4cf5](https://github.com/punya199/demo-app-backend/commit/d0a4cf5d167640d569622e7ab14023e758e2ab72))
+
+### Update
+
+* put login state behind a KvStore seam (still Redis) ([8d35a41](https://github.com/punya199/demo-app-backend/commit/8d35a413ec5f016eea7e4dd634058123e717acaf))
+* store login state in Postgres and remove Redis ([7e6a859](https://github.com/punya199/demo-app-backend/commit/7e6a859a532be131fb0e5e5c4cab05514ab977fa))
+
 ## [1.4.1](https://github.com/punya199/demo-app-backend/compare/v1.4.0...v1.4.1) (2026-09-26)
 
 
