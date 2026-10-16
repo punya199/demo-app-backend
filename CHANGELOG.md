@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/punya199/demo-app-backend/compare/v1.8.0...v1.9.0) (2026-10-16)
+
+
+### Update
+
+* shrink Docker image (drop yarn cache, swap googleapis for @googleapis/sheets) ([7032aa6](https://github.com/punya199/demo-app-backend/commit/7032aa6058108e31554e33f439bbc6c13d377613))
+
 # [1.8.0](https://github.com/punya199/demo-app-backend/compare/v1.7.0...v1.8.0) (2026-10-16)
 
 
