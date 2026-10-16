@@ -49,4 +49,9 @@ export class InMemoryKvStore extends KvStore {
     }
     return Promise.resolve()
   }
+
+  deleteExpired() {
+    for (const key of this.entries.keys()) this.live(key)
+    return Promise.resolve()
+  }
 }

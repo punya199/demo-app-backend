@@ -18,7 +18,6 @@ describe('AuthenticationService', () => {
       refreshExpiresIn: '7d',
       renewRefreshToken: false,
     },
-    redis: { host: 'unused', port: 0, prefix: 'test' },
   }
 
   beforeEach(async () => {

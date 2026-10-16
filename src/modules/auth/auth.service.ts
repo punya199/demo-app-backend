@@ -35,6 +35,9 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto, rememberDeviceToken?: string) {
+    // Lazy expiry cleanup: there is no cron (Cloud Run has no CPU while idle).
+    await this.kv.deleteExpired()
+
     const user = await this.userRepo.findOne({
       select: {
         id: true,

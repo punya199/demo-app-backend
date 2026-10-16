@@ -134,6 +134,6 @@ export class AuthenticationService {
   }
 
   private getTokenKey(userId: string, jti: string, type: EnumCookieKeys) {
-    return `${this.options.redis.prefix}:login_token:${userId}:${jti}:${type}`
+    return `login_token:${userId}:${jti}:${type}`
   }
 }

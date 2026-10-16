@@ -28,12 +28,12 @@
     "migration:run:prod": "typeorm migration:run -d dist/config/database.config.js",
     "migration:revert:prod": "typeorm migration:revert -d dist/config/database.config.js",
     "migration:show:prod": "typeorm migration:show -d dist/config/database.config.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:integration": "jest --testRegex '.*\\.int-spec\\.ts$' --runInBand"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.872.0",
     "@aws-sdk/s3-request-presigner": "^3.872.0",
-    "@nestjs-modules/ioredis": "^2.0.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -50,7 +50,6 @@
     "dotenv": "^16.5.0",
     "googleapis": "^176.0.0",
     "helmet": "^8.1.0",
-    "ioredis": "^5.7.0",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",

@@ -9,4 +9,6 @@ export abstract class KvStore {
   /** Atomically increments and returns the new count; the TTL is set when the key is created. */
   abstract incrementWithTtl(key: string, ttlMs: number): Promise<number>
   abstract deleteByPrefix(prefix: string): Promise<void>
+  /** Drops expired entries. Reads already ignore them; this only reclaims space. */
+  abstract deleteExpired(): Promise<void>
 }

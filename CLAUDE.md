@@ -19,6 +19,7 @@ yarn test                  # jest, run from repo root; rootDir is `src`, tests a
 yarn test --testPathPattern=password-helper   # run a single spec file
 yarn test:watch
 yarn test:cov
+yarn test:integration       # KvStore contract suite (*.int-spec.ts) against the docker-compose Postgres; plain `yarn test` stays DB-free
 yarn test:e2e               # jest -c ./test/jest-e2e.json — no test/ directory exists yet, this will fail until one is added
 
 yarn migration:generate <name>   # typeorm migration:generate against current entities (diffs live schema)
@@ -43,7 +44,7 @@ Releases are automated via `semantic-release` (`.releaserc`) on `main`, using th
 
 ## Architecture
 
-NestJS 11 + TypeORM (Postgres) + Redis, single deployable service (`src/main.ts` → `AppModule`). Feature modules live under `src/modules/<name>/` each with its own `*.module.ts`, `*.controller.ts`, `*.service.ts`, and a `dto/` folder; entities are centralized in `src/db/entities/` (not colocated with modules) and registered in one place: `src/config/database.config.ts` (`entities` / `subscribers` arrays consumed by both the CLI DataSource and `AppModule`'s `TypeOrmModule.forRoot`).
+NestJS 11 + TypeORM (Postgres), single deployable service (`src/main.ts` → `AppModule`). Feature modules live under `src/modules/<name>/` each with its own `*.module.ts`, `*.controller.ts`, `*.service.ts`, and a `dto/` folder; entities are centralized in `src/db/entities/` (not colocated with modules) and registered in one place: `src/config/database.config.ts` (`entities` / `subscribers` arrays consumed by both the CLI DataSource and `AppModule`'s `TypeOrmModule.forRoot`).
 
 ### HTTP pipeline (`src/main.ts`)
 
@@ -54,7 +55,7 @@ Global, app-wide, set once at bootstrap: `ValidationPipe` (DTOs are validated/tr
 - **Role gate**: `@AuthUser(role?)` (`src/modules/auth/auth.decorator.ts`) attaches `JwtAccessTokenAuthGuard` + `RolesGuard`. Roles are hierarchical (`UserRole.USER < ADMIN < SUPER_ADMIN`, see `roleLevels` in `user.entity.ts`) — a route requiring `ADMIN` also admits `SUPER_ADMIN`. No `@AuthUser()` role arg = any authenticated user.
 - **Feature-permission gate**: `@AuthUserPermission({ featureName, action })` attaches `PermissionGuard`, which checks a per-user, per-feature 4-char bitstring (`PermissionsEntity.action`, order: read/create/update/delete — see `permissionActionHelper` in `src/utils/permission-helper.ts`) stored in the `permissions` table, cached 10s at query time.
 - **Username gate**: `@AuthUserWithUsername(username|username[], role?)` restricts a route to specific username(s) regardless of role — used for data shared with just a couple of named accounts (e.g. paojiao-ledger). Role is optional add-on gating, not a replacement.
-- JWT access/refresh strategies and token issuance live in `src/modules/authentication/` (`AuthenticationModule.register(...)` — dynamic module configured once from `AuthModule` with JWT secret/expiry and Redis connection for refresh-token storage). `src/modules/auth/` is the consumer layer (guards, decorators, login/permission endpoints) built on top of it — don't confuse the two `auth*` module names.
+- JWT access/refresh strategies and token issuance live in `src/modules/authentication/` (`AuthenticationModule.register(...)` — dynamic module configured once from `AuthModule` with JWT secret/expiry). Login state (token allow-list, remembered devices, brute-force counters) lives in the Postgres `kv_store` table behind the global `KvStore` service (`src/modules/kv-store/`); reads ignore expired rows and `AuthService.login` deletes them lazily (no cron). `src/modules/auth/` is the consumer layer (guards, decorators, login/permission endpoints) built on top of it — don't confuse the two `auth*` module names.
 - `@ReqUser()` param decorator pulls the decoded `IAppJwtPayload` off `request.user`.
 
 ### Request-scoped user context (CLS)

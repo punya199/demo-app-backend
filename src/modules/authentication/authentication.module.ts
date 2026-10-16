@@ -1,4 +1,3 @@
-import { RedisModule } from '@nestjs-modules/ioredis'
 import { DynamicModule, Global, Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { CookieOptions } from 'express'
@@ -19,11 +18,6 @@ export interface IAuthenticationModuleOptions {
      */
     renewRefreshToken?: boolean
   }
-  redis: {
-    host: string
-    port: number
-    prefix: string
-  }
   cookies?: CookieOptions
   azureAd?: {
     tenantId: string
@@ -40,14 +34,6 @@ export class AuthenticationModule {
         JwtModule.register({
           global: true,
           secret: options.jwt.secret,
-        }),
-        RedisModule.forRoot({
-          type: 'single',
-          options: {
-            host: options.redis.host,
-            port: options.redis.port,
-            keyPrefix: options.redis.prefix,
-          },
         }),
       ],
       controllers: [],

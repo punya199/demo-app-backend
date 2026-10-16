@@ -18,11 +18,6 @@ import { TwoFactorPendingGuard } from './two-factor-pending.guard'
         refreshExpiresIn: appConfig.JWT_REFRESH_EXPIRES_IN,
         renewRefreshToken: appConfig.JWT_RENEW_REFRESH_TOKEN,
       },
-      redis: {
-        host: appConfig.REDIS_HOST,
-        port: appConfig.REDIS_PORT,
-        prefix: appConfig.REDIS_PREFIX,
-      },
       cookies: {
         httpOnly: appConfig.COOKIE_HTTP_ONLY,
         secure: appConfig.COOKIE_SECURE,

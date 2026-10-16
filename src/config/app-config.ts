@@ -41,10 +41,6 @@ export const appConfig = {
 
   ATTACHMENT_MAX_FILE_SIZE_MB: +(process.env.ATTACHMENT_MAX_FILE_SIZE_MB || 10),
 
-  REDIS_HOST: process.env.REDIS_HOST ?? '',
-  REDIS_PORT: +(process.env.REDIS_PORT || 6379),
-  REDIS_PREFIX: process.env.REDIS_PREFIX ?? '',
-
   // Optional - paojiao-ledger falls back to its static Phase A snapshot when these aren't set.
   GOOGLE_SHEETS_SPREADSHEET_ID: process.env.GOOGLE_SHEETS_SPREADSHEET_ID ?? '',
   GOOGLE_SHEETS_CLIENT_EMAIL: process.env.GOOGLE_SHEETS_CLIENT_EMAIL ?? '',
@@ -93,10 +89,6 @@ const joiObject: IJoiObject = {
     .positive()
     .default(10)
     .description('Max attachment upload size in MB'),
-
-  REDIS_HOST: Joi.string().required().description('Redis host'),
-  REDIS_PORT: Joi.number().default(6379).description('Redis port'),
-  REDIS_PREFIX: Joi.string().required().description('Redis prefix'),
 
   COOKIE_HTTP_ONLY: Joi.boolean().required().default(true).description('Cookie http only'),
   COOKIE_SECURE: Joi.boolean().required().default(true).description('Cookie secure'),
