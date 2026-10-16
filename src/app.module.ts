@@ -18,6 +18,7 @@ import { AttachmentModule } from './modules/attachment/attachment.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { BillModule } from './modules/bill/bill.module'
 import { HouseRentModule } from './modules/house-rent/house-rent.module'
+import { KvStoreModule } from './modules/kv-store/kv-store.module'
 import { PaojiaoLedgerModule } from './modules/paojiao-ledger/paojiao-ledger.module'
 import { PermissionModule } from './modules/permission/permission.module'
 import { UserModule } from './modules/user/user.module'
@@ -54,6 +55,7 @@ import { VotingModule } from './modules/voting/voting.module'
       serveRoot: '/', // เสิร์ฟจาก root path เช่น /images/xxx.png
     }),
 
+    KvStoreModule,
     AuthModule,
     UserModule,
     BillModule,

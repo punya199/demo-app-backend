@@ -38,7 +38,7 @@ export class JwtAccessTokenStrategy extends PassportStrategy(
   }
 
   async validate(payload: IBaseTokenPayload) {
-    const token = await this.authenticationService.getTokenFromRedis(
+    const token = await this.authenticationService.getStoredToken(
       payload['user-id'],
       payload.jti,
       EnumCookieKeys.ACCESS_TOKEN

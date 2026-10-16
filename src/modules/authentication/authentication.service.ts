@@ -1,11 +1,10 @@
-import { InjectRedis } from '@nestjs-modules/ioredis'
 import { Inject, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import dayjs from 'dayjs'
 import { CookieOptions, Request, Response } from 'express'
-import { Redis } from 'ioredis'
 import { get, omit, set } from 'lodash'
 import ms from 'ms'
+import { KvStore } from '../kv-store/kv-store'
 import { AUTHENTICATION_MODULE_OPTIONS, EnumCookieKeys } from './authentication.constant'
 import { IAuthenticationModuleOptions } from './authentication.module'
 
@@ -18,7 +17,7 @@ export interface IBaseTokenPayload {
 export class AuthenticationService {
   constructor(
     private readonly jwtService: JwtService,
-    @InjectRedis() private readonly redis: Redis,
+    private readonly kv: KvStore,
     @Inject(AUTHENTICATION_MODULE_OPTIONS)
     private readonly options: IAuthenticationModuleOptions
   ) {}
@@ -43,14 +42,14 @@ export class AuthenticationService {
 
     const payload = omit(user, ['iat', 'exp']) as IBaseTokenPayload
 
-    await this.delTokenFromRedis(userId, jti, EnumCookieKeys.ACCESS_TOKEN)
+    await this.deleteStoredToken(userId, jti, EnumCookieKeys.ACCESS_TOKEN)
 
     const result = await this._signToken(payload, jti, renewRefreshToken)
 
     this.setCookie(res, EnumCookieKeys.ACCESS_TOKEN, result.accessToken)
     if (renewRefreshToken) {
       this.setCookie(res, EnumCookieKeys.REFRESH_TOKEN, result.refreshToken)
-      await this.delTokenFromRedis(userId, jti, EnumCookieKeys.REFRESH_TOKEN)
+      await this.deleteStoredToken(userId, jti, EnumCookieKeys.REFRESH_TOKEN)
     }
     return result
   }
@@ -60,29 +59,28 @@ export class AuthenticationService {
     const userId = user['user-id']
     const jti = user.jti
 
-    await this.delTokenFromRedis(userId, jti, EnumCookieKeys.ACCESS_TOKEN)
-    await this.delTokenFromRedis(userId, jti, EnumCookieKeys.REFRESH_TOKEN)
+    await this.deleteStoredToken(userId, jti, EnumCookieKeys.ACCESS_TOKEN)
+    await this.deleteStoredToken(userId, jti, EnumCookieKeys.REFRESH_TOKEN)
 
     this.clearCookie(res)
   }
 
-  getTokenFromRedis(userId: string, jti: string, type: EnumCookieKeys) {
-    return this.redis.get(this.getTokenKey(userId, jti, type))
+  getStoredToken(userId: string, jti: string, type: EnumCookieKeys) {
+    return this.kv.get(this.getTokenKey(userId, jti, type))
   }
 
-  setTokenToRedis(userId: string, jti: string, type: EnumCookieKeys, token: string) {
-    return this.redis.set(
+  storeToken(userId: string, jti: string, type: EnumCookieKeys, token: string) {
+    return this.kv.set(
       this.getTokenKey(userId, jti, type),
       token,
-      'PX',
       type === EnumCookieKeys.ACCESS_TOKEN
         ? ms(this.options.jwt.expiresIn)
         : ms(this.options.jwt.refreshExpiresIn)
     )
   }
 
-  delTokenFromRedis(userId: string, jti: string, type: EnumCookieKeys) {
-    return this.redis.del(this.getTokenKey(userId, jti, type))
+  deleteStoredToken(userId: string, jti: string, type: EnumCookieKeys) {
+    return this.kv.del(this.getTokenKey(userId, jti, type))
   }
 
   // maxAge defaults to the JWT refresh expiry - correct for ACCESS_TOKEN/REFRESH_TOKEN, but any
@@ -117,16 +115,16 @@ export class AuthenticationService {
       expiresIn: this.options.jwt.expiresIn,
     })
 
-    await this.setTokenToRedis(userId, jti, EnumCookieKeys.ACCESS_TOKEN, accessToken)
+    await this.storeToken(userId, jti, EnumCookieKeys.ACCESS_TOKEN, accessToken)
 
     let refreshToken: string
     if (renewRefreshToken) {
       refreshToken = this.jwtService.sign(payload, {
         expiresIn: this.options.jwt.refreshExpiresIn,
       })
-      await this.setTokenToRedis(userId, jti, EnumCookieKeys.REFRESH_TOKEN, refreshToken)
+      await this.storeToken(userId, jti, EnumCookieKeys.REFRESH_TOKEN, refreshToken)
     } else {
-      refreshToken = (await this.getTokenFromRedis(userId, jti, EnumCookieKeys.REFRESH_TOKEN)) ?? ''
+      refreshToken = (await this.getStoredToken(userId, jti, EnumCookieKeys.REFRESH_TOKEN)) ?? ''
     }
 
     return {

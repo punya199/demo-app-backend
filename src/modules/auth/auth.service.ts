@@ -1,9 +1,7 @@
-import { InjectRedis } from '@nestjs-modules/ioredis'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { randomBytes } from 'crypto'
-import Redis from 'ioredis'
 import { pick } from 'lodash'
 import { authenticator } from 'otplib'
 import * as QRCode from 'qrcode'
@@ -14,6 +12,7 @@ import { AppBadRequestException } from '../../utils/exception'
 import { comparePassword, hashPassword } from '../../utils/password-helper'
 import { decryptTotpSecret, encryptTotpSecret } from '../../utils/totp-crypto'
 import { AuthenticationService } from '../authentication/authentication.service'
+import { KvStore } from '../kv-store/kv-store'
 import { LoginDto } from '../user/dto/login.dto'
 import { IAppJwtPayload } from './auth.interface'
 import { TWO_FACTOR_PENDING_SCOPE } from './two-factor-pending.guard'
@@ -28,8 +27,7 @@ export class AuthService {
   constructor(
     @InjectRepository(UserEntity)
     private userRepo: Repository<UserEntity>,
-    @InjectRedis()
-    private redis: Redis,
+    private readonly kv: KvStore,
     private readonly authenticationService: AuthenticationService,
     private readonly jwtService: JwtService,
     @InjectRepository(PermissionsEntity)
@@ -128,12 +126,10 @@ export class AuthService {
       // Claim the specific code atomically before consuming it: two concurrent requests
       // with the same backup code would otherwise both pass the check above (stale read)
       // and both redeem it. Only the request that wins the claim proceeds.
-      const claimed = await this.redis.set(
+      const claimed = await this.kv.setIfAbsent(
         this.getBackupCodeClaimKey(user.id, backupCodes[usedIndex].hash),
         '1',
-        'EX',
-        60,
-        'NX'
+        60 * 1000
       )
       if (!claimed) {
         await this.recordTwoFactorVerifyFailure(userId)
@@ -150,20 +146,12 @@ export class AuthService {
 
     const rememberDeviceToken = randomBytes(32).toString('hex')
     writes.push(
-      this.redis.set(
+      this.kv.set(
         this.getRememberDeviceKey(user.id, rememberDeviceToken),
         '1',
-        'PX',
         REMEMBER_DEVICE_MAX_AGE_MS
       ),
-      // Tracked in a per-user set (not just KEYS-scanned) so disableTwoFactor can revoke every
-      // remembered device in one shot instead of leaving stale tokens that survive a re-enroll.
-      this.redis.sadd(this.getRememberDeviceTokensSetKey(user.id), rememberDeviceToken),
-      this.redis.expire(
-        this.getRememberDeviceTokensSetKey(user.id),
-        REMEMBER_DEVICE_MAX_AGE_MS / 1000
-      ),
-      this.redis.del(this.getTwoFactorVerifyFailedKey(userId))
+      this.kv.del(this.getTwoFactorVerifyFailedKey(userId))
     )
 
     const [tokens] = await Promise.all([this.issueTokens(user), ...writes])
@@ -172,24 +160,17 @@ export class AuthService {
   }
 
   private async recordTwoFactorVerifyFailure(userId: string) {
-    const count = await this.bumpFailureCounter(this.getTwoFactorVerifyFailedKey(userId), 60)
+    const count = await this.kv.incrementWithTtl(
+      this.getTwoFactorVerifyFailedKey(userId),
+      60 * 1000
+    )
     if (count >= 5) {
-      await this.redis.set(this.getTwoFactorVerifyLockKey(userId), '1', 'EX', 60)
+      await this.kv.set(this.getTwoFactorVerifyLockKey(userId), '1', 60 * 1000)
     }
-  }
-
-  // Atomic INCR (auto-initializes to 1) + EXPIRE only on that first increment, so concurrent
-  // callers can't race a get-then-set/incr into undercounting failures past a lockout threshold.
-  private async bumpFailureCounter(key: string, ttlSeconds: number) {
-    const count = await this.redis.incr(key)
-    if (count === 1) {
-      await this.redis.expire(key, ttlSeconds)
-    }
-    return count
   }
 
   private async isTwoFactorVerifyLocked(userId: string) {
-    return Boolean(await this.redis.get(this.getTwoFactorVerifyLockKey(userId)))
+    return Boolean(await this.kv.get(this.getTwoFactorVerifyLockKey(userId)))
   }
 
   private getTwoFactorVerifyFailedKey(userId: string) {
@@ -217,23 +198,16 @@ export class AuthService {
   }
 
   private async isDeviceRemembered(userId: string, token: string) {
-    return Boolean(await this.redis.get(this.getRememberDeviceKey(userId, token)))
+    return Boolean(await this.kv.get(this.getRememberDeviceKey(userId, token)))
   }
 
   private getRememberDeviceKey(userId: string, token: string) {
     return `remember_device:${userId}:${token}`
   }
 
-  private getRememberDeviceTokensSetKey(userId: string) {
-    return `remember_device_tokens:${userId}`
-  }
-
-  private async revokeRememberedDevices(userId: string) {
-    const tokens = await this.redis.smembers(this.getRememberDeviceTokensSetKey(userId))
-    if (tokens.length) {
-      await this.redis.del(...tokens.map(token => this.getRememberDeviceKey(userId, token)))
-    }
-    await this.redis.del(this.getRememberDeviceTokensSetKey(userId))
+  // Revokes every remembered device so none survive a re-enroll.
+  private revokeRememberedDevices(userId: string) {
+    return this.kv.deleteByPrefix(this.getRememberDeviceKey(userId, ''))
   }
 
   private async issueTokens(user: Pick<UserEntity, 'id' | 'username' | 'role'>) {
@@ -320,11 +294,11 @@ export class AuthService {
         backupCodes: null,
       }),
       this.revokeRememberedDevices(userId),
-      this.redis.del(this.getTwoFactorVerifyFailedKey(userId)),
+      this.kv.del(this.getTwoFactorVerifyFailedKey(userId)),
     ])
   }
 
   private async updateWrongPassword(userId: string) {
-    return this.bumpFailureCounter(`login_password_failed:${userId}`, 5 * 60)
+    return this.kv.incrementWithTtl(`login_password_failed:${userId}`, 5 * 60 * 1000)
   }
 }

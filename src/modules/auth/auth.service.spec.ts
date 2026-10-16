@@ -1,4 +1,3 @@
-import { getRedisConnectionToken } from '@nestjs-modules/ioredis'
 import { BadRequestException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { Test } from '@nestjs/testing'
@@ -10,20 +9,14 @@ import appConfig from '../../config/app-config'
 import * as passwordHelper from '../../utils/password-helper'
 import { encryptTotpSecret } from '../../utils/totp-crypto'
 import { AuthenticationService } from '../authentication/authentication.service'
+import { InMemoryKvStore } from '../kv-store/in-memory-kv-store'
+import { KvStore } from '../kv-store/kv-store'
 import { AuthService } from './auth.service'
 
 describe('AuthService', () => {
   let service: AuthService
   let userRepo: { findOne: jest.Mock; save: jest.Mock }
-  let redis: {
-    get: jest.Mock
-    set: jest.Mock
-    incr: jest.Mock
-    expire: jest.Mock
-    del: jest.Mock
-    sadd: jest.Mock
-    smembers: jest.Mock
-  }
+  let kv: InMemoryKvStore
   let authenticationService: { signToken: jest.Mock }
   let jwtService: { sign: jest.Mock }
 
@@ -41,15 +34,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     userRepo = { findOne: jest.fn(), save: jest.fn() }
-    redis = {
-      get: jest.fn(),
-      set: jest.fn().mockResolvedValue('OK'),
-      incr: jest.fn().mockResolvedValue(1),
-      expire: jest.fn(),
-      del: jest.fn(),
-      sadd: jest.fn(),
-      smembers: jest.fn().mockResolvedValue([]),
-    }
+    kv = new InMemoryKvStore()
     authenticationService = {
       signToken: jest.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
     }
@@ -60,7 +45,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: getRepositoryToken(UserEntity), useValue: userRepo },
         { provide: getRepositoryToken(PermissionsEntity), useValue: {} },
-        { provide: getRedisConnectionToken(), useValue: redis },
+        { provide: KvStore, useValue: kv },
         { provide: AuthenticationService, useValue: authenticationService },
         { provide: JwtService, useValue: jwtService },
       ],
@@ -70,7 +55,27 @@ describe('AuthService', () => {
   })
 
   afterEach(() => {
+    jest.useRealTimers()
     jest.restoreAllMocks()
+  })
+
+  // Real Date.now() under control; bcrypt/promises still need real nextTick/setImmediate.
+  const useFakeClock = () => jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] })
+
+  // findOne/save backed by one stored user, so consumed backup codes persist across calls.
+  const useStoredUser = (user: Record<string, unknown>) => {
+    let stored = { ...user }
+    userRepo.findOne.mockImplementation(() => Promise.resolve({ ...stored }))
+    userRepo.save.mockImplementation((patch: Record<string, unknown>) => {
+      stored = { ...stored, ...patch }
+      return Promise.resolve(stored)
+    })
+  }
+
+  const enrolledUser = (secret: string) => ({
+    ...baseUser,
+    twoFactorEnabled: true,
+    twoFactorSecret: encryptTotpSecret(secret),
   })
 
   it('logs in successfully with the correct password', async () => {
@@ -95,7 +100,6 @@ describe('AuthService', () => {
   it('rejects a wrong password without blocking on the first attempts', async () => {
     userRepo.findOne.mockResolvedValue({ ...baseUser })
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(false)
-    redis.incr.mockResolvedValue(1)
 
     await expect(service.login({ username: 'tester', password: 'wrong' })).rejects.toThrow(
       BadRequestException
@@ -104,9 +108,15 @@ describe('AuthService', () => {
   })
 
   it('blocks the account after the 5th wrong password attempt', async () => {
-    userRepo.findOne.mockResolvedValue({ ...baseUser })
+    userRepo.findOne.mockImplementation(() => Promise.resolve({ ...baseUser }))
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(false)
-    redis.incr.mockResolvedValue(5)
+
+    for (let i = 0; i < 4; i++) {
+      await expect(service.login({ username: 'tester', password: 'wrong' })).rejects.toThrow(
+        BadRequestException
+      )
+    }
+    expect(userRepo.save).not.toHaveBeenCalled()
 
     await expect(service.login({ username: 'tester', password: 'wrong' })).rejects.toThrow(
       BadRequestException
@@ -147,11 +157,18 @@ describe('AuthService', () => {
   })
 
   it('skips the 2FA challenge when a valid remember-device token is presented', async () => {
-    userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: true })
+    const secret = authenticator.generateSecret()
+    userRepo.findOne.mockResolvedValue(enrolledUser(secret))
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
-    redis.get.mockResolvedValue('1')
+    const { rememberDeviceToken } = await service.completeTwoFactorLogin(
+      baseUser.id,
+      authenticator.generate(secret)
+    )
 
-    const result = await service.login({ username: 'tester', password: 'correct' }, 'device-token')
+    const result = await service.login(
+      { username: 'tester', password: 'correct' },
+      rememberDeviceToken
+    )
 
     if (result.twoFactorRequired) {
       throw new Error('expected full tokens, got a pending 2FA challenge')
@@ -163,7 +180,6 @@ describe('AuthService', () => {
   it('still requires the 2FA challenge when the remember-device token is unknown/expired', async () => {
     userRepo.findOne.mockResolvedValue({ ...baseUser, twoFactorEnabled: true })
     jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
-    redis.get.mockResolvedValue(null)
 
     const result = await service.login({ username: 'tester', password: 'correct' }, 'stale-token')
 
@@ -191,13 +207,26 @@ describe('AuthService', () => {
         role: baseUser.role,
       })
       expect(result.rememberDeviceToken).toEqual(expect.any(String))
-      expect(redis.set).toHaveBeenCalledWith(
-        `remember_device:${baseUser.id}:${result.rememberDeviceToken}`,
-        '1',
-        'PX',
-        30 * 24 * 60 * 60 * 1000
-      )
-      expect(redis.del).toHaveBeenCalledWith(`two_factor_verify_failed:${baseUser.id}`)
+    })
+
+    it('resets the wrong-code counter after a successful verification', async () => {
+      const secret = authenticator.generateSecret()
+      userRepo.findOne.mockResolvedValue(enrolledUser(secret))
+      const failTimes = async (n: number) => {
+        for (let i = 0; i < n; i++) {
+          await expect(service.completeTwoFactorLogin(baseUser.id, '000000')).rejects.toThrow(
+            BadRequestException
+          )
+        }
+      }
+
+      await failTimes(4)
+      await service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
+      await failTimes(4)
+
+      await expect(
+        service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
+      ).resolves.toEqual(expect.objectContaining({ accessToken: 'access' }))
     })
 
     it('rejects an incorrect code', async () => {
@@ -213,25 +242,10 @@ describe('AuthService', () => {
       )
     })
 
-    it('locks out further attempts after the 5th wrong code, even a correct one', async () => {
+    it('locks out further attempts after the 5th wrong code, and unlocks after 60s', async () => {
+      useFakeClock()
       const secret = authenticator.generateSecret()
-      userRepo.findOne.mockResolvedValue({
-        ...baseUser,
-        twoFactorEnabled: true,
-        twoFactorSecret: encryptTotpSecret(secret),
-      })
-
-      const store = new Map<string, string>()
-      redis.get.mockImplementation((key: string) => store.get(key) ?? null)
-      redis.set.mockImplementation((key: string, value: string | number) => {
-        store.set(key, String(value))
-        return 'OK'
-      })
-      redis.incr.mockImplementation((key: string) => {
-        const next = +(store.get(key) ?? '0') + 1
-        store.set(key, String(next))
-        return next
-      })
+      userRepo.findOne.mockResolvedValue(enrolledUser(secret))
 
       for (let i = 0; i < 5; i++) {
         await expect(service.completeTwoFactorLogin(baseUser.id, '000000')).rejects.toThrow(
@@ -242,6 +256,12 @@ describe('AuthService', () => {
       await expect(
         service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
       ).rejects.toThrow(BadRequestException)
+
+      jest.advanceTimersByTime(61_000)
+
+      await expect(
+        service.completeTwoFactorLogin(baseUser.id, authenticator.generate(secret))
+      ).resolves.toEqual(expect.objectContaining({ accessToken: 'access' }))
     })
 
     it('rejects when the user does not have 2FA enabled', async () => {
@@ -280,22 +300,40 @@ describe('AuthService', () => {
       )
     })
 
-    it('rejects a valid backup code when a concurrent request already claimed it', async () => {
+    it('accepts a backup code once and rejects its reuse', async () => {
+      useFakeClock()
       const secret = authenticator.generateSecret()
       const backupCode = 'ABCD1234EF'
-      const backupCodes = [{ hash: await passwordHelper.hashPassword(backupCode), usedAt: null }]
-      userRepo.findOne.mockResolvedValue({
-        ...baseUser,
-        twoFactorEnabled: true,
-        twoFactorSecret: encryptTotpSecret(secret),
-        backupCodes,
+      useStoredUser({
+        ...enrolledUser(secret),
+        backupCodes: [{ hash: await passwordHelper.hashPassword(backupCode), usedAt: null }],
       })
-      redis.set.mockResolvedValue(null)
 
+      await expect(service.completeTwoFactorLogin(baseUser.id, backupCode)).resolves.toEqual(
+        expect.objectContaining({ accessToken: 'access' })
+      )
+
+      // Past the claim window, so only the persisted usedAt can reject the reuse.
+      jest.advanceTimersByTime(61_000)
       await expect(service.completeTwoFactorLogin(baseUser.id, backupCode)).rejects.toThrow(
         BadRequestException
       )
-      expect(userRepo.save).not.toHaveBeenCalled()
+    })
+
+    it('lets only one of two concurrent requests redeem the same backup code', async () => {
+      const secret = authenticator.generateSecret()
+      const backupCode = 'ABCD1234EF'
+      useStoredUser({
+        ...enrolledUser(secret),
+        backupCodes: [{ hash: await passwordHelper.hashPassword(backupCode), usedAt: null }],
+      })
+
+      const results = await Promise.allSettled([
+        service.completeTwoFactorLogin(baseUser.id, backupCode),
+        service.completeTwoFactorLogin(baseUser.id, backupCode),
+      ])
+
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
     })
 
     it('rejects a backup code that was already used', async () => {
@@ -446,20 +484,25 @@ describe('AuthService', () => {
 
     it('revokes every remembered device for the user', async () => {
       const secret = authenticator.generateSecret()
-      userRepo.findOne.mockResolvedValue({
-        id: baseUser.id,
-        twoFactorEnabled: true,
-        twoFactorSecret: encryptTotpSecret(secret),
-      })
-      redis.smembers.mockResolvedValue(['device-a', 'device-b'])
+      userRepo.findOne.mockResolvedValue(enrolledUser(secret))
+      jest.spyOn(passwordHelper, 'comparePassword').mockResolvedValue(true)
+      const deviceA = await service.completeTwoFactorLogin(
+        baseUser.id,
+        authenticator.generate(secret)
+      )
+      const deviceB = await service.completeTwoFactorLogin(
+        baseUser.id,
+        authenticator.generate(secret)
+      )
 
       await service.disableTwoFactor(baseUser.id, authenticator.generate(secret))
 
-      expect(redis.del).toHaveBeenCalledWith(
-        `remember_device:${baseUser.id}:device-a`,
-        `remember_device:${baseUser.id}:device-b`
-      )
-      expect(redis.del).toHaveBeenCalledWith(`remember_device_tokens:${baseUser.id}`)
+      // Re-enrolled later: the old remembered devices must not skip the new challenge.
+      for (const { rememberDeviceToken } of [deviceA, deviceB]) {
+        await expect(
+          service.login({ username: 'tester', password: 'correct' }, rememberDeviceToken)
+        ).resolves.toEqual({ twoFactorRequired: true, pendingToken: 'pending-token' })
+      }
     })
 
     it('is rate-limited the same way completeTwoFactorLogin is', async () => {
@@ -468,18 +511,6 @@ describe('AuthService', () => {
         id: baseUser.id,
         twoFactorEnabled: true,
         twoFactorSecret: encryptTotpSecret(secret),
-      })
-
-      const store = new Map<string, string>()
-      redis.get.mockImplementation((key: string) => store.get(key) ?? null)
-      redis.set.mockImplementation((key: string, value: string | number) => {
-        store.set(key, String(value))
-        return 'OK'
-      })
-      redis.incr.mockImplementation((key: string) => {
-        const next = +(store.get(key) ?? '0') + 1
-        store.set(key, String(next))
-        return next
       })
 
       for (let i = 0; i < 5; i++) {
