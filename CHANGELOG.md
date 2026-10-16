@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/punya199/demo-app-backend/compare/v1.5.0...v1.6.0) (2026-10-16)
+
+
+### Update
+
+* serve routes under /api with URI versioning (v1) ([e8252fa](https://github.com/punya199/demo-app-backend/commit/e8252fae783cf5885506ca178f435f3050fe46d4))
+
 # [1.5.0](https://github.com/punya199/demo-app-backend/compare/v1.4.1...v1.5.0) (2026-10-16)
 
 
