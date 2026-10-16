@@ -42,6 +42,8 @@ Releases are automated via `semantic-release` (`.releaserc`) on `main`, using th
 
 **Always tag commits `Fix:`, `Update:`, or `New:`** — never `Chore:`/`Docs:`/`Build:`/`Upgrade:`, even for trivial changes. `.github/workflows/docker-build.yml`'s `build-and-push` job only runs when semantic-release's `Release` job actually publishes a new version; the other tags don't bump the version, so the Docker build/publish step gets silently skipped.
 
+**Before pushing `main`, run `git fetch origin && git rebase origin/main`** so the push is a fast-forward. semantic-release pushes its own `chore(release)` commit (version bump + CHANGELOG) to `main` after every release, so a local `main` is usually one commit behind origin. Never merge origin into local `main` (it creates a merge commit) and never force-push (it deletes the release commit).
+
 ## Architecture
 
 NestJS 11 + TypeORM (Postgres), single deployable service (`src/main.ts` → `AppModule`). Feature modules live under `src/modules/<name>/` each with its own `*.module.ts`, `*.controller.ts`, `*.service.ts`, and a `dto/` folder; entities are centralized in `src/db/entities/` (not colocated with modules) and registered in one place: `src/config/database.config.ts` (`entities` / `subscribers` arrays consumed by both the CLI DataSource and `AppModule`'s `TypeOrmModule.forRoot`).
