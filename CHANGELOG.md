@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/punya199/demo-app-backend/compare/v1.7.0...v1.8.0) (2026-10-16)
+
+
+### New
+
+* terminus health check at /api/v1/health with DB, version and third-party status ([2c487e2](https://github.com/punya199/demo-app-backend/commit/2c487e2242ec9813b3c1de50d333c10c9a004f1a))
+
 # [1.7.0](https://github.com/punya199/demo-app-backend/compare/v1.6.0...v1.7.0) (2026-10-16)
 
 
