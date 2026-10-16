@@ -6,6 +6,7 @@ import helmet from 'helmet'
 import { AppModule } from './app.module'
 import appConfig from './config/app-config'
 import { GlobalExceptionFilter } from './utils/filters/global-exception-filter'
+import { AppVersionInterceptor } from './utils/interceptors/app-version.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestApplication>(AppModule)
@@ -18,7 +19,10 @@ async function bootstrap() {
   app.use(urlencoded({ limit: '50mb', extended: true }))
 
   app.useGlobalFilters(new GlobalExceptionFilter())
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+    new AppVersionInterceptor()
+  )
   // เปิด ValidationPipe
   app.useGlobalPipes(new ValidationPipe({ transform: true }))
   app.enableCors({
