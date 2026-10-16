@@ -1,4 +1,4 @@
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common'
+import { ClassSerializerInterceptor, ValidationPipe, VersioningType } from '@nestjs/common'
 import { NestApplication, NestFactory, Reflector } from '@nestjs/core'
 import cookieParser from 'cookie-parser'
 import { json, urlencoded } from 'express'
@@ -11,6 +11,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestApplication>(AppModule)
 
   app.enableShutdownHooks()
+  app.setGlobalPrefix('api', { exclude: ['health'] })
+  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
   app.use(cookieParser())
   app.use(json({ limit: '50mb' }))
   app.use(urlencoded({ limit: '50mb', extended: true }))
