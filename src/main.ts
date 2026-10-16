@@ -1,36 +1,13 @@
-import { ClassSerializerInterceptor, ValidationPipe, VersioningType } from '@nestjs/common'
-import { NestApplication, NestFactory, Reflector } from '@nestjs/core'
-import cookieParser from 'cookie-parser'
-import { json, urlencoded } from 'express'
-import helmet from 'helmet'
+import { NestApplication, NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import appConfig from './config/app-config'
-import { GlobalExceptionFilter } from './utils/filters/global-exception-filter'
-import { AppVersionInterceptor } from './utils/interceptors/app-version.interceptor'
+import { configureApp } from './config/app-setup'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestApplication>(AppModule)
 
   app.enableShutdownHooks()
-  app.setGlobalPrefix('api', { exclude: ['health'] })
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' })
-  app.use(cookieParser())
-  app.use(json({ limit: '50mb' }))
-  app.use(urlencoded({ limit: '50mb', extended: true }))
-
-  app.useGlobalFilters(new GlobalExceptionFilter())
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(app.get(Reflector)),
-    new AppVersionInterceptor()
-  )
-  // เปิด ValidationPipe
-  app.useGlobalPipes(new ValidationPipe({ transform: true }))
-  app.enableCors({
-    origin: appConfig.ORIGIN_ALLOWED,
-    credentials: true,
-    exposedHeaders: ['X-App-Version'],
-  })
-  app.use(helmet())
+  configureApp(app)
 
   await app.listen(appConfig.PORT)
   console.log(`Server is running on port ${appConfig.PORT} ${appConfig.APP_VERSION || '-'}`)

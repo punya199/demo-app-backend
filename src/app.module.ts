@@ -6,8 +6,6 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { ClsModule } from 'nestjs-cls'
 import { LoggerModule } from 'nestjs-pino'
 import { join } from 'path'
-import { AppController } from './app.controller'
-import { AppService } from './app.service'
 import appConfig, { validationSchema } from './config/app-config'
 import { clsServiceConfig } from './config/cls-service-config'
 import { entities, subscribers } from './config/database.config'
@@ -20,6 +18,7 @@ import { KvStoreModule } from './modules/kv-store/kv-store.module'
 import { PaojiaoLedgerModule } from './modules/paojiao-ledger/paojiao-ledger.module'
 import { PermissionModule } from './modules/permission/permission.module'
 import { UserModule } from './modules/user/user.module'
+import { HealthModule } from './modules/health/health.module'
 import { VotingModule } from './modules/voting/voting.module'
 
 @Module({
@@ -61,8 +60,7 @@ import { VotingModule } from './modules/voting/voting.module'
     PermissionModule,
     PaojiaoLedgerModule,
     VotingModule,
+    HealthModule,
   ],
-  providers: [AppService],
-  controllers: [AppController],
 })
 export class AppModule {}

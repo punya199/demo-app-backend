@@ -17,8 +17,8 @@ See spec: specs/serverless-migration.md (Data migration and cutover; Testing Dec
 **Status:** ready-for-agent
 
 - [ ] The final dump has been restored into Neon, and row counts for the main tables match the source
-- [ ] `/health` returns 200 on `*.run.app`
-- [ ] `/health` returns 200 through `<yaya domain>/api`
+- [ ] `/api/v1/health` returns 200 on `*.run.app`
+- [ ] `/api/v1/health` returns 200 through `<yaya domain>`
 - [ ] Login with 2FA works on the Yaya domain
 - [ ] The session survives a cold start (more than 15 min idle, then reload)
 - [ ] Logout invalidates the session

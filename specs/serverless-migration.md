@@ -130,7 +130,7 @@ Options considered and rejected:
 
 ### Backend: Cloud Run readiness
 
-- The app already listens on `PORT` and exposes `/health`, which is used as the startup probe.
+- The app already listens on `PORT` and exposes `/api/v1/health`, which is used as the startup probe.
 - **Google Sheets key:** loaded from Secret Manager and mounted as a file at the path the config already reads. Add `private/secret` to `.dockerignore` as a guard.
 - **Database:** connects to Neon over SSL using the existing `DATABASE_*` / `DATABASE_SSL` settings. Use Neon's pooled connection string, and keep the TypeORM pool small.
 - **Migrations:** run as a Cloud Run Job using the same image, before each `gcloud run deploy`. They do not run at app startup, matching today's behaviour.
@@ -218,8 +218,8 @@ Configuration lives in Worker secrets/vars: the LINE channel access token and th
   - an email with another subject sends nothing
   - a forwarded email (outer `From` rewritten) still matches on the original sender
 - **No automated tests** for the `/api` Pages Function (about 10 lines of forwarding) or the infrastructure/CI. These are covered by the **post-deploy smoke checklist**:
-  1. `/health` responds 200 on the `*.run.app` URL.
-  2. `/health` responds 200 through the Yaya domain's `/api`.
+  1. `/api/v1/health` responds 200 on the `*.run.app` URL.
+  2. `/api/v1/health` responds 200 through the Yaya domain.
   3. Login works, including 2FA, and the session survives a cold start: wait more than 15 minutes, then reload.
   4. Logout invalidates the session.
   5. A paojiao-ledger read works.

@@ -23,5 +23,5 @@ export const pinoConfig: Params = {
     //   },
     // },
   },
-  exclude: [{ method: RequestMethod.GET, path: 'health' }],
+  exclude: [{ method: RequestMethod.GET, path: 'health', version: '1' }],
 }

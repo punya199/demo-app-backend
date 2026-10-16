@@ -1,5 +1,5 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common'
-import { Test } from '@nestjs/testing'
+import { INestApplication } from '@nestjs/common'
+import { Server } from 'http'
 import { DataSource, EntityManager } from 'typeorm'
 import request from 'supertest'
 import { JwtAccessTokenAuthGuard } from '../src/modules/authentication/guard/jwt-access-token-auth.guard'
@@ -7,41 +7,42 @@ import { PermissionGuard } from '../src/modules/auth/permission.guard'
 import { EnumPollType } from '../src/db/entities/poll.entity'
 import { VotingController } from '../src/modules/voting/voting.controller'
 import { VotingService } from '../src/modules/voting/voting.service'
+import { createTestingApp } from '../src/testing/create-testing-app'
 
 // Regression test for the bug where POST /polls threw
 // "params.closesAt.getTime is not a function": the global ValidationPipe
 // was missing `transform: true`, so class-transformer's @Type(() => Date)
 // on CreatePollBodyDto.closesAt never ran and the handler received a raw
 // string instead of a Date. This exercises the real HTTP -> ValidationPipe
-// -> controller path (the layer that broke), not just the service in isolation.
+// -> controller path (the layer that broke), not just the service in isolation,
+// through the same configureApp pipeline main.ts uses.
 describe('VotingController (e2e)', () => {
-  let app: INestApplication
-  let createPoll: jest.Mock
+  let app: INestApplication<Server>
+  let createPoll: jest.Mock<Promise<unknown>, [{ closesAt: Date }]>
 
   beforeAll(async () => {
-    createPoll = jest.fn().mockResolvedValue({ poll: {} })
+    createPoll = jest.fn<Promise<unknown>, [{ closesAt: Date }]>().mockResolvedValue({ poll: {} })
 
-    const moduleRef = await Test.createTestingModule({
-      controllers: [VotingController],
-      providers: [
-        { provide: VotingService, useValue: { createPoll } },
-        {
-          provide: DataSource,
-          useValue: {
-            transaction: (fn: (etm: EntityManager) => unknown) => fn({} as EntityManager),
+    app = await createTestingApp(
+      {
+        controllers: [VotingController],
+        providers: [
+          { provide: VotingService, useValue: { createPoll } },
+          {
+            provide: DataSource,
+            useValue: {
+              transaction: (fn: (etm: EntityManager) => unknown) => fn({} as EntityManager),
+            },
           },
-        },
-      ],
-    })
-      .overrideGuard(JwtAccessTokenAuthGuard)
-      .useValue({ canActivate: () => true })
-      .overrideGuard(PermissionGuard)
-      .useValue({ canActivate: () => true })
-      .compile()
-
-    app = moduleRef.createNestApplication()
-    app.useGlobalPipes(new ValidationPipe({ transform: true }))
-    await app.init()
+        ],
+      },
+      builder =>
+        builder
+          .overrideGuard(JwtAccessTokenAuthGuard)
+          .useValue({ canActivate: () => true })
+          .overrideGuard(PermissionGuard)
+          .useValue({ canActivate: () => true })
+    )
   })
 
   afterAll(async () => {
@@ -52,7 +53,7 @@ describe('VotingController (e2e)', () => {
     const closesAt = new Date(Date.now() + 60_000).toISOString()
 
     await request(app.getHttpServer())
-      .post('/polls')
+      .post('/api/v1/polls')
       .send({
         title: 'Lunch spot',
         pollType: EnumPollType.SINGLE,

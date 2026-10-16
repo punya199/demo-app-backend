@@ -20,7 +20,7 @@
 
 **Cloud Run service:**
 - Singapore region, min instances 0, request-based billing.
-- Startup probe on `/health`.
+- Startup probe on `/api/v1/health`.
 - Secrets mapped to env vars or files.
 
 **Migrations:** a Cloud Run Job on the same image runs the TypeORM migrations.
@@ -44,7 +44,7 @@ See spec: specs/serverless-migration.md (Platforms; Backend: Cloud Run readiness
 - [ ] The budget alert at $1 exists
 - [ ] Workload Identity Federation is set up, with no long-lived GCP key stored in GitHub secrets
 - [ ] A push that produces a release deploys automatically, and the migration Job runs before the new revision serves traffic
-- [ ] `/health` returns 200 on the `*.run.app` URL
+- [ ] `/api/v1/health` returns 200 on the `*.run.app` URL
 - [ ] On the `*.run.app` URL these work against the Neon copy:
   - [ ] login, including 2FA
   - [ ] a paojiao-ledger read

@@ -83,7 +83,7 @@ skipped while `vars.GCP_PROJECT_ID` is unset, so CI keeps passing before setup.
    (`AWS_*`) credentials, and the Google Sheets private key. The key is mounted as a **file** at
    `/usr/src/app/private/secret/google_sheets.key` (config reads it at startup, so the Job needs it too).
 7. **Cloud Run service** in `asia-southeast1`: min instances 0, request-based billing, startup probe on
-   `/health`, env vars and secrets from step 6. Deploy once by hand with any image.
+   `/api/v1/health`, env vars and secrets from step 6. Deploy once by hand with any image.
 8. **Cloud Run Job** for migrations: same image, same env/secrets, command
    `node node_modules/typeorm/cli.js migration:run -d dist/config/database.config.js`.
 
