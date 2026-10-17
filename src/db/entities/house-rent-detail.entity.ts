@@ -14,6 +14,7 @@ export interface IHouseRentDetail {
   houseRentPrice: number // ค่าเช่าบ้าน
   waterPrice: number // ค่าน้ำ
   electricity: IElectricity
+  attachmentIds?: string[]
 }
 
 @Entity({

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { chain, keyBy, round } from 'lodash'
+import { chain, groupBy, keyBy, round } from 'lodash'
 import { EntityManager, In, Not, Repository } from 'typeorm'
 import { AttachmentEntity } from '../../db/entities/attachment.entity'
 import { HouseRentEntity } from '../../db/entities/house-rent'
@@ -43,7 +43,7 @@ export class HouseRentService {
     })
 
     if (params.rents?.length) {
-      await etm.save(
+      const details = await etm.save(
         HouseRentDetailEntity,
         params.rents.map(rent => ({
           month: rent.month,
@@ -53,6 +53,7 @@ export class HouseRentService {
           houseRentId: houseRent.id,
         }))
       )
+      await this.updateDetailAttachments(params.rents, details, etm)
     } else {
       await etm.softDelete(HouseRentDetailEntity, { houseRentId: houseRent.id })
     }
@@ -83,8 +84,9 @@ export class HouseRentService {
       name: params.name,
     })
     if (params.rents?.length) {
+      await this.softDeleteDetailAttachments(etm, houseRentId, params.rents)
       await this.softDeleteMissing(etm, HouseRentDetailEntity, houseRentId, params.rents)
-      await etm.save(
+      const details = await etm.save(
         HouseRentDetailEntity,
         params.rents.map(rent => ({
           id: rent.id,
@@ -95,7 +97,9 @@ export class HouseRentService {
           houseRentId: houseRentId,
         }))
       )
+      await this.updateDetailAttachments(params.rents, details, etm)
     } else {
+      await this.softDeleteDetailAttachments(etm, houseRentId, [])
       await etm.softDelete(HouseRentDetailEntity, { houseRentId })
     }
 
@@ -127,16 +131,30 @@ export class HouseRentService {
       where: { id: houseRentId },
       relations: ['rents', 'members'],
     })
+    const detailIds = houseRent?.rents?.map(rent => rent.id) ?? []
     const attachments = await this.attachmentRepository.find({
-      where: { attachableId: houseRentId, attachableType: 'house_rent' },
+      where: [
+        { attachableId: houseRentId, attachableType: 'house_rent' },
+        ...(detailIds.length
+          ? [{ attachableId: In(detailIds), attachableType: 'house_rent_detail' }]
+          : []),
+      ],
       order: {
         createdAt: 'ASC',
       },
     })
+    const detailAttachments = groupBy(
+      attachments.filter(a => a.attachableType === 'house_rent_detail'),
+      'attachableId'
+    )
     return {
       houseRent: {
         ...houseRent,
-        attachments,
+        rents: houseRent?.rents?.map(rent => ({
+          ...rent,
+          attachments: detailAttachments[rent.id] ?? [],
+        })),
+        attachments: attachments.filter(a => a.attachableType === 'house_rent'),
       },
     }
   }
@@ -357,23 +375,67 @@ export class HouseRentService {
     etm: EntityManager,
     houseRentId: string
   ) {
-    if (params.attachmentIds?.length) {
-      await etm.update(
-        AttachmentEntity,
-        { id: In(params.attachmentIds) },
-        { attachableId: houseRentId, attachableType: 'house_rent' }
-      )
+    await this.linkAttachments(etm, 'house_rent', houseRentId, params.attachmentIds)
+  }
+
+  // Saved details keep the order of the submitted rents, so index i matches rents[i].
+  private async updateDetailAttachments(
+    rents: { attachmentIds?: string[] }[],
+    details: { id: string }[],
+    etm: EntityManager
+  ) {
+    for (const [i, detail] of details.entries()) {
+      await this.linkAttachments(etm, 'house_rent_detail', detail.id, rents[i].attachmentIds)
+    }
+  }
+
+  // Soft-delete attachments of this house rent's details that are about to be removed.
+  private async softDeleteDetailAttachments(
+    etm: EntityManager,
+    houseRentId: string,
+    rows: { id?: string }[]
+  ) {
+    const keepIds = rows.map(row => row.id).filter((id): id is string => !!id)
+    const removed = await etm.find(HouseRentDetailEntity, {
+      select: { id: true },
+      where: keepIds.length ? { houseRentId, id: Not(In(keepIds)) } : { houseRentId },
+    })
+    if (removed.length) {
       await etm.softDelete(AttachmentEntity, {
-        attachableId: houseRentId,
-        attachableType: 'house_rent',
-        id: Not(In(params.attachmentIds)),
-      })
-    } else {
-      await etm.softDelete(AttachmentEntity, {
-        attachableId: houseRentId,
-        attachableType: 'house_rent',
+        attachableType: 'house_rent_detail',
+        attachableId: In(removed.map(row => row.id)),
       })
     }
+  }
+
+  private async linkAttachments(
+    etm: EntityManager,
+    attachableType: string,
+    attachableId: string,
+    attachmentIds: string[] = []
+  ) {
+    if (attachmentIds.length) {
+      const taken = await etm.find(AttachmentEntity, { where: { id: In(attachmentIds) } })
+      if (
+        taken.some(
+          a =>
+            a.attachableId &&
+            (a.attachableId !== attachableId || a.attachableType !== attachableType)
+        )
+      ) {
+        throw new BadRequestException('Attachment already belongs to another record')
+      }
+      await etm.update(
+        AttachmentEntity,
+        { id: In(attachmentIds) },
+        { attachableId, attachableType }
+      )
+    }
+    await etm.softDelete(AttachmentEntity, {
+      attachableId,
+      attachableType,
+      ...(attachmentIds.length ? { id: Not(In(attachmentIds)) } : {}),
+    })
   }
 
   async deleteHouseRent(houseRentId: string) {

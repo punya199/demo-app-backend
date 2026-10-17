@@ -64,6 +64,11 @@ export class HouseRentDetailDto implements IHouseRentDetail {
   @IsDate()
   @Type(() => Date)
   month: Date
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  attachmentIds?: string[]
 }
 
 export class HouseRentMemberDto implements IHouseRentMember {

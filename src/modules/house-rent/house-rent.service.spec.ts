@@ -1,3 +1,4 @@
+import { AttachmentEntity } from '../../db/entities/attachment.entity'
 import { In, Not } from 'typeorm'
 import { HouseRentDetailEntity } from '../../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../../db/entities/house-rent-member.entity'
@@ -11,9 +12,10 @@ describe('HouseRentService.updateHouseRent', () => {
     const calls: string[] = []
     const etm = {
       update: jest.fn(),
-      save: jest.fn((entity: { name: string }) => {
+      find: jest.fn().mockResolvedValue([]),
+      save: jest.fn((entity: { name: string }, rows: unknown[]) => {
         calls.push(`save:${entity.name}`)
-        return Promise.resolve()
+        return Promise.resolve(rows)
       }),
       softDelete: jest.fn((entity: { name: string }) => {
         calls.push(`softDelete:${entity.name}`)
@@ -45,5 +47,82 @@ describe('HouseRentService.updateHouseRent', () => {
     const { etm } = await run([rent()], [member()])
     expect(etm.softDelete).toHaveBeenCalledWith(HouseRentDetailEntity, { houseRentId })
     expect(etm.softDelete).toHaveBeenCalledWith(HouseRentMemberEntity, { houseRentId })
+  })
+})
+
+describe('HouseRentService detail attachments', () => {
+  const service = new HouseRentService(null as any, null as any, null as any, null as any)
+  const detailType = 'house_rent_detail'
+
+  const makeEtm = (taken: any[] = [], removed: any[] = []) => ({
+    update: jest.fn(),
+    find: jest.fn((entity: { name: string }) =>
+      Promise.resolve(entity === AttachmentEntity ? taken : removed)
+    ),
+    save: jest.fn((_entity: unknown, rows: any) =>
+      Promise.resolve(
+        Array.isArray(rows)
+          ? rows.map((row, i) => ({ ...row, id: row.id ?? `new-${i}` }))
+          : { ...rows, id: 'h' }
+      )
+    ),
+    softDelete: jest.fn(),
+  })
+  const rent = (attachmentIds?: string[], id?: string) => ({
+    id,
+    month: new Date('2026-01-01'),
+    attachmentIds,
+  })
+
+  it('links attachments to the saved detail on create, matched by position', async () => {
+    const etm = makeEtm()
+    await service.createHouseRent(
+      { name: 'n', rents: [rent(['a']), rent(['b'])], members: [], attachmentIds: [] } as any,
+      { ...etm, findOne: jest.fn(), save: etm.save } as any
+    )
+    expect(etm.update).toHaveBeenCalledWith(
+      AttachmentEntity,
+      { id: In(['b']) },
+      { attachableId: 'new-1', attachableType: detailType }
+    )
+  })
+
+  it('rejects an attachment already linked to another record', async () => {
+    const etm = makeEtm([{ id: 'a', attachableId: 'other', attachableType: detailType }])
+    await expect(
+      service.updateHouseRent(
+        'h',
+        { name: 'n', rents: [rent(['a'], 'd1')], members: [], attachmentIds: [] } as any,
+        etm as any
+      )
+    ).rejects.toThrow('already belongs')
+  })
+
+  it('rejects an attachment with the same id but another type, accepts one already linked here', async () => {
+    const update = (taken: any[]) =>
+      service.updateHouseRent(
+        'h',
+        { name: 'n', rents: [rent(['a'], 'd1')], members: [], attachmentIds: [] } as any,
+        makeEtm(taken) as any
+      )
+    await expect(
+      update([{ id: 'a', attachableId: 'd1', attachableType: 'house_rent' }])
+    ).rejects.toThrow('already belongs')
+    await expect(
+      update([{ id: 'a', attachableId: 'd1', attachableType: detailType }])
+    ).resolves.toBeDefined()
+  })
+
+  it('soft-deletes attachments of removed details', async () => {
+    const etm = makeEtm([], [{ id: 'gone' }])
+    await service.updateHouseRent(
+      'h',
+      { name: 'n', rents: [rent([], 'd1')], members: [], attachmentIds: [] } as any,
+      etm as any
+    )
+    expect(etm.softDelete).toHaveBeenCalledWith(AttachmentEntity, {
+      attachableType: detailType,
+      attachableId: In(['gone']),
+    })
   })
 })
