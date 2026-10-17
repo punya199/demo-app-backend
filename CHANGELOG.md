@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/punya199/demo-app-backend/compare/v1.10.0...v1.10.1) (2026-10-17)
+
+
+### Fix
+
+* soft-delete house rent rents/members missing from update list ([04f1bc5](https://github.com/punya199/demo-app-backend/commit/04f1bc5380c3e35e9ca89d5497d2474d5f50cd2d))
+
 # [1.10.0](https://github.com/punya199/demo-app-backend/compare/v1.9.0...v1.10.0) (2026-10-16)
 
 
