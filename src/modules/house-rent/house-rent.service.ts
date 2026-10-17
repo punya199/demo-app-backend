@@ -83,6 +83,7 @@ export class HouseRentService {
       name: params.name,
     })
     if (params.rents?.length) {
+      await this.softDeleteMissing(etm, HouseRentDetailEntity, houseRentId, params.rents)
       await etm.save(
         HouseRentDetailEntity,
         params.rents.map(rent => ({
@@ -99,6 +100,7 @@ export class HouseRentService {
     }
 
     if (params.members?.length) {
+      await this.softDeleteMissing(etm, HouseRentMemberEntity, houseRentId, params.members)
       await etm.save(
         HouseRentMemberEntity,
         params.members.map(member => ({
@@ -334,6 +336,20 @@ export class HouseRentService {
       return acc
     }, [])
     return { data }
+  }
+
+  // Soft-delete existing rows of this house rent whose id isn't in the submitted list.
+  private async softDeleteMissing(
+    etm: EntityManager,
+    entity: typeof HouseRentDetailEntity | typeof HouseRentMemberEntity,
+    houseRentId: string,
+    rows: { id?: string }[]
+  ) {
+    const keepIds = rows.map(row => row.id).filter((id): id is string => !!id)
+    await etm.softDelete(
+      entity,
+      keepIds.length ? { houseRentId, id: Not(In(keepIds)) } : { houseRentId }
+    )
   }
 
   private async updateAttachments(
