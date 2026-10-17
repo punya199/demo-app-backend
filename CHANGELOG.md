@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/punya199/demo-app-backend/compare/v1.11.0...v1.12.0) (2026-10-17)
+
+
+### Update
+
+* transform and validate non-negative numbers in house-rent DTOs ([7732a04](https://github.com/punya199/demo-app-backend/commit/7732a0484e096dbb2e763b89da26fef4446d7f0e))
+
 # [1.11.0](https://github.com/punya199/demo-app-backend/compare/v1.10.1...v1.11.0) (2026-10-17)
 
 
