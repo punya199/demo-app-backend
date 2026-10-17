@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Min,
   ValidateNested,
 } from 'class-validator'
 import {
@@ -21,24 +22,34 @@ import { IElectricityUnit, IHouseRentMember } from '../../../db/entities/house-r
 export class ElectricityDto implements IElectricity {
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   totalPrice: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   unit: number
 }
 
 export class ElectricityUnitDto implements IElectricityUnit {
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   prev: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   current: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   diff: number
 }
 
@@ -49,10 +60,14 @@ export class HouseRentDetailDto implements IHouseRentDetail {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   houseRentPrice: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   waterPrice: number
 
   @IsNotEmpty()
@@ -82,6 +97,8 @@ export class HouseRentMemberDto implements IHouseRentMember {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   airConditionUnit: number
 
   @IsNotEmpty()
@@ -103,30 +120,42 @@ export class HouseRentMemberDto implements IHouseRentMember {
 export class InternetDto implements IInternet {
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   pricePerMonth: number
 }
 
 export class AirConditionDto implements IAirCondition {
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   pricePerUnit: number
 }
 
 export class ElectricitySummaryDto implements IElectricitySummaryData {
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   totalUnit: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   totalPrice: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   pricePerUnit: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   shareUnit: number
 }
 
@@ -153,10 +182,14 @@ export class CreateHouseRentBodyDto implements IHouseRent {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   baseHouseRent: number
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
+  @Type(() => Number)
   paymentFee: number
 
   @IsNotEmpty()
