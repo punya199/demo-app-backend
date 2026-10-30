@@ -4,11 +4,15 @@ import { UserEntity } from './user.entity'
 
 export enum EnumWalletCurrency {
   COIN = 'coin',
+  GEM = 'gem',
 }
 
 export enum EnumWalletTransactionReason {
   BATTLE_REWARD = 'battle_reward',
   SHOP_PURCHASE = 'shop_purchase',
+  BOSS_FIRST_CLEAR = 'boss_first_clear',
+  DEX_DISCOVERY = 'dex_discovery',
+  STAMINA_REFILL = 'stamina_refill',
 }
 
 @Entity({

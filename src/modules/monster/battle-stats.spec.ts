@@ -43,6 +43,17 @@ describe('toFighter', () => {
     )
   })
 
+  it('halves every stat when out of stamina', () => {
+    const rested = toFighter(monster({ strength: 0 })).stats
+    const exhausted = toFighter(monster({ strength: 0, stamina: 0 })).stats
+    expect(exhausted).toEqual({
+      hp: Math.round(rested.hp * 0.5),
+      atk: Math.round(rested.atk * 0.5),
+      def: Math.round(rested.def * 0.5),
+      spd: Math.round(rested.spd * 0.5),
+    })
+  })
+
   it('refuses an egg', () => {
     expect(() => toFighter(createEgg(EnumMonsterLine.TIDE, NOW))).toThrow()
   })

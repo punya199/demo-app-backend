@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { DataSource } from 'typeorm'
-import { EnumWalletTransactionReason } from '../../db/entities/wallet-transaction.entity'
+import {
+  EnumWalletCurrency,
+  EnumWalletTransactionReason,
+} from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { applyShopItem } from './monster-engine'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
@@ -33,8 +36,9 @@ export class ShopService {
 
       // Check the item can be used before charging for it.
       const result = withRuleErrors(() => applyShopItem(monster, item.id, now))
-      const { coin } = await this.walletService.changeCoin(
+      const wallet = await this.walletService.change(
         userId,
+        EnumWalletCurrency.COIN,
         -item.price,
         EnumWalletTransactionReason.SHOP_PURCHASE,
         item.id,
@@ -42,7 +46,7 @@ export class ShopService {
       )
       const saved = await this.monsterService.saveState(monster, result.state, etm)
       await this.monsterService.saveEvents(saved, result.events, etm)
-      return { monster: toMonsterView(saved, now), coin }
+      return { monster: toMonsterView(saved), wallet }
     })
   }
 }

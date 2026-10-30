@@ -8,6 +8,16 @@ import {
   WalletTransactionEntity,
 } from '../../db/entities/wallet-transaction.entity'
 
+export interface IWalletBalance {
+  coin: number
+  gem: number
+}
+
+const toBalance = (wallet: WalletEntity | null): IWalletBalance => ({
+  coin: wallet?.coin ?? 0,
+  gem: wallet?.gem ?? 0,
+})
+
 @Injectable()
 export class WalletService {
   constructor(
@@ -15,15 +25,17 @@ export class WalletService {
     private readonly walletRepository: Repository<WalletEntity>
   ) {}
 
-  async getBalance(userId: string) {
-    const wallet = await this.walletRepository.findOne({ where: { userId } })
-    return { coin: wallet?.coin ?? 0 }
+  async getBalance(userId: string, etm?: EntityManager) {
+    const repository = etm ? etm.getRepository(WalletEntity) : this.walletRepository
+    const wallet = await repository.findOne({ where: { userId } })
+    return toBalance(wallet)
   }
 
-  // Adds (positive) or spends (negative) coins inside the caller's transaction. The wallet row is
-  // locked until that transaction ends, so concurrent requests can't double-spend.
-  async changeCoin(
+  // Adds (positive) or spends (negative) one currency inside the caller's transaction. The wallet
+  // row is locked until that transaction ends, so concurrent requests can't double-spend.
+  async change(
     userId: string,
+    currency: EnumWalletCurrency,
     amount: number,
     reason: EnumWalletTransactionReason,
     refId: string | null,
@@ -33,7 +45,7 @@ export class WalletService {
       .createQueryBuilder()
       .insert()
       .into(WalletEntity)
-      .values({ userId, coin: 0 })
+      .values({ userId, coin: 0, gem: 0 })
       .orIgnore()
       .execute()
     const wallet = await etm.findOneOrFail(WalletEntity, {
@@ -41,20 +53,22 @@ export class WalletService {
       lock: { mode: 'pessimistic_write' },
     })
 
-    const balanceAfter = wallet.coin + amount
+    const balanceAfter = wallet[currency] + amount
     if (balanceAfter < 0) {
-      throw new BadRequestException('Not enough coins')
+      throw new BadRequestException(
+        currency === EnumWalletCurrency.COIN ? 'Not enough coins' : 'Not enough gems'
+      )
     }
-    wallet.coin = balanceAfter
+    wallet[currency] = balanceAfter
     await etm.save(WalletEntity, wallet)
     await etm.save(WalletTransactionEntity, {
       userId,
-      currency: EnumWalletCurrency.COIN,
+      currency,
       amount,
       balanceAfter,
       reason,
       refId,
     })
-    return { coin: balanceAfter }
+    return toBalance(wallet)
   }
 }

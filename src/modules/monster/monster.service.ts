@@ -5,16 +5,28 @@ import { EnumMonsterLine, EnumMonsterStage, MonsterEntity } from '../../db/entit
 import { MonsterDexEntity } from '../../db/entities/monster-dex.entity'
 import { EnumMonsterLogType, MonsterLogEntity } from '../../db/entities/monster-log.entity'
 import {
+  EnumWalletCurrency,
+  EnumWalletTransactionReason,
+} from '../../db/entities/wallet-transaction.entity'
+import { WalletService } from '../wallet/wallet.service'
+import {
   applyAction,
+  applyMinigame,
   createEgg,
   EnumMonsterAction,
+  getEvolutionProgress,
   IMonsterEvent,
   IMonsterState,
-  isSleeping,
   MonsterRuleError,
+  refillStamina,
   tick,
 } from './monster-engine'
-import { TRAIN_COOLDOWN_MS } from './monster-rules'
+import {
+  DEX_DISCOVERY_GEM_REWARD,
+  MINIGAME_COOLDOWN_MS,
+  STAMINA_REFILL_GEM_PRICE,
+  TRAIN_COOLDOWN_MS,
+} from './monster-rules'
 import { getSpecies, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
@@ -31,16 +43,28 @@ export const withRuleErrors = <T>(rule: () => T): T => {
   }
 }
 
-export const toMonsterView = (monster: MonsterEntity, now: Date) => {
+const speciesSummary = (speciesId: string) => {
+  const species = getSpecies(speciesId)
+  return { id: species.id, name: species.name, emoji: species.emoji, stage: species.stage }
+}
+
+const readyAt = (last: Date | null, cooldownMs: number) =>
+  last ? new Date(last.getTime() + cooldownMs) : null
+
+export const toMonsterView = (monster: MonsterEntity) => {
   const species = getSpecies(monster.speciesId)
+  const evolution = getEvolutionProgress(monster)
   return {
     ...monster,
     name: species.name,
     emoji: species.emoji,
-    isSleeping: isSleeping(monster, now),
-    trainReadyAt: monster.lastTrainedAt
-      ? new Date(monster.lastTrainedAt.getTime() + TRAIN_COOLDOWN_MS)
-      : null,
+    trainReadyAt: readyAt(monster.lastTrainedAt, TRAIN_COOLDOWN_MS),
+    minigameReadyAt: readyAt(monster.lastMinigameAt, MINIGAME_COOLDOWN_MS),
+    evolution: {
+      ...evolution,
+      next: evolution.nextSpeciesId ? speciesSummary(evolution.nextSpeciesId) : null,
+      rules: evolution.rules.map(rule => ({ ...rule, to: speciesSummary(rule.to) })),
+    },
   }
 }
 
@@ -49,14 +73,15 @@ export class MonsterService {
   constructor(
     @InjectRepository(MonsterEntity)
     private readonly monsterRepository: Repository<MonsterEntity>,
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly walletService: WalletService
   ) {}
 
   async getMyMonster(userId: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
       const monster = await this.lockAndTickLatest(userId, now, etm)
-      return { monster: monster ? toMonsterView(monster, now) : null }
+      return { monster: monster ? toMonsterView(monster) : null }
     })
   }
 
@@ -75,7 +100,7 @@ export class MonsterService {
         [{ type: EnumMonsterLogType.HATCH, at: now, payload: { line } }],
         etm
       )
-      return { monster: toMonsterView(monster, now) }
+      return { monster: toMonsterView(monster) }
     })
   }
 
@@ -90,18 +115,54 @@ export class MonsterService {
       const result = withRuleErrors(() => applyAction(monster, action, now))
       const saved = await this.saveState(monster, result.state, etm)
       await this.saveEvents(saved, result.events, etm)
-      return { monster: toMonsterView(saved, now) }
+      return { monster: toMonsterView(saved) }
     })
   }
 
   async getHistory(userId: string) {
-    const now = new Date()
     const monsters = await this.monsterRepository.find({
       where: { ownerId: userId, diedAt: Not(IsNull()) },
       order: { diedAt: 'DESC' },
       take: HISTORY_LIMIT,
     })
-    return { monsters: monsters.map(monster => toMonsterView(monster, now)) }
+    return { monsters: monsters.map(monster => toMonsterView(monster)) }
+  }
+
+  async playMinigame(userId: string, hits: number) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = await this.lockAndTickLatest(userId, now, etm)
+      if (!monster) {
+        throw new NotFoundException('You do not have a monster yet')
+      }
+      const result = withRuleErrors(() => applyMinigame(monster, hits, now))
+      const saved = await this.saveState(monster, result.state, etm)
+      await this.saveEvents(saved, result.events, etm)
+      return { monster: toMonsterView(saved), reward: result.events[0].payload.reward as number }
+    })
+  }
+
+  async refillStamina(userId: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = await this.lockAndTickLatest(userId, now, etm)
+      if (!monster) {
+        throw new NotFoundException('You do not have a monster yet')
+      }
+      // Check the refill is allowed before charging for it.
+      const result = withRuleErrors(() => refillStamina(monster, now))
+      const wallet = await this.walletService.change(
+        userId,
+        EnumWalletCurrency.GEM,
+        -STAMINA_REFILL_GEM_PRICE,
+        EnumWalletTransactionReason.STAMINA_REFILL,
+        monster.id,
+        etm
+      )
+      const saved = await this.saveState(monster, result.state, etm)
+      await this.saveEvents(saved, result.events, etm)
+      return { monster: toMonsterView(saved), wallet }
+    })
   }
 
   async getDex(userId: string) {
@@ -135,11 +196,10 @@ export class MonsterService {
       return monster
     }
 
+    // Every request from the owner marks them online; tick() uses the previous mark to decide
+    // which of the elapsed minutes were online.
     const { state, events } = tick(monster, now)
-    if (state.lastTickAt.getTime() === monster.lastTickAt.getTime()) {
-      return monster
-    }
-    const saved = await this.saveState(monster, state, etm)
+    const saved = await this.saveState(monster, { ...state, lastSeenAt: now }, etm)
     await this.saveEvents(saved, events, etm)
     return saved
   }
@@ -165,7 +225,7 @@ export class MonsterService {
       .filter(event => event.type === EnumMonsterLogType.EVOLVE)
       .map(event => ({ speciesId: event.payload.to as string, at: event.at }))
     if (evolvedTo.length) {
-      await etm
+      const inserted = await etm
         .createQueryBuilder()
         .insert()
         .into(MonsterDexEntity)
@@ -177,7 +237,20 @@ export class MonsterService {
           }))
         )
         .orIgnore()
+        .returning(['speciesId'])
         .execute()
+      // ON CONFLICT DO NOTHING returns only the rows it inserted, i.e. new discoveries.
+      const discovered = (inserted.raw as { species_id: string }[]).map(row => row.species_id)
+      if (discovered.length) {
+        await this.walletService.change(
+          monster.ownerId,
+          EnumWalletCurrency.GEM,
+          discovered.length * DEX_DISCOVERY_GEM_REWARD,
+          EnumWalletTransactionReason.DEX_DISCOVERY,
+          discovered.join(','),
+          etm
+        )
+      }
     }
   }
 }

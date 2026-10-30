@@ -8,6 +8,8 @@ export interface IAdventureStage {
   isBoss: boolean
   // Coins for a win; the first win on a stage pays FIRST_CLEAR_MULTIPLIER times this.
   reward: number
+  // Gems paid once, on the first win (bosses only).
+  firstClearGems: number
 }
 
 export interface IAdventureArea {
@@ -30,11 +32,13 @@ const enemy = (
   strength: number,
   skillName: string,
   reward: number,
-  isBoss = false
+  isBoss = false,
+  firstClearGems = 0
 ): IAdventureStage => ({
   id,
   isBoss,
   reward,
+  firstClearGems,
   enemy: {
     name,
     emoji,
@@ -92,7 +96,8 @@ export const ADVENTURE_AREAS: IAdventureArea[] = [
         0.75,
         'กระทืบพสุธา',
         40,
-        true
+        true,
+        5
       ),
     ],
   },
@@ -141,7 +146,8 @@ export const ADVENTURE_AREAS: IAdventureArea[] = [
         0.95,
         'ขย้ำในหมอก',
         90,
-        true
+        true,
+        10
       ),
     ],
   },
@@ -190,7 +196,8 @@ export const ADVENTURE_AREAS: IAdventureArea[] = [
         1,
         'ลมหายใจภูเขาไฟ',
         180,
-        true
+        true,
+        20
       ),
     ],
   },

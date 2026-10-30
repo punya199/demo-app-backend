@@ -36,7 +36,7 @@ export interface IBattleResult {
 }
 
 // Each element beats the next one: flame burns leaf, leaf drinks tide, tide douses flame.
-const BEATS: Record<EnumMonsterLine, EnumMonsterLine> = {
+export const BEATS: Record<EnumMonsterLine, EnumMonsterLine> = {
   [EnumMonsterLine.FLAME]: EnumMonsterLine.LEAF,
   [EnumMonsterLine.LEAF]: EnumMonsterLine.TIDE,
   [EnumMonsterLine.TIDE]: EnumMonsterLine.FLAME,

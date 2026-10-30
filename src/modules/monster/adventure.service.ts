@@ -2,7 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { randomInt } from 'crypto'
 import { DataSource } from 'typeorm'
 import { AdventureProgressEntity } from '../../db/entities/adventure-progress.entity'
-import { EnumWalletTransactionReason } from '../../db/entities/wallet-transaction.entity'
+import {
+  EnumWalletCurrency,
+  EnumWalletTransactionReason,
+} from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import {
   ADVENTURE_AREAS,
@@ -42,6 +45,7 @@ export class AdventureService {
           enemy: stage.enemy,
           reward: stage.reward,
           firstClearReward: stage.reward * FIRST_CLEAR_MULTIPLIER,
+          firstClearGems: stage.firstClearGems,
           clearCount: clearCountByStage.get(stage.id) ?? 0,
           unlocked: isStageUnlocked(stage.id, cleared),
         })),
@@ -68,7 +72,7 @@ export class AdventureService {
       if (!isStageUnlocked(stageId, cleared)) {
         throw new BadRequestException('Stage is locked')
       }
-      withRuleErrors(() => assertCanBattle(monster, now))
+      withRuleErrors(() => assertCanBattle(monster))
 
       const player = toFighter(monster)
       const enemy = entry.stage.enemy
@@ -79,19 +83,20 @@ export class AdventureService {
       const reward = result.won
         ? entry.stage.reward * (isFirstClear ? FIRST_CLEAR_MULTIPLIER : 1)
         : 0
+      const gemReward = isFirstClear ? entry.stage.firstClearGems : 0
 
       const outcome = withRuleErrors(() =>
         applyBattleOutcome(
           monster,
           result.won,
-          { stageId, seed, rounds: result.rounds, reward },
+          { stageId, seed, rounds: result.rounds, reward, gemReward },
           now
         )
       )
       const saved = await this.monsterService.saveState(monster, outcome.state, etm)
       await this.monsterService.saveEvents(saved, outcome.events, etm)
 
-      let coin: number
+      let wallet = await this.walletService.getBalance(userId, etm)
       if (result.won) {
         const existing = progress.find(row => row.stageId === stageId)
         if (existing) {
@@ -105,19 +110,28 @@ export class AdventureService {
             firstClearedAt: now,
           })
         }
-        ;({ coin } = await this.walletService.changeCoin(
+        wallet = await this.walletService.change(
           userId,
+          EnumWalletCurrency.COIN,
           reward,
           EnumWalletTransactionReason.BATTLE_REWARD,
           stageId,
           etm
-        ))
-      } else {
-        ;({ coin } = await this.walletService.getBalance(userId))
+        )
+        if (isFirstClear && gemReward > 0) {
+          wallet = await this.walletService.change(
+            userId,
+            EnumWalletCurrency.GEM,
+            gemReward,
+            EnumWalletTransactionReason.BOSS_FIRST_CLEAR,
+            stageId,
+            etm
+          )
+        }
       }
 
       return {
-        monster: toMonsterView(saved, now),
+        monster: toMonsterView(saved),
         battle: {
           stageId,
           won: result.won,
@@ -126,9 +140,10 @@ export class AdventureService {
           player,
           enemy,
           reward,
+          gemReward,
           isFirstClear,
         },
-        coin,
+        wallet,
       }
     })
   }

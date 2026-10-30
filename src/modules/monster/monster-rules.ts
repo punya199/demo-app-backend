@@ -1,24 +1,26 @@
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
 
 // Every tunable number of the V-Pet rules lives here. Durations are in game minutes - the engine
-// simulates one minute at a time (see monster-engine.ts).
+// simulates one minute at a time (see monster-engine.ts). GET /monster/wiki publishes these
+// values, so the in-game guide always matches the rules.
 
 export const MAX_HEARTS = 4
 export const MAX_POOPS = 4
 
-// How long a monster stays in each stage before trying to evolve. null = never evolves further.
-// PERFECT does try once at 72h; when no evolution matches, it simply stays PERFECT until it dies.
+// How long a monster stays in each stage before trying to evolve, in stage-progress minutes
+// (an online minute counts ONLINE_EVOLUTION_MULTIPLIER times). null = never evolves further.
+// PERFECT tries once when its time is up; when no evolution matches, it stays PERFECT for good.
 export const STAGE_DURATION_MINUTES: Record<EnumMonsterStage, number | null> = {
-  [EnumMonsterStage.EGG]: 5,
-  [EnumMonsterStage.BABY_1]: 60,
-  [EnumMonsterStage.BABY_2]: 12 * 60,
-  [EnumMonsterStage.ADULT]: 36 * 60,
-  [EnumMonsterStage.PERFECT]: 72 * 60,
+  [EnumMonsterStage.EGG]: 2,
+  [EnumMonsterStage.BABY_1]: 15,
+  [EnumMonsterStage.BABY_2]: 90,
+  [EnumMonsterStage.ADULT]: 6 * 60,
+  [EnumMonsterStage.PERFECT]: 12 * 60,
   [EnumMonsterStage.ULTIMATE]: null,
 }
 
-interface IStageRates {
-  // Minutes for one heart of fullness/strength to drain while awake.
+export interface IStageRates {
+  // Minutes for one heart of fullness/strength to drain.
   fullnessMinutes: number
   strengthMinutes: number
   poopEveryMinutes: number
@@ -45,14 +47,28 @@ export const SICK_AFTER_HUNGRY_MINUTES = 6 * 60
 export const DEATH_AFTER_SICK_MINUTES = 12 * 60
 export const DEATH_AFTER_HUNGRY_MINUTES = 24 * 60
 // Counted from hatching, so an egg never ages.
-export const LIFESPAN_MINUTES = 10 * 24 * 60
+export const LIFESPAN_MINUTES = 5 * 24 * 60
 
-// Fixed sleep schedule in Thai time (UTC+7, no DST). Lights left on this long after falling
-// asleep count one care mistake per night.
-export const TIMEZONE_OFFSET_MINUTES = 7 * 60
-export const SLEEP_START_MINUTE_OF_DAY = 22 * 60
-export const SLEEP_END_MINUTE_OF_DAY = 7 * 60
-export const LIGHTS_ON_MISTAKE_MINUTES = 30
+// A minute counts as "online" when it falls within this long after the player's last request.
+// The page polls every minute while it is open and visible, so an open page stays online.
+export const ONLINE_GRACE_MINUTES = 2
+export const ONLINE_EVOLUTION_MULTIPLIER = 2
+
+// Stamina: 0-100, drains over time (half as fast online). At 0 every battle stat is halved.
+export const MAX_STAMINA = 100
+export const STAMINA_DRAIN_FULL_MINUTES_OFFLINE = 12 * 60
+export const STAMINA_DRAIN_FULL_MINUTES_ONLINE = 24 * 60
+export const BATTLE_STAMINA_COST = 10
+export const NO_STAMINA_STAT_MULTIPLIER = 0.5
+
+// Stamina mini-game: stop the moving bar in the target zone MINIGAME_ROUNDS times.
+export const MINIGAME_ROUNDS = 3
+// Stamina gained by number of hits (index = hits).
+export const MINIGAME_STAMINA_REWARDS = [10, 15, 20, 30]
+export const MINIGAME_COOLDOWN_MS = 5 * 60 * 1000
+
+export const STAMINA_REFILL_GEM_PRICE = 5
+export const DEX_DISCOVERY_GEM_REWARD = 1
 
 export const TRAIN_COOLDOWN_MS = 60 * 1000
 export const TRAIN_WEIGHT_LOSS = 2
@@ -62,8 +78,7 @@ export const VITAMIN_WEIGHT_GAIN = 2
 // Safety cap for one tick - a living monster dies of starvation or old age long before this.
 export const MAX_TICK_MINUTES = 30 * 24 * 60
 
-// Fighting costs one strength heart (so it needs at least one) and burns a little weight.
-export const BATTLE_STRENGTH_COST = 1
+// Fighting burns a little weight on top of its stamina cost.
 export const BATTLE_WEIGHT_LOSS = 1
 
 export const PREMIUM_MEAT_FULLNESS = 2

@@ -125,10 +125,10 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
       { to: id('adultGood'), maxCareMistakes: 3 },
       { to: id('adultPoor') },
     ]),
-    species('adultGood', EnumMonsterStage.ADULT, 'good', 20, toPerfect(2, 8)),
-    species('adultPoor', EnumMonsterStage.ADULT, 'poor', 20, toPerfect(1, 12)),
+    species('adultGood', EnumMonsterStage.ADULT, 'good', 20, toPerfect(2, 6)),
+    species('adultPoor', EnumMonsterStage.ADULT, 'poor', 20, toPerfect(1, 10)),
     species('perfectGood', EnumMonsterStage.PERFECT, 'good', 30, [
-      { to: id('ultimate'), maxCareMistakes: 1, minTrainCount: 12, minWins: 5 },
+      { to: id('ultimate'), maxCareMistakes: 1, minTrainCount: 10, minWins: 5 },
     ]),
     species('perfectPoor', EnumMonsterStage.PERFECT, 'poor', 30, []),
     species('ultimate', EnumMonsterStage.ULTIMATE, 'good', 40, []),

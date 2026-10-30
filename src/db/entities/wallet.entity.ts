@@ -2,7 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-// One row per user, created lazily on their first coin change. Always change `coin` through
+// One row per user, created lazily on their first coin change. Always change `coin`/`gem` through
 // WalletService so every change is row-locked and recorded in wallet_transactions.
 @Entity({
   name: 'wallets',
@@ -17,6 +17,9 @@ export class WalletEntity extends BaseModelEntity {
 
   @Column({ name: 'coin', type: 'integer', default: 0 })
   coin: number
+
+  @Column({ name: 'gem', type: 'integer', default: 0 })
+  gem: number
 
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_wallets_user_id' })
   @ManyToOne(() => UserEntity)
