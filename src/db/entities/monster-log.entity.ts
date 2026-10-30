@@ -9,6 +9,8 @@ export enum EnumMonsterLogType {
   CARE_MISTAKE = 'care_mistake',
   SICK = 'sick',
   DEATH = 'death',
+  BATTLE = 'battle',
+  SHOP = 'shop',
 }
 
 @Entity({

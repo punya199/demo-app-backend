@@ -5,29 +5,40 @@ import {
 } from '../../db/entities/monster.entity'
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
+  BATTLE_STAMINA_COST,
+  BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
   DEATH_AFTER_SICK_MINUTES,
+  DIET_TEA_WEIGHT_LOSS,
   FEED_WEIGHT_GAIN,
   HATCH_FULLNESS,
   HATCH_STRENGTH,
   LIFESPAN_MINUTES,
-  LIGHTS_ON_MISTAKE_MINUTES,
   MAX_HEARTS,
   MAX_POOPS,
+  MAX_STAMINA,
   MAX_TICK_MINUTES,
+  MINIGAME_COOLDOWN_MS,
+  MINIGAME_STAMINA_REWARDS,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
+  ONLINE_EVOLUTION_MULTIPLIER,
+  ONLINE_GRACE_MINUTES,
+  PREMIUM_MEAT_FULLNESS,
+  PREMIUM_MEAT_WEIGHT_GAIN,
+  PROTEIN_STRENGTH,
+  PROTEIN_WEIGHT_GAIN,
   SICK_AFTER_HUNGRY_MINUTES,
-  SLEEP_END_MINUTE_OF_DAY,
-  SLEEP_START_MINUTE_OF_DAY,
   STAGE_DURATION_MINUTES,
   STAGE_RATES,
-  TIMEZONE_OFFSET_MINUTES,
+  STAMINA_DRAIN_FULL_MINUTES_OFFLINE,
+  STAMINA_DRAIN_FULL_MINUTES_ONLINE,
   TRAIN_COOLDOWN_MS,
   TRAIN_WEIGHT_LOSS,
   VITAMIN_WEIGHT_GAIN,
 } from './monster-rules'
-import { eggSpeciesId, getSpecies, ISpecies } from './species-data'
+import { EnumShopItemId } from './shop-data'
+import { eggSpeciesId, getSpecies, IEvolutionRule, ISpecies } from './species-data'
 
 // Pure V-Pet rules: no DB, no Nest. MonsterService loads a row, runs tick()/applyAction() on it
 // inside a locked transaction, then saves the returned state and writes the events as logs.
@@ -38,7 +49,6 @@ export enum EnumMonsterAction {
   TRAIN = 'train',
   CLEAN = 'clean',
   MEDICINE = 'medicine',
-  LIGHTS = 'lights',
 }
 
 export interface IMonsterState {
@@ -47,22 +57,27 @@ export interface IMonsterState {
   stage: EnumMonsterStage
   fullness: number
   strength: number
+  stamina: number
   weight: number
   poops: number
   isSick: boolean
-  lightsOn: boolean
   careMistakes: number
   trainCount: number
+  wins: number
+  losses: number
   poopMinutes: number
   hungryMinutes: number
   weakMinutes: number
   sickMinutes: number
-  sleepLightMinutes: number
+  // Stage progress toward the next evolution; online minutes add ONLINE_EVOLUTION_MULTIPLIER.
   stageMinutes: number
   ageMinutes: number
   bornAt: Date
   lastTickAt: Date
+  // Last request from the owner; minutes shortly after it count as online.
+  lastSeenAt: Date | null
   lastTrainedAt: Date | null
+  lastMinigameAt: Date | null
   diedAt: Date | null
   deathCause: EnumMonsterDeathCause | null
 }
@@ -83,15 +98,6 @@ export class MonsterRuleError extends Error {}
 
 const MINUTE_MS = 60 * 1000
 
-export const isAsleepAt = (at: Date) => {
-  const minuteOfDay =
-    (((Math.floor(at.getTime() / MINUTE_MS) + TIMEZONE_OFFSET_MINUTES) % 1440) + 1440) % 1440
-  return minuteOfDay >= SLEEP_START_MINUTE_OF_DAY || minuteOfDay < SLEEP_END_MINUTE_OF_DAY
-}
-
-export const isSleeping = (state: IMonsterState, at: Date) =>
-  state.stage !== EnumMonsterStage.EGG && !state.diedAt && isAsleepAt(at)
-
 export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
   const egg = getSpecies(eggSpeciesId(line))
   return {
@@ -100,34 +106,37 @@ export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
     stage: egg.stage,
     fullness: 0,
     strength: 0,
+    stamina: MAX_STAMINA,
     weight: egg.minWeight,
     poops: 0,
     isSick: false,
-    lightsOn: true,
     careMistakes: 0,
     trainCount: 0,
+    wins: 0,
+    losses: 0,
     poopMinutes: 0,
     hungryMinutes: 0,
     weakMinutes: 0,
     sickMinutes: 0,
-    sleepLightMinutes: 0,
     stageMinutes: 0,
     ageMinutes: 0,
     bornAt: now,
     lastTickAt: now,
+    lastSeenAt: now,
     lastTrainedAt: null,
+    lastMinigameAt: null,
     diedAt: null,
     deathCause: null,
   }
 }
 
+export const isEvolutionRuleMet = (rule: IEvolutionRule, state: IMonsterState) =>
+  (rule.maxCareMistakes === undefined || state.careMistakes <= rule.maxCareMistakes) &&
+  (rule.minTrainCount === undefined || state.trainCount >= rule.minTrainCount) &&
+  (rule.minWins === undefined || state.wins >= rule.minWins)
+
 export const pickEvolution = (species: ISpecies, state: IMonsterState): ISpecies | null => {
-  const rule = species.evolutions.find(
-    candidate =>
-      (candidate.maxCareMistakes === undefined ||
-        state.careMistakes <= candidate.maxCareMistakes) &&
-      (candidate.minTrainCount === undefined || state.trainCount >= candidate.minTrainCount)
-  )
+  const rule = species.evolutions.find(candidate => isEvolutionRuleMet(candidate, state))
   return rule ? getSpecies(rule.to) : null
 }
 
@@ -183,73 +192,73 @@ const die = (
   events.push({ type: EnumMonsterLogType.DEATH, at, payload: { cause } })
 }
 
+const isOnlineAt = (state: IMonsterState, at: Date) =>
+  !!state.lastSeenAt &&
+  at.getTime() <= state.lastSeenAt.getTime() + ONLINE_GRACE_MINUTES * MINUTE_MS
+
 // Advances the state by one game minute ending at `at`.
 const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
-  state.stageMinutes += 1
+  const isOnline = isOnlineAt(state, at)
+  const duration = STAGE_DURATION_MINUTES[state.stage]
+  const previousStageMinutes = state.stageMinutes
+  state.stageMinutes += isOnline ? ONLINE_EVOLUTION_MULTIPLIER : 1
+  // Evolution is decided once, on the minute stage progress crosses the stage's duration.
+  const isStageTimeUp =
+    duration !== null && previousStageMinutes < duration && state.stageMinutes >= duration
 
   if (state.stage === EnumMonsterStage.EGG) {
-    if (state.stageMinutes >= STAGE_DURATION_MINUTES[EnumMonsterStage.EGG]!) {
+    if (isStageTimeUp) {
       evolve(state, pickEvolution(getSpecies(state.speciesId), state)!, at, events)
     }
     return
   }
 
   state.ageMinutes += 1
-  const asleep = isAsleepAt(at)
 
-  if (asleep) {
-    if (state.lightsOn) {
-      state.sleepLightMinutes += 1
-      if (state.sleepLightMinutes === LIGHTS_ON_MISTAKE_MINUTES) {
-        addCareMistake(state, 'lights_on', at, events)
+  const rates = STAGE_RATES[state.stage]
+  state.fullness = Math.max(0, state.fullness - 1 / rates.fullnessMinutes)
+  state.strength = Math.max(0, state.strength - 1 / rates.strengthMinutes)
+  state.stamina = Math.max(
+    0,
+    state.stamina -
+      MAX_STAMINA /
+        (isOnline ? STAMINA_DRAIN_FULL_MINUTES_ONLINE : STAMINA_DRAIN_FULL_MINUTES_OFFLINE)
+  )
+
+  state.poopMinutes += 1
+  if (state.poopMinutes >= rates.poopEveryMinutes) {
+    state.poopMinutes = 0
+    if (state.poops < MAX_POOPS) {
+      state.poops += 1
+      if (state.poops === MAX_POOPS) {
+        becomeSick(state, 'dirty', at, events)
       }
+    }
+  }
+
+  if (state.fullness <= 0) {
+    state.hungryMinutes += 1
+    if (isNeglectMistakeMinute(state.hungryMinutes)) {
+      addCareMistake(state, 'hungry', at, events)
+    }
+    if (state.hungryMinutes === SICK_AFTER_HUNGRY_MINUTES) {
+      becomeSick(state, 'hungry', at, events)
+    }
+    if (state.hungryMinutes >= DEATH_AFTER_HUNGRY_MINUTES) {
+      die(state, EnumMonsterDeathCause.STARVATION, at, events)
+      return
     }
   } else {
-    if (isAsleepAt(new Date(at.getTime() - MINUTE_MS))) {
-      // Just woke up: lights come back on by themselves and the per-night counter resets.
-      state.lightsOn = true
-      state.sleepLightMinutes = 0
-    }
+    state.hungryMinutes = 0
+  }
 
-    const rates = STAGE_RATES[state.stage]
-    state.fullness = Math.max(0, state.fullness - 1 / rates.fullnessMinutes)
-    state.strength = Math.max(0, state.strength - 1 / rates.strengthMinutes)
-
-    state.poopMinutes += 1
-    if (state.poopMinutes >= rates.poopEveryMinutes) {
-      state.poopMinutes = 0
-      if (state.poops < MAX_POOPS) {
-        state.poops += 1
-        if (state.poops === MAX_POOPS) {
-          becomeSick(state, 'dirty', at, events)
-        }
-      }
+  if (state.strength <= 0) {
+    state.weakMinutes += 1
+    if (isNeglectMistakeMinute(state.weakMinutes)) {
+      addCareMistake(state, 'weak', at, events)
     }
-
-    if (state.fullness <= 0) {
-      state.hungryMinutes += 1
-      if (isNeglectMistakeMinute(state.hungryMinutes)) {
-        addCareMistake(state, 'hungry', at, events)
-      }
-      if (state.hungryMinutes === SICK_AFTER_HUNGRY_MINUTES) {
-        becomeSick(state, 'hungry', at, events)
-      }
-      if (state.hungryMinutes >= DEATH_AFTER_HUNGRY_MINUTES) {
-        die(state, EnumMonsterDeathCause.STARVATION, at, events)
-        return
-      }
-    } else {
-      state.hungryMinutes = 0
-    }
-
-    if (state.strength <= 0) {
-      state.weakMinutes += 1
-      if (isNeglectMistakeMinute(state.weakMinutes)) {
-        addCareMistake(state, 'weak', at, events)
-      }
-    } else {
-      state.weakMinutes = 0
-    }
+  } else {
+    state.weakMinutes = 0
   }
 
   if (state.isSick) {
@@ -265,8 +274,7 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
     return
   }
 
-  // Evolution is decided once, at the exact minute the stage's time is up.
-  if (state.stageMinutes === STAGE_DURATION_MINUTES[state.stage]) {
+  if (isStageTimeUp) {
     const next = pickEvolution(getSpecies(state.speciesId), state)
     if (next) {
       evolve(state, next, at, events)
@@ -297,6 +305,43 @@ export const tick = (current: IMonsterState, now: Date): IMonsterStepResult => {
   return { state, events }
 }
 
+export interface IEvolutionProgress {
+  // null once the monster is in a final form (or dead).
+  durationMinutes: number | null
+  progressMinutes: number
+  // Real minutes left offline; online the time is divided by onlineMultiplier.
+  remainingMinutes: number | null
+  onlineMultiplier: number
+  // The form it would become if its time were up right now (null = would stay as it is).
+  nextSpeciesId: string | null
+  rules: (IEvolutionRule & { met: boolean })[]
+  lifespanRemainingMinutes: number
+}
+
+export const getEvolutionProgress = (state: IMonsterState): IEvolutionProgress => {
+  const species = getSpecies(state.speciesId)
+  const duration = state.diedAt ? null : STAGE_DURATION_MINUTES[state.stage]
+  const isWaiting = duration !== null && state.stageMinutes < duration
+  return {
+    durationMinutes: duration,
+    progressMinutes: state.stageMinutes,
+    remainingMinutes: isWaiting ? duration - state.stageMinutes : null,
+    onlineMultiplier: ONLINE_EVOLUTION_MULTIPLIER,
+    nextSpeciesId: isWaiting ? (pickEvolution(species, state)?.id ?? null) : null,
+    rules: species.evolutions.map(rule => ({ ...rule, met: isEvolutionRuleMet(rule, state) })),
+    lifespanRemainingMinutes: Math.max(0, LIFESPAN_MINUTES - state.ageMinutes),
+  }
+}
+
+const assertHatchedAndAlive = (state: IMonsterState) => {
+  if (state.diedAt) {
+    throw new MonsterRuleError('Monster is no longer alive')
+  }
+  if (state.stage === EnumMonsterStage.EGG) {
+    throw new MonsterRuleError('The egg has not hatched yet')
+  }
+}
+
 // Expects a state already ticked up to `now`.
 export const applyAction = (
   current: IMonsterState,
@@ -304,36 +349,21 @@ export const applyAction = (
   now: Date
 ): IMonsterStepResult => {
   const state = { ...current }
-  if (state.diedAt) {
-    throw new MonsterRuleError('Monster is no longer alive')
-  }
-  if (state.stage === EnumMonsterStage.EGG) {
-    throw new MonsterRuleError('The egg has not hatched yet')
-  }
-  const asleep = isAsleepAt(now)
+  assertHatchedAndAlive(state)
   const species = getSpecies(state.speciesId)
 
   switch (action) {
     case EnumMonsterAction.FEED:
-      if (asleep) {
-        throw new MonsterRuleError('Monster is asleep')
-      }
       state.fullness = Math.min(MAX_HEARTS, state.fullness + 1)
       state.weight += FEED_WEIGHT_GAIN
       state.hungryMinutes = 0
       break
     case EnumMonsterAction.VITAMIN:
-      if (asleep) {
-        throw new MonsterRuleError('Monster is asleep')
-      }
       state.strength = Math.min(MAX_HEARTS, state.strength + 1)
       state.weight += VITAMIN_WEIGHT_GAIN
       state.weakMinutes = 0
       break
     case EnumMonsterAction.TRAIN:
-      if (asleep) {
-        throw new MonsterRuleError('Monster is asleep')
-      }
       if (state.isSick) {
         throw new MonsterRuleError('Monster is sick')
       }
@@ -359,13 +389,117 @@ export const applyAction = (
       state.isSick = false
       state.sickMinutes = 0
       break
-    case EnumMonsterAction.LIGHTS:
-      state.lightsOn = !state.lightsOn
-      break
   }
 
   return {
     state,
     events: [{ type: EnumMonsterLogType.ACTION, at: now, payload: { action } }],
+  }
+}
+
+// Throws when the monster can't fight right now. Expects a state already ticked up to `now`.
+// Running out of stamina doesn't stop a fight - it halves the monster's stats (battle-stats.ts).
+export const assertCanBattle = (state: IMonsterState) => {
+  assertHatchedAndAlive(state)
+  if (state.isSick) {
+    throw new MonsterRuleError('Monster is sick')
+  }
+}
+
+export const applyBattleOutcome = (
+  current: IMonsterState,
+  won: boolean,
+  payload: Record<string, unknown>,
+  now: Date
+): IMonsterStepResult => {
+  assertCanBattle(current)
+  const state = { ...current }
+  const species = getSpecies(state.speciesId)
+  state.stamina = Math.max(0, state.stamina - BATTLE_STAMINA_COST)
+  state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
+  if (won) {
+    state.wins += 1
+  } else {
+    state.losses += 1
+  }
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won } }],
+  }
+}
+
+// The mini-game's score is reported by the client, so the reward is capped and rate-limited.
+export const applyMinigame = (
+  current: IMonsterState,
+  hits: number,
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (
+    state.lastMinigameAt &&
+    now.getTime() - state.lastMinigameAt.getTime() < MINIGAME_COOLDOWN_MS
+  ) {
+    throw new MonsterRuleError('Mini-game is not ready yet')
+  }
+  const reward = MINIGAME_STAMINA_REWARDS[hits]
+  if (reward === undefined) {
+    throw new MonsterRuleError('Invalid mini-game score')
+  }
+  state.stamina = Math.min(MAX_STAMINA, state.stamina + reward)
+  state.lastMinigameAt = now
+  return {
+    state,
+    events: [
+      { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'minigame', hits, reward } },
+    ],
+  }
+}
+
+export const refillStamina = (current: IMonsterState, now: Date): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (state.stamina >= MAX_STAMINA) {
+    throw new MonsterRuleError('Stamina is already full')
+  }
+  state.stamina = MAX_STAMINA
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'stamina_refill' } }],
+  }
+}
+
+// Shop items are eaten/used on purchase.
+export const applyShopItem = (
+  current: IMonsterState,
+  itemId: EnumShopItemId,
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  const species = getSpecies(state.speciesId)
+
+  switch (itemId) {
+    case EnumShopItemId.PREMIUM_MEAT:
+      state.fullness = Math.min(MAX_HEARTS, state.fullness + PREMIUM_MEAT_FULLNESS)
+      state.weight += PREMIUM_MEAT_WEIGHT_GAIN
+      state.hungryMinutes = 0
+      break
+    case EnumShopItemId.PROTEIN:
+      state.strength = Math.min(MAX_HEARTS, state.strength + PROTEIN_STRENGTH)
+      state.weight += PROTEIN_WEIGHT_GAIN
+      state.weakMinutes = 0
+      break
+    case EnumShopItemId.DIET_TEA:
+      state.weight = Math.max(species.minWeight, state.weight - DIET_TEA_WEIGHT_LOSS)
+      break
+    case EnumShopItemId.TRAINING_MANUAL:
+      state.trainCount += 1
+      break
+  }
+
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.SHOP, at: now, payload: { itemId } }],
   }
 }

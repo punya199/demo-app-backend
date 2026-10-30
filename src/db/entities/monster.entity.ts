@@ -55,6 +55,9 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'strength', type: 'real' })
   strength: number
 
+  @Column({ name: 'stamina', type: 'real', default: 100 })
+  stamina: number
+
   @Column({ name: 'weight', type: 'integer' })
   weight: number
 
@@ -63,9 +66,6 @@ export class MonsterEntity extends BaseModelEntity {
 
   @Column({ name: 'is_sick', type: 'boolean' })
   isSick: boolean
-
-  @Column({ name: 'lights_on', type: 'boolean' })
-  lightsOn: boolean
 
   @Column({ name: 'care_mistakes', type: 'integer' })
   careMistakes: number
@@ -91,9 +91,6 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'sick_minutes', type: 'integer' })
   sickMinutes: number
 
-  @Column({ name: 'sleep_light_minutes', type: 'integer' })
-  sleepLightMinutes: number
-
   @Column({ name: 'stage_minutes', type: 'integer' })
   stageMinutes: number
 
@@ -106,8 +103,14 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'last_tick_at', type: 'timestamp with time zone' })
   lastTickAt: Date
 
+  @Column({ name: 'last_seen_at', type: 'timestamp with time zone', nullable: true })
+  lastSeenAt: Date | null
+
   @Column({ name: 'last_trained_at', type: 'timestamp with time zone', nullable: true })
   lastTrainedAt: Date | null
+
+  @Column({ name: 'last_minigame_at', type: 'timestamp with time zone', nullable: true })
+  lastMinigameAt: Date | null
 
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null

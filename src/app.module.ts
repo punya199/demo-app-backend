@@ -21,6 +21,7 @@ import { UserModule } from './modules/user/user.module'
 import { HealthModule } from './modules/health/health.module'
 import { VotingModule } from './modules/voting/voting.module'
 import { MonsterModule } from './modules/monster/monster.module'
+import { WalletModule } from './modules/wallet/wallet.module'
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { MonsterModule } from './modules/monster/monster.module'
     PaojiaoLedgerModule,
     VotingModule,
     MonsterModule,
+    WalletModule,
     HealthModule,
   ],
 })

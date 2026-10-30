@@ -6,51 +6,61 @@ import {
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
+  applyBattleOutcome,
+  applyMinigame,
+  applyShopItem,
+  assertCanBattle,
   createEgg,
   EnumMonsterAction,
+  getEvolutionProgress,
   IMonsterState,
-  isAsleepAt,
   MonsterRuleError,
+  refillStamina,
   tick,
 } from './monster-engine'
-import { LIFESPAN_MINUTES, STAGE_DURATION_MINUTES } from './monster-rules'
+import {
+  LIFESPAN_MINUTES,
+  MINIGAME_COOLDOWN_MS,
+  STAGE_DURATION_MINUTES,
+  STAMINA_DRAIN_FULL_MINUTES_OFFLINE,
+  STAMINA_DRAIN_FULL_MINUTES_ONLINE,
+} from './monster-rules'
+import { EnumShopItemId } from './shop-data'
 
-// 03:00 UTC = 10:00 Thai time, well inside the awake window (sleep is 22:00-07:00 Thai time).
-const MORNING = new Date('2026-01-01T03:00:00Z')
-// 15:00 UTC = 22:00 Thai time, the minute the monster falls asleep.
-const BEDTIME = new Date('2026-01-01T15:00:00Z')
+const NOW = new Date('2026-01-01T03:00:00Z')
 
 const minutesAfter = (date: Date, minutes: number) => new Date(date.getTime() + minutes * 60_000)
 
-const monster = (overrides: Partial<IMonsterState> = {}, at = MORNING): IMonsterState => ({
-  ...createEgg(EnumMonsterLine.FLAME, at),
+// Fixtures are offline (lastSeenAt: null) unless a test opts in, so timing stays predictable.
+const monster = (overrides: Partial<IMonsterState> = {}): IMonsterState => ({
+  ...createEgg(EnumMonsterLine.FLAME, NOW),
   speciesId: 'flame_adultGood',
   stage: EnumMonsterStage.ADULT,
   fullness: 4,
   strength: 4,
   weight: 20,
+  lastSeenAt: null,
   ...overrides,
 })
 
+const egg = (line = EnumMonsterLine.TIDE) => ({ ...createEgg(line, NOW), lastSeenAt: null })
+
 const eventTypes = (events: { type: EnumMonsterLogType }[]) => events.map(event => event.type)
 
-describe('isAsleepAt', () => {
-  it('follows the 22:00-07:00 Thai-time schedule', () => {
-    expect(isAsleepAt(new Date('2026-01-01T14:59:00Z'))).toBe(false)
-    expect(isAsleepAt(new Date('2026-01-01T15:00:00Z'))).toBe(true)
-    expect(isAsleepAt(new Date('2026-01-01T23:59:00Z'))).toBe(true)
-    expect(isAsleepAt(new Date('2026-01-02T00:00:00Z'))).toBe(false)
+describe('createEgg', () => {
+  it('starts with full stamina and marks the owner online', () => {
+    const fresh = createEgg(EnumMonsterLine.LEAF, NOW)
+    expect(fresh.stamina).toBe(100)
+    expect(fresh.lastSeenAt).toEqual(NOW)
   })
 })
 
 describe('tick', () => {
-  it('hatches an egg after 5 minutes without aging it', () => {
-    const egg = createEgg(EnumMonsterLine.TIDE, MORNING)
+  it('hatches an egg once its time is up, without aging it', () => {
+    const eggDuration = STAGE_DURATION_MINUTES[EnumMonsterStage.EGG]!
+    expect(tick(egg(), minutesAfter(NOW, eggDuration - 1)).state.stage).toBe(EnumMonsterStage.EGG)
 
-    const before = tick(egg, minutesAfter(MORNING, 4))
-    expect(before.state.stage).toBe(EnumMonsterStage.EGG)
-
-    const { state, events } = tick(egg, minutesAfter(MORNING, 5))
+    const { state, events } = tick(egg(), minutesAfter(NOW, eggDuration))
     expect(state.speciesId).toBe('tide_baby1')
     expect(state.stage).toBe(EnumMonsterStage.BABY_1)
     expect(state.fullness).toBe(2)
@@ -60,46 +70,35 @@ describe('tick', () => {
   })
 
   it('only consumes whole minutes, leaving the remainder for the next tick', () => {
-    const { state } = tick(monster(), new Date(MORNING.getTime() + 90_000))
-    expect(state.lastTickAt).toEqual(minutesAfter(MORNING, 1))
+    const { state } = tick(monster(), new Date(NOW.getTime() + 90_000))
+    expect(state.lastTickAt).toEqual(minutesAfter(NOW, 1))
     expect(state.ageMinutes).toBe(1)
   })
 
   it('is a no-op for a dead monster', () => {
-    const dead = monster({ diedAt: MORNING, deathCause: EnumMonsterDeathCause.OLD_AGE })
-    const { state, events } = tick(dead, minutesAfter(MORNING, 600))
+    const dead = monster({ diedAt: NOW, deathCause: EnumMonsterDeathCause.OLD_AGE })
+    const { state, events } = tick(dead, minutesAfter(NOW, 600))
     expect(state).toEqual(dead)
     expect(events).toEqual([])
   })
 
-  it('drains hearts at the stage rate while awake', () => {
-    const { state } = tick(monster(), minutesAfter(MORNING, 60))
+  it('drains hearts at the stage rate around the clock', () => {
+    const { state } = tick(monster(), minutesAfter(NOW, 60))
     expect(state.fullness).toBeCloseTo(3)
     expect(state.strength).toBeCloseTo(4 - 60 / 75)
-  })
-
-  it('does not drain hearts or poop while asleep', () => {
-    const asleep = monster({ lightsOn: false }, BEDTIME)
-    const { state } = tick(asleep, minutesAfter(BEDTIME, 300))
-    expect(state.fullness).toBe(4)
-    expect(state.strength).toBe(4)
-    expect(state.poops).toBe(0)
   })
 
   it('counts a care mistake after 30 hungry minutes, then every 4 hours', () => {
     const hungry = monster({ fullness: 0 })
 
-    expect(tick(hungry, minutesAfter(MORNING, 29)).state.careMistakes).toBe(0)
-    expect(tick(hungry, minutesAfter(MORNING, 30)).state.careMistakes).toBe(1)
-    expect(tick(hungry, minutesAfter(MORNING, 269)).state.careMistakes).toBe(1)
-    expect(tick(hungry, minutesAfter(MORNING, 270)).state.careMistakes).toBe(2)
+    expect(tick(hungry, minutesAfter(NOW, 29)).state.careMistakes).toBe(0)
+    expect(tick(hungry, minutesAfter(NOW, 30)).state.careMistakes).toBe(1)
+    expect(tick(hungry, minutesAfter(NOW, 269)).state.careMistakes).toBe(1)
+    expect(tick(hungry, minutesAfter(NOW, 270)).state.careMistakes).toBe(2)
   })
 
   it('gets sick when the fourth poop lands', () => {
-    const { state, events } = tick(
-      monster({ poops: 3, poopMinutes: 119 }),
-      minutesAfter(MORNING, 1)
-    )
+    const { state, events } = tick(monster({ poops: 3, poopMinutes: 119 }), minutesAfter(NOW, 1))
     expect(state.poops).toBe(4)
     expect(state.isSick).toBe(true)
     expect(eventTypes(events)).toContain(EnumMonsterLogType.SICK)
@@ -107,36 +106,46 @@ describe('tick', () => {
 
   it('dies after 12 hours of untreated sickness', () => {
     const sick = monster({ isSick: true })
-    expect(tick(sick, minutesAfter(MORNING, 719)).state.diedAt).toBeNull()
+    expect(tick(sick, minutesAfter(NOW, 719)).state.diedAt).toBeNull()
 
-    const { state, events } = tick(sick, minutesAfter(MORNING, 720))
+    const { state, events } = tick(sick, minutesAfter(NOW, 720))
     expect(state.deathCause).toBe(EnumMonsterDeathCause.SICKNESS)
-    expect(state.diedAt).toEqual(minutesAfter(MORNING, 720))
+    expect(state.diedAt).toEqual(minutesAfter(NOW, 720))
     expect(eventTypes(events)).toContain(EnumMonsterLogType.DEATH)
   })
 
-  it('dies of old age at the end of its lifespan', () => {
+  it('dies of old age at the end of its 5-day lifespan', () => {
+    expect(LIFESPAN_MINUTES).toBe(5 * 24 * 60)
     const old = monster({ ageMinutes: LIFESPAN_MINUTES - 1 })
-    const { state } = tick(old, minutesAfter(MORNING, 1))
+    const { state } = tick(old, minutesAfter(NOW, 1))
     expect(state.deathCause).toBe(EnumMonsterDeathCause.OLD_AGE)
   })
 
-  it('counts one care mistake per night when the lights stay on', () => {
-    const asleep = monster({ lightsOn: true }, BEDTIME)
+  describe('online presence', () => {
+    it('counts minutes within 2 minutes of the last request as online, double for evolution', () => {
+      const seen = monster({ lastSeenAt: NOW })
+      // Minutes 1-2 are online (+2 each), minutes 3-5 offline (+1 each).
+      expect(tick(seen, minutesAfter(NOW, 5)).state.stageMinutes).toBe(2 * 2 + 3)
+      expect(tick(monster(), minutesAfter(NOW, 5)).state.stageMinutes).toBe(5)
+    })
 
-    expect(tick(asleep, minutesAfter(BEDTIME, 29)).state.careMistakes).toBe(0)
-    expect(tick(asleep, minutesAfter(BEDTIME, 30)).state.careMistakes).toBe(1)
-    expect(tick(asleep, minutesAfter(BEDTIME, 300)).state.careMistakes).toBe(1)
-  })
+    it('does not speed up aging or hunger', () => {
+      const { state } = tick(monster({ lastSeenAt: NOW }), minutesAfter(NOW, 2))
+      expect(state.ageMinutes).toBe(2)
+      expect(state.fullness).toBeCloseTo(4 - 2 / 60)
+    })
 
-  it('turns the lights back on at wake-up and resets the night counter', () => {
-    const lastMinuteAsleep = new Date('2026-01-01T23:59:00Z')
-    const { state } = tick(
-      monster({ lightsOn: false, sleepLightMinutes: 45 }, lastMinuteAsleep),
-      minutesAfter(lastMinuteAsleep, 1)
-    )
-    expect(state.lightsOn).toBe(true)
-    expect(state.sleepLightMinutes).toBe(0)
+    it('drains stamina half as fast online', () => {
+      const offline = tick(monster(), minutesAfter(NOW, 2)).state.stamina
+      const online = tick(monster({ lastSeenAt: NOW }), minutesAfter(NOW, 2)).state.stamina
+      expect(100 - offline).toBeCloseTo((2 * 100) / STAMINA_DRAIN_FULL_MINUTES_OFFLINE)
+      expect(100 - online).toBeCloseTo((2 * 100) / STAMINA_DRAIN_FULL_MINUTES_ONLINE)
+    })
+
+    it('runs stamina down to 0 and no further', () => {
+      const { state } = tick(monster(), minutesAfter(NOW, STAMINA_DRAIN_FULL_MINUTES_OFFLINE + 30))
+      expect(state.stamina).toBe(0)
+    })
   })
 
   describe('evolution', () => {
@@ -144,7 +153,7 @@ describe('tick', () => {
       const stage = overrides.stage!
       return tick(
         monster({ stageMinutes: STAGE_DURATION_MINUTES[stage]! - 1, ...overrides }),
-        minutesAfter(MORNING, 1)
+        minutesAfter(NOW, 1)
       )
     }
 
@@ -175,10 +184,23 @@ describe('tick', () => {
       expect(state.speciesId).toBe('flame_adultPoor')
     })
 
+    it('still evolves when an online minute jumps past the exact duration', () => {
+      const { state } = tick(
+        monster({
+          speciesId: 'flame_baby2',
+          stage: EnumMonsterStage.BABY_2,
+          stageMinutes: STAGE_DURATION_MINUTES[EnumMonsterStage.BABY_2]! - 1,
+          lastSeenAt: NOW,
+        }),
+        minutesAfter(NOW, 1)
+      )
+      expect(state.stage).toBe(EnumMonsterStage.ADULT)
+    })
+
     it('needs both low mistakes and enough training for the good perfect form', () => {
       const base = { speciesId: 'leaf_adultGood', stage: EnumMonsterStage.ADULT, careMistakes: 2 }
-      expect(atStageEnd({ ...base, trainCount: 8 }).state.speciesId).toBe('leaf_perfectGood')
-      expect(atStageEnd({ ...base, trainCount: 7 }).state.speciesId).toBe('leaf_perfectPoor')
+      expect(atStageEnd({ ...base, trainCount: 6 }).state.speciesId).toBe('leaf_perfectGood')
+      expect(atStageEnd({ ...base, trainCount: 5 }).state.speciesId).toBe('leaf_perfectPoor')
     })
 
     it('raises weight to the new form minimum', () => {
@@ -190,16 +212,76 @@ describe('tick', () => {
       expect(state.weight).toBe(20)
     })
 
-    it('keeps a perfect form that misses the ultimate conditions', () => {
-      const { state, events } = atStageEnd({
+    it('needs 5 lifetime wins on top of good care to reach the ultimate form', () => {
+      const base = {
+        speciesId: 'tide_perfectGood',
+        stage: EnumMonsterStage.PERFECT,
+        careMistakes: 0,
+        trainCount: 10,
+      }
+      expect(atStageEnd({ ...base, wins: 4 }).state.speciesId).toBe('tide_perfectGood')
+      expect(atStageEnd({ ...base, wins: 5 }).state.speciesId).toBe('tide_ultimate')
+    })
+
+    it('keeps a perfect form that misses the ultimate conditions, and decides only once', () => {
+      const missed = atStageEnd({
         speciesId: 'tide_perfectGood',
         stage: EnumMonsterStage.PERFECT,
         careMistakes: 2,
         trainCount: 20,
+        wins: 9,
       })
-      expect(state.speciesId).toBe('tide_perfectGood')
-      expect(eventTypes(events)).not.toContain(EnumMonsterLogType.EVOLVE)
+      expect(missed.state.speciesId).toBe('tide_perfectGood')
+      expect(eventTypes(missed.events)).not.toContain(EnumMonsterLogType.EVOLVE)
+
+      // Meeting the conditions later doesn't trigger a second evaluation.
+      const later = tick({ ...missed.state, careMistakes: 0 }, minutesAfter(NOW, 30))
+      expect(later.state.speciesId).toBe('tide_perfectGood')
     })
+  })
+})
+
+describe('getEvolutionProgress', () => {
+  it('reports the time left and the form the monster is on track for', () => {
+    const progress = getEvolutionProgress(
+      monster({ speciesId: 'flame_baby2', stage: EnumMonsterStage.BABY_2, stageMinutes: 30 })
+    )
+    expect(progress.durationMinutes).toBe(90)
+    expect(progress.remainingMinutes).toBe(60)
+    expect(progress.onlineMultiplier).toBe(2)
+    expect(progress.nextSpeciesId).toBe('flame_adultGood')
+    expect(progress.rules.map(rule => [rule.to, rule.met])).toEqual([
+      ['flame_adultGood', true],
+      ['flame_adultPoor', true],
+    ])
+  })
+
+  it('shows which ultimate conditions are still missing', () => {
+    const progress = getEvolutionProgress(
+      monster({
+        speciesId: 'leaf_perfectGood',
+        stage: EnumMonsterStage.PERFECT,
+        trainCount: 10,
+        wins: 2,
+      })
+    )
+    expect(progress.nextSpeciesId).toBeNull()
+    expect(progress.rules).toEqual([
+      { to: 'leaf_ultimate', maxCareMistakes: 1, minTrainCount: 10, minWins: 5, met: false },
+    ])
+  })
+
+  it('has no countdown for a final form, only the lifespan left', () => {
+    const progress = getEvolutionProgress(
+      monster({
+        speciesId: 'leaf_ultimate',
+        stage: EnumMonsterStage.ULTIMATE,
+        ageMinutes: 100,
+      })
+    )
+    expect(progress.durationMinutes).toBeNull()
+    expect(progress.remainingMinutes).toBeNull()
+    expect(progress.lifespanRemainingMinutes).toBe(LIFESPAN_MINUTES - 100)
   })
 })
 
@@ -208,7 +290,7 @@ describe('applyAction', () => {
     const { state, events } = applyAction(
       monster({ fullness: 3.5, hungryMinutes: 10 }),
       EnumMonsterAction.FEED,
-      MORNING
+      NOW
     )
     expect(state.fullness).toBe(4)
     expect(state.weight).toBe(21)
@@ -220,21 +302,21 @@ describe('applyAction', () => {
     const { state } = applyAction(
       monster({ strength: 1, weight: 21 }),
       EnumMonsterAction.TRAIN,
-      MORNING
+      NOW
     )
     expect(state.strength).toBe(2)
     expect(state.weight).toBe(20)
     expect(state.trainCount).toBe(1)
-    expect(state.lastTrainedAt).toEqual(MORNING)
+    expect(state.lastTrainedAt).toEqual(NOW)
   })
 
   it('enforces the training cooldown', () => {
-    const trained = monster({ lastTrainedAt: MORNING })
+    const trained = monster({ lastTrainedAt: NOW })
     expect(() =>
-      applyAction(trained, EnumMonsterAction.TRAIN, new Date(MORNING.getTime() + 59_000))
+      applyAction(trained, EnumMonsterAction.TRAIN, new Date(NOW.getTime() + 59_000))
     ).toThrow(MonsterRuleError)
     expect(() =>
-      applyAction(trained, EnumMonsterAction.TRAIN, new Date(MORNING.getTime() + 60_000))
+      applyAction(trained, EnumMonsterAction.TRAIN, new Date(NOW.getTime() + 60_000))
     ).not.toThrow()
   })
 
@@ -242,39 +324,127 @@ describe('applyAction', () => {
     const { state } = applyAction(
       monster({ isSick: true, sickMinutes: 100 }),
       EnumMonsterAction.MEDICINE,
-      MORNING
+      NOW
     )
     expect(state.isSick).toBe(false)
     expect(state.sickMinutes).toBe(0)
-    expect(() => applyAction(monster(), EnumMonsterAction.MEDICINE, MORNING)).toThrow(
+    expect(() => applyAction(monster(), EnumMonsterAction.MEDICINE, NOW)).toThrow(
       'Monster is not sick'
     )
   })
 
-  it('cleans and toggles the lights', () => {
-    expect(applyAction(monster({ poops: 3 }), EnumMonsterAction.CLEAN, MORNING).state.poops).toBe(0)
-    expect(applyAction(monster(), EnumMonsterAction.LIGHTS, MORNING).state.lightsOn).toBe(false)
+  it('cleans', () => {
+    expect(applyAction(monster({ poops: 3 }), EnumMonsterAction.CLEAN, NOW).state.poops).toBe(0)
   })
 
-  it.each([EnumMonsterAction.FEED, EnumMonsterAction.VITAMIN, EnumMonsterAction.TRAIN])(
-    'rejects %s while asleep',
-    action => {
-      expect(() => applyAction(monster(), action, BEDTIME)).toThrow('Monster is asleep')
-    }
-  )
-
   it('rejects training while sick', () => {
-    expect(() => applyAction(monster({ isSick: true }), EnumMonsterAction.TRAIN, MORNING)).toThrow(
+    expect(() => applyAction(monster({ isSick: true }), EnumMonsterAction.TRAIN, NOW)).toThrow(
       'Monster is sick'
     )
   })
 
   it('rejects any action on an egg or a dead monster', () => {
+    expect(() => applyAction(egg(), EnumMonsterAction.FEED, NOW)).toThrow(
+      'The egg has not hatched yet'
+    )
+    expect(() => applyAction(monster({ diedAt: NOW }), EnumMonsterAction.CLEAN, NOW)).toThrow(
+      'Monster is no longer alive'
+    )
+  })
+})
+
+describe('assertCanBattle', () => {
+  it('allows a healthy monster even with no stamina or strength left', () => {
+    expect(() => assertCanBattle(monster({ stamina: 0, strength: 0 }))).not.toThrow()
+  })
+
+  it.each([
+    ['sick', monster({ isSick: true }), 'Monster is sick'],
+    ['an egg', egg(), 'The egg has not hatched yet'],
+  ])('rejects a monster that is %s', (_label, state, message) => {
+    expect(() => assertCanBattle(state)).toThrow(message)
+  })
+})
+
+describe('applyBattleOutcome', () => {
+  it('costs stamina and a little weight, and records the win', () => {
+    const { state, events } = applyBattleOutcome(
+      monster({ stamina: 55, weight: 25 }),
+      true,
+      { stageId: 'meadow_1' },
+      NOW
+    )
+    expect(state.stamina).toBe(45)
+    expect(state.strength).toBe(4)
+    expect(state.weight).toBe(24)
+    expect(state.wins).toBe(1)
+    expect(events).toEqual([
+      {
+        type: EnumMonsterLogType.BATTLE,
+        at: NOW,
+        payload: { stageId: 'meadow_1', won: true },
+      },
+    ])
+  })
+
+  it('records a loss and never drops below zero stamina or the form minimum weight', () => {
+    const { state } = applyBattleOutcome(monster({ stamina: 4, weight: 20 }), false, {}, NOW)
+    expect(state.stamina).toBe(0)
+    expect(state.weight).toBe(20)
+    expect(state.losses).toBe(1)
+  })
+})
+
+describe('applyMinigame', () => {
+  it('pays stamina by hits, capped at the maximum', () => {
+    expect(applyMinigame(monster({ stamina: 0 }), 0, NOW).state.stamina).toBe(10)
+    expect(applyMinigame(monster({ stamina: 0 }), 3, NOW).state.stamina).toBe(30)
+    expect(applyMinigame(monster({ stamina: 90 }), 3, NOW).state.stamina).toBe(100)
+  })
+
+  it('enforces the cooldown', () => {
+    const played = monster({ lastMinigameAt: NOW })
     expect(() =>
-      applyAction(createEgg(EnumMonsterLine.LEAF, MORNING), EnumMonsterAction.FEED, MORNING)
-    ).toThrow('The egg has not hatched yet')
+      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS - 1))
+    ).toThrow('Mini-game is not ready yet')
     expect(() =>
-      applyAction(monster({ diedAt: MORNING }), EnumMonsterAction.CLEAN, MORNING)
-    ).toThrow('Monster is no longer alive')
+      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS))
+    ).not.toThrow()
+  })
+
+  it('rejects an impossible score', () => {
+    expect(() => applyMinigame(monster(), 4, NOW)).toThrow('Invalid mini-game score')
+  })
+})
+
+describe('refillStamina', () => {
+  it('fills stamina to the maximum', () => {
+    expect(refillStamina(monster({ stamina: 12.5 }), NOW).state.stamina).toBe(100)
+  })
+
+  it('refuses when already full', () => {
+    expect(() => refillStamina(monster({ stamina: 100 }), NOW)).toThrow('Stamina is already full')
+  })
+})
+
+describe('applyShopItem', () => {
+  it('applies each item effect', () => {
+    const meat = applyShopItem(monster({ fullness: 1 }), EnumShopItemId.PREMIUM_MEAT, NOW)
+    expect(meat.state.fullness).toBe(3)
+    expect(meat.state.weight).toBe(21)
+
+    const protein = applyShopItem(monster({ strength: 3 }), EnumShopItemId.PROTEIN, NOW)
+    expect(protein.state.strength).toBe(4)
+
+    const tea = applyShopItem(monster({ weight: 23 }), EnumShopItemId.DIET_TEA, NOW)
+    expect(tea.state.weight).toBe(20)
+
+    const manual = applyShopItem(monster(), EnumShopItemId.TRAINING_MANUAL, NOW)
+    expect(manual.state.trainCount).toBe(1)
+    expect(manual.events[0].payload).toEqual({ itemId: EnumShopItemId.TRAINING_MANUAL })
+  })
+
+  it('rejects items on an egg', () => {
+    expect(() => applyShopItem(egg(), EnumShopItemId.PROTEIN, NOW)).toThrow(MonsterRuleError)
   })
 })
