@@ -6,6 +6,8 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
+import { MonsterLogEntity } from '../db/entities/monster-log.entity'
+import { MonsterEntity } from '../db/entities/monster.entity'
 import { PermissionsEntity } from '../db/entities/permissions'
 import { PollOptionEntity } from '../db/entities/poll-option.entity'
 import { PollVoteEntity } from '../db/entities/poll-vote.entity'
@@ -29,6 +31,8 @@ export const entities = [
   PollEntity,
   PollOptionEntity,
   PollVoteEntity,
+  MonsterEntity,
+  MonsterLogEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
