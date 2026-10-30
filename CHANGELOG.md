@@ -1,3 +1,11 @@
+# [1.14.0](https://github.com/punya199/demo-app-backend/compare/v1.13.0...v1.14.0) (2026-10-30)
+
+
+### New
+
+* add monster adventure battles, coin wallet, shop and Dex ([cb081a0](https://github.com/punya199/demo-app-backend/commit/cb081a01e917f806d1e2694ef4c2fc90a8a0272a))
+* add monster stamina, gems, online bonus and guide data ([b6668b3](https://github.com/punya199/demo-app-backend/commit/b6668b35628def98e5d814a6a28bd79893a4db70))
+
 # [1.13.0](https://github.com/punya199/demo-app-backend/compare/v1.12.0...v1.13.0) (2026-10-30)
 
 
