@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/punya199/demo-app-backend/compare/v1.12.0...v1.13.0) (2026-10-30)
+
+
+### New
+
+* add server-authoritative monster V-Pet module ([630f8ba](https://github.com/punya199/demo-app-backend/commit/630f8ba94019dabbbcdd77078df6f44407bfaf36))
+
 # [1.12.0](https://github.com/punya199/demo-app-backend/compare/v1.11.0...v1.12.0) (2026-10-17)
 
 
