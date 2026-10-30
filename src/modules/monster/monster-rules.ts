@@ -61,3 +61,13 @@ export const VITAMIN_WEIGHT_GAIN = 2
 
 // Safety cap for one tick - a living monster dies of starvation or old age long before this.
 export const MAX_TICK_MINUTES = 30 * 24 * 60
+
+// Fighting costs one strength heart (so it needs at least one) and burns a little weight.
+export const BATTLE_STRENGTH_COST = 1
+export const BATTLE_WEIGHT_LOSS = 1
+
+export const PREMIUM_MEAT_FULLNESS = 2
+export const PREMIUM_MEAT_WEIGHT_GAIN = 1
+export const PROTEIN_STRENGTH = 2
+export const PROTEIN_WEIGHT_GAIN = 1
+export const DIET_TEA_WEIGHT_LOSS = 5

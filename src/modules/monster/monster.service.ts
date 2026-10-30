@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm'
-import { EnumMonsterLine, MonsterEntity } from '../../db/entities/monster.entity'
+import { EnumMonsterLine, EnumMonsterStage, MonsterEntity } from '../../db/entities/monster.entity'
+import { MonsterDexEntity } from '../../db/entities/monster-dex.entity'
 import { EnumMonsterLogType, MonsterLogEntity } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
@@ -14,9 +15,21 @@ import {
   tick,
 } from './monster-engine'
 import { TRAIN_COOLDOWN_MS } from './monster-rules'
-import { getSpecies } from './species-data'
+import { getSpecies, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
+
+// Runs a monster-engine rule, turning a broken rule into a 400 with the rule's message.
+export const withRuleErrors = <T>(rule: () => T): T => {
+  try {
+    return rule()
+  } catch (error) {
+    if (error instanceof MonsterRuleError) {
+      throw new BadRequestException(error.message)
+    }
+    throw error
+  }
+}
 
 export const toMonsterView = (monster: MonsterEntity, now: Date) => {
   const species = getSpecies(monster.speciesId)
@@ -58,7 +71,7 @@ export class MonsterService {
 
       const monster = await etm.save(MonsterEntity, { ownerId: userId, ...createEgg(line, now) })
       await this.saveEvents(
-        monster.id,
+        monster,
         [{ type: EnumMonsterLogType.HATCH, at: now, payload: { line } }],
         etm
       )
@@ -74,18 +87,9 @@ export class MonsterService {
         throw new NotFoundException('You do not have a monster yet')
       }
 
-      let result: { state: IMonsterState; events: IMonsterEvent[] }
-      try {
-        result = applyAction(monster, action, now)
-      } catch (error) {
-        if (error instanceof MonsterRuleError) {
-          throw new BadRequestException(error.message)
-        }
-        throw error
-      }
-
+      const result = withRuleErrors(() => applyAction(monster, action, now))
       const saved = await this.saveState(monster, result.state, etm)
-      await this.saveEvents(monster.id, result.events, etm)
+      await this.saveEvents(saved, result.events, etm)
       return { monster: toMonsterView(saved, now) }
     })
   }
@@ -100,9 +104,28 @@ export class MonsterService {
     return { monsters: monsters.map(monster => toMonsterView(monster, now)) }
   }
 
+  async getDex(userId: string) {
+    const rows = await this.dataSource.getRepository(MonsterDexEntity).find({ where: { userId } })
+    const discovered = new Set(rows.map(row => row.speciesId))
+    return {
+      species: SPECIES.filter(species => species.stage !== EnumMonsterStage.EGG).map(species => {
+        const isDiscovered = discovered.has(species.id)
+        // Undiscovered entries keep their slot but not their name, so the Dex doesn't spoil them.
+        return {
+          id: species.id,
+          line: species.line,
+          stage: species.stage,
+          discovered: isDiscovered,
+          name: isDiscovered ? species.name : null,
+          emoji: isDiscovered ? species.emoji : null,
+        }
+      }),
+    }
+  }
+
   // Loads the owner's most recent monster with a row lock and catches it up to `now`, so every
   // caller in the same transaction sees (and can act on) the current state.
-  private async lockAndTickLatest(userId: string, now: Date, etm: EntityManager) {
+  async lockAndTickLatest(userId: string, now: Date, etm: EntityManager) {
     const monster = await etm.findOne(MonsterEntity, {
       where: { ownerId: userId },
       order: { bornAt: 'DESC' },
@@ -117,25 +140,44 @@ export class MonsterService {
       return monster
     }
     const saved = await this.saveState(monster, state, etm)
-    await this.saveEvents(monster.id, events, etm)
+    await this.saveEvents(saved, events, etm)
     return saved
   }
 
-  private async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {
+  async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {
     return etm.save(MonsterEntity, Object.assign(monster, state))
   }
 
-  private async saveEvents(monsterId: string, events: IMonsterEvent[], etm: EntityManager) {
+  async saveEvents(monster: MonsterEntity, events: IMonsterEvent[], etm: EntityManager) {
     if (!events.length) {
       return
     }
     await etm.save(
       MonsterLogEntity,
       events.map(event => ({
-        monsterId,
+        monsterId: monster.id,
         type: event.type,
         payload: { ...event.payload, at: event.at.toISOString() },
       }))
     )
+
+    const evolvedTo = events
+      .filter(event => event.type === EnumMonsterLogType.EVOLVE)
+      .map(event => ({ speciesId: event.payload.to as string, at: event.at }))
+    if (evolvedTo.length) {
+      await etm
+        .createQueryBuilder()
+        .insert()
+        .into(MonsterDexEntity)
+        .values(
+          evolvedTo.map(entry => ({
+            userId: monster.ownerId,
+            speciesId: entry.speciesId,
+            firstSeenAt: entry.at,
+          }))
+        )
+        .orIgnore()
+        .execute()
+    }
   }
 }

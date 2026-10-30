@@ -5,7 +5,10 @@ import {
 } from '../../db/entities/monster.entity'
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
+  BATTLE_STRENGTH_COST,
+  BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
+  DIET_TEA_WEIGHT_LOSS,
   DEATH_AFTER_SICK_MINUTES,
   FEED_WEIGHT_GAIN,
   HATCH_FULLNESS,
@@ -17,6 +20,10 @@ import {
   MAX_TICK_MINUTES,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
+  PREMIUM_MEAT_FULLNESS,
+  PREMIUM_MEAT_WEIGHT_GAIN,
+  PROTEIN_STRENGTH,
+  PROTEIN_WEIGHT_GAIN,
   SICK_AFTER_HUNGRY_MINUTES,
   SLEEP_END_MINUTE_OF_DAY,
   SLEEP_START_MINUTE_OF_DAY,
@@ -27,6 +34,7 @@ import {
   TRAIN_WEIGHT_LOSS,
   VITAMIN_WEIGHT_GAIN,
 } from './monster-rules'
+import { EnumShopItemId } from './shop-data'
 import { eggSpeciesId, getSpecies, ISpecies } from './species-data'
 
 // Pure V-Pet rules: no DB, no Nest. MonsterService loads a row, runs tick()/applyAction() on it
@@ -53,6 +61,8 @@ export interface IMonsterState {
   lightsOn: boolean
   careMistakes: number
   trainCount: number
+  wins: number
+  losses: number
   poopMinutes: number
   hungryMinutes: number
   weakMinutes: number
@@ -106,6 +116,8 @@ export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
     lightsOn: true,
     careMistakes: 0,
     trainCount: 0,
+    wins: 0,
+    losses: 0,
     poopMinutes: 0,
     hungryMinutes: 0,
     weakMinutes: 0,
@@ -126,7 +138,8 @@ export const pickEvolution = (species: ISpecies, state: IMonsterState): ISpecies
     candidate =>
       (candidate.maxCareMistakes === undefined ||
         state.careMistakes <= candidate.maxCareMistakes) &&
-      (candidate.minTrainCount === undefined || state.trainCount >= candidate.minTrainCount)
+      (candidate.minTrainCount === undefined || state.trainCount >= candidate.minTrainCount) &&
+      (candidate.minWins === undefined || state.wins >= candidate.minWins)
   )
   return rule ? getSpecies(rule.to) : null
 }
@@ -297,6 +310,15 @@ export const tick = (current: IMonsterState, now: Date): IMonsterStepResult => {
   return { state, events }
 }
 
+const assertHatchedAndAlive = (state: IMonsterState) => {
+  if (state.diedAt) {
+    throw new MonsterRuleError('Monster is no longer alive')
+  }
+  if (state.stage === EnumMonsterStage.EGG) {
+    throw new MonsterRuleError('The egg has not hatched yet')
+  }
+}
+
 // Expects a state already ticked up to `now`.
 export const applyAction = (
   current: IMonsterState,
@@ -304,12 +326,7 @@ export const applyAction = (
   now: Date
 ): IMonsterStepResult => {
   const state = { ...current }
-  if (state.diedAt) {
-    throw new MonsterRuleError('Monster is no longer alive')
-  }
-  if (state.stage === EnumMonsterStage.EGG) {
-    throw new MonsterRuleError('The egg has not hatched yet')
-  }
+  assertHatchedAndAlive(state)
   const asleep = isAsleepAt(now)
   const species = getSpecies(state.speciesId)
 
@@ -367,5 +384,80 @@ export const applyAction = (
   return {
     state,
     events: [{ type: EnumMonsterLogType.ACTION, at: now, payload: { action } }],
+  }
+}
+
+// Throws when the monster can't fight right now. Expects a state already ticked up to `now`.
+export const assertCanBattle = (state: IMonsterState, now: Date) => {
+  assertHatchedAndAlive(state)
+  if (isAsleepAt(now)) {
+    throw new MonsterRuleError('Monster is asleep')
+  }
+  if (state.isSick) {
+    throw new MonsterRuleError('Monster is sick')
+  }
+  // Any partly-filled heart shows as a full one, so any strength left is enough to fight.
+  if (state.strength <= 0) {
+    throw new MonsterRuleError('Monster is too weak to fight')
+  }
+}
+
+export const applyBattleOutcome = (
+  current: IMonsterState,
+  won: boolean,
+  payload: Record<string, unknown>,
+  now: Date
+): IMonsterStepResult => {
+  assertCanBattle(current, now)
+  const state = { ...current }
+  const species = getSpecies(state.speciesId)
+  state.strength = Math.max(0, state.strength - BATTLE_STRENGTH_COST)
+  state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
+  if (won) {
+    state.wins += 1
+  } else {
+    state.losses += 1
+  }
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won } }],
+  }
+}
+
+// Shop items are eaten/used on purchase, so they follow the same awake/alive rules as feeding.
+export const applyShopItem = (
+  current: IMonsterState,
+  itemId: EnumShopItemId,
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (isAsleepAt(now)) {
+    throw new MonsterRuleError('Monster is asleep')
+  }
+  const species = getSpecies(state.speciesId)
+
+  switch (itemId) {
+    case EnumShopItemId.PREMIUM_MEAT:
+      state.fullness = Math.min(MAX_HEARTS, state.fullness + PREMIUM_MEAT_FULLNESS)
+      state.weight += PREMIUM_MEAT_WEIGHT_GAIN
+      state.hungryMinutes = 0
+      break
+    case EnumShopItemId.PROTEIN:
+      state.strength = Math.min(MAX_HEARTS, state.strength + PROTEIN_STRENGTH)
+      state.weight += PROTEIN_WEIGHT_GAIN
+      state.weakMinutes = 0
+      break
+    case EnumShopItemId.DIET_TEA:
+      state.weight = Math.max(species.minWeight, state.weight - DIET_TEA_WEIGHT_LOSS)
+      break
+    case EnumShopItemId.TRAINING_MANUAL:
+      state.trainCount += 1
+      break
+  }
+
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.SHOP, at: now, payload: { itemId } }],
   }
 }

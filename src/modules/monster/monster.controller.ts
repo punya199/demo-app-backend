@@ -28,6 +28,12 @@ export class MonsterController {
   }
 
   @AuthUser()
+  @Get('dex')
+  async getDex(@ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.getDex(user['user-id'])
+  }
+
+  @AuthUser()
   @Get('history')
   async getHistory(@ReqUser() user: IAppJwtPayload) {
     return this.monsterService.getHistory(user['user-id'])

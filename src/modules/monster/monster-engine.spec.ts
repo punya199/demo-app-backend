@@ -6,6 +6,9 @@ import {
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
+  applyBattleOutcome,
+  applyShopItem,
+  assertCanBattle,
   createEgg,
   EnumMonsterAction,
   IMonsterState,
@@ -14,6 +17,7 @@ import {
   tick,
 } from './monster-engine'
 import { LIFESPAN_MINUTES, STAGE_DURATION_MINUTES } from './monster-rules'
+import { EnumShopItemId } from './shop-data'
 
 // 03:00 UTC = 10:00 Thai time, well inside the awake window (sleep is 22:00-07:00 Thai time).
 const MORNING = new Date('2026-01-01T03:00:00Z')
@@ -190,6 +194,17 @@ describe('tick', () => {
       expect(state.weight).toBe(20)
     })
 
+    it('needs 5 lifetime wins on top of good care to reach the ultimate form', () => {
+      const base = {
+        speciesId: 'tide_perfectGood',
+        stage: EnumMonsterStage.PERFECT,
+        careMistakes: 0,
+        trainCount: 12,
+      }
+      expect(atStageEnd({ ...base, wins: 4 }).state.speciesId).toBe('tide_perfectGood')
+      expect(atStageEnd({ ...base, wins: 5 }).state.speciesId).toBe('tide_ultimate')
+    })
+
     it('keeps a perfect form that misses the ultimate conditions', () => {
       const { state, events } = atStageEnd({
         speciesId: 'tide_perfectGood',
@@ -276,5 +291,76 @@ describe('applyAction', () => {
     expect(() =>
       applyAction(monster({ diedAt: MORNING }), EnumMonsterAction.CLEAN, MORNING)
     ).toThrow('Monster is no longer alive')
+  })
+})
+
+describe('assertCanBattle', () => {
+  it('allows an awake, healthy monster with any strength left', () => {
+    expect(() => assertCanBattle(monster({ strength: 0.1 }), MORNING)).not.toThrow()
+  })
+
+  it.each([
+    ['asleep', monster(), BEDTIME, 'Monster is asleep'],
+    ['sick', monster({ isSick: true }), MORNING, 'Monster is sick'],
+    ['out of strength', monster({ strength: 0 }), MORNING, 'Monster is too weak to fight'],
+    ['an egg', createEgg(EnumMonsterLine.FLAME, MORNING), MORNING, 'The egg has not hatched yet'],
+  ])('rejects a monster that is %s', (_label, state, at, message) => {
+    expect(() => assertCanBattle(state, at)).toThrow(message)
+  })
+})
+
+describe('applyBattleOutcome', () => {
+  it('costs a strength heart and a little weight, and records the win', () => {
+    const { state, events } = applyBattleOutcome(
+      monster({ strength: 2.5, weight: 25 }),
+      true,
+      { stageId: 'meadow_1' },
+      MORNING
+    )
+    expect(state.strength).toBeCloseTo(1.5)
+    expect(state.weight).toBe(24)
+    expect(state.wins).toBe(1)
+    expect(state.losses).toBe(0)
+    expect(events).toEqual([
+      {
+        type: EnumMonsterLogType.BATTLE,
+        at: MORNING,
+        payload: { stageId: 'meadow_1', won: true },
+      },
+    ])
+  })
+
+  it('records a loss and never drops below zero strength or the form minimum weight', () => {
+    const { state } = applyBattleOutcome(monster({ strength: 0.4, weight: 20 }), false, {}, MORNING)
+    expect(state.strength).toBe(0)
+    expect(state.weight).toBe(20)
+    expect(state.losses).toBe(1)
+  })
+})
+
+describe('applyShopItem', () => {
+  it('applies each item effect', () => {
+    const meat = applyShopItem(monster({ fullness: 1 }), EnumShopItemId.PREMIUM_MEAT, MORNING)
+    expect(meat.state.fullness).toBe(3)
+    expect(meat.state.weight).toBe(21)
+
+    const protein = applyShopItem(monster({ strength: 3 }), EnumShopItemId.PROTEIN, MORNING)
+    expect(protein.state.strength).toBe(4)
+
+    const tea = applyShopItem(monster({ weight: 23 }), EnumShopItemId.DIET_TEA, MORNING)
+    expect(tea.state.weight).toBe(20)
+
+    const manual = applyShopItem(monster(), EnumShopItemId.TRAINING_MANUAL, MORNING)
+    expect(manual.state.trainCount).toBe(1)
+    expect(manual.events[0].payload).toEqual({ itemId: EnumShopItemId.TRAINING_MANUAL })
+  })
+
+  it('rejects items while asleep or on an egg', () => {
+    expect(() => applyShopItem(monster(), EnumShopItemId.PROTEIN, BEDTIME)).toThrow(
+      'Monster is asleep'
+    )
+    expect(() =>
+      applyShopItem(createEgg(EnumMonsterLine.LEAF, MORNING), EnumShopItemId.PROTEIN, MORNING)
+    ).toThrow(MonsterRuleError)
   })
 })

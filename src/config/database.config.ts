@@ -5,7 +5,9 @@ import { BillEntity } from '../db/entities/bill.entity'
 import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
+import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
+import { MonsterDexEntity } from '../db/entities/monster-dex.entity'
 import { MonsterLogEntity } from '../db/entities/monster-log.entity'
 import { MonsterEntity } from '../db/entities/monster.entity'
 import { PermissionsEntity } from '../db/entities/permissions'
@@ -13,6 +15,8 @@ import { PollOptionEntity } from '../db/entities/poll-option.entity'
 import { PollVoteEntity } from '../db/entities/poll-vote.entity'
 import { PollEntity } from '../db/entities/poll.entity'
 import { UserEntity } from '../db/entities/user.entity'
+import { WalletTransactionEntity } from '../db/entities/wallet-transaction.entity'
+import { WalletEntity } from '../db/entities/wallet.entity'
 import { AuditSubscriber } from '../db/subscribers/audit.subscriber'
 import appConfig from './app-config'
 
@@ -33,6 +37,10 @@ export const entities = [
   PollVoteEntity,
   MonsterEntity,
   MonsterLogEntity,
+  MonsterDexEntity,
+  AdventureProgressEntity,
+  WalletEntity,
+  WalletTransactionEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
