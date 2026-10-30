@@ -20,6 +20,7 @@ import { PermissionModule } from './modules/permission/permission.module'
 import { UserModule } from './modules/user/user.module'
 import { HealthModule } from './modules/health/health.module'
 import { VotingModule } from './modules/voting/voting.module'
+import { MonsterModule } from './modules/monster/monster.module'
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { VotingModule } from './modules/voting/voting.module'
     PermissionModule,
     PaojiaoLedgerModule,
     VotingModule,
+    MonsterModule,
     HealthModule,
   ],
 })
