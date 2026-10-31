@@ -1,3 +1,11 @@
+# [1.19.0](https://github.com/punya199/demo-app-backend/compare/v1.18.0...v1.19.0) (2026-10-31)
+
+
+### New
+
+* add profiles, friends, support units and rental in the World Boss (phase 5c) ([7e154bd](https://github.com/punya199/demo-app-backend/commit/7e154bd1e53059fc591cda8c0a6d4fc40d2abc5f))
+* add World Boss with a team battle engine (phase 5b) ([9093eb9](https://github.com/punya199/demo-app-backend/commit/9093eb927fa078d25bd38ca8bb83dab8a761b9ea))
+
 # [1.18.0](https://github.com/punya199/demo-app-backend/compare/v1.17.0...v1.18.0) (2026-10-31)
 
 
