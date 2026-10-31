@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { randomInt } from 'crypto'
-import { DataSource } from 'typeorm'
+import { DataSource, EntityManager } from 'typeorm'
 import { AdventureProgressEntity } from '../../db/entities/adventure-progress.entity'
+import { WalletTransactionEntity } from '../../db/entities/wallet-transaction.entity'
 import {
   EnumWalletCurrency,
   EnumWalletTransactionReason,
@@ -15,7 +16,10 @@ import {
 } from './adventure-data'
 import { simulateBattle } from './battle-engine'
 import { toFighter } from './battle-stats'
-import { applyBattleOutcome, assertCanBattle } from './monster-engine'
+import { calcAutoBattleReward } from './idle-data'
+import { applyBattleOutcome, assertAutoBattleReady, assertCanBattle } from './monster-engine'
+import { AUTO_BATTLE_DAILY_COIN_CAP } from './monster-rules'
+import { getQuestResetAt } from './quest-data'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 
 @Injectable()
@@ -46,6 +50,8 @@ export class AdventureService {
           reward: stage.reward,
           firstClearReward: stage.reward * FIRST_CLEAR_MULTIPLIER,
           firstClearGems: stage.firstClearGems,
+          // Coins one auto-battle win pays (bosses can't be auto-battled).
+          autoReward: stage.isBoss ? null : calcAutoBattleReward(stage),
           clearCount: clearCountByStage.get(stage.id) ?? 0,
           unlocked: isStageUnlocked(stage.id, cleared),
         })),
@@ -53,7 +59,8 @@ export class AdventureService {
     }
   }
 
-  async battle(userId: string, stageId: string) {
+  // Idle auto-battle: `isAuto` repeats an already-cleared normal stage for a small, capped reward.
+  async battle(userId: string, stageId: string, isAuto = false) {
     const now = new Date()
     const entry = findAdventureStage(stageId)
     if (!entry) {
@@ -74,15 +81,36 @@ export class AdventureService {
       }
       withRuleErrors(() => assertCanBattle(monster))
 
+      let autoCoinsLeft = 0
+      if (isAuto) {
+        if (entry.stage.isBoss) {
+          throw new BadRequestException('Auto-battle is not available on boss stages')
+        }
+        if (!cleared.has(stageId)) {
+          throw new BadRequestException('Clear this stage once before auto-battling it')
+        }
+        withRuleErrors(() => assertAutoBattleReady(monster, now))
+        // The monster row lock above serializes this user's battles, so the day's total can't be
+        // overspent by two requests racing.
+        autoCoinsLeft =
+          AUTO_BATTLE_DAILY_COIN_CAP - (await this.getAutoCoinsEarnedToday(userId, now, etm))
+        if (autoCoinsLeft <= 0) {
+          throw new BadRequestException('Daily auto-battle reward limit reached')
+        }
+      }
+
       const player = toFighter(monster)
       const enemy = entry.stage.enemy
       const seed = randomInt(0, 2 ** 31)
       const result = simulateBattle(player, enemy, seed)
 
       const isFirstClear = result.won && !cleared.has(stageId)
-      const reward = result.won
-        ? entry.stage.reward * (isFirstClear ? FIRST_CLEAR_MULTIPLIER : 1)
-        : 0
+      let reward = 0
+      if (result.won) {
+        reward = isAuto
+          ? Math.min(calcAutoBattleReward(entry.stage), autoCoinsLeft)
+          : entry.stage.reward * (isFirstClear ? FIRST_CLEAR_MULTIPLIER : 1)
+      }
       const gemReward = isFirstClear ? entry.stage.firstClearGems : 0
 
       const outcome = withRuleErrors(() =>
@@ -90,7 +118,8 @@ export class AdventureService {
           monster,
           result.won,
           { stageId, seed, rounds: result.rounds, reward, gemReward },
-          now
+          now,
+          isAuto
         )
       )
       const saved = await this.monsterService.saveState(monster, outcome.state, etm)
@@ -99,7 +128,9 @@ export class AdventureService {
       let wallet = await this.walletService.getBalance(userId, etm)
       if (result.won) {
         const existing = progress.find(row => row.stageId === stageId)
-        if (existing) {
+        if (isAuto) {
+          // Auto-battle only repeats a cleared stage: no progress to record.
+        } else if (existing) {
           existing.clearCount += 1
           await etm.save(AdventureProgressEntity, existing)
         } else {
@@ -114,7 +145,9 @@ export class AdventureService {
           userId,
           EnumWalletCurrency.COIN,
           reward,
-          EnumWalletTransactionReason.BATTLE_REWARD,
+          isAuto
+            ? EnumWalletTransactionReason.AUTO_BATTLE_REWARD
+            : EnumWalletTransactionReason.BATTLE_REWARD,
           stageId,
           etm
         )
@@ -146,5 +179,20 @@ export class AdventureService {
         wallet,
       }
     })
+  }
+
+  private async getAutoCoinsEarnedToday(userId: string, now: Date, etm: EntityManager) {
+    // The Thai day that quests use: it starts 24 hours before the next reset.
+    const since = new Date(getQuestResetAt(now).getTime() - 24 * 60 * 60 * 1000)
+    const row = await etm
+      .createQueryBuilder(WalletTransactionEntity, 'tx')
+      .select('COALESCE(SUM(tx.amount), 0)', 'sum')
+      .where('tx.userId = :userId AND tx.reason = :reason AND tx.createdAt >= :since', {
+        userId,
+        reason: EnumWalletTransactionReason.AUTO_BATTLE_REWARD,
+        since,
+      })
+      .getRawOne<{ sum: string }>()
+    return Number(row?.sum ?? 0)
   }
 }

@@ -17,6 +17,8 @@ import {
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
 import * as rules from './monster-rules'
+import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
+import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
 import { SPECIES } from './species-data'
 
@@ -79,8 +81,28 @@ export const buildWiki = () => ({
     firstClearMultiplier: FIRST_CLEAR_MULTIPLIER,
     areas: ADVENTURE_AREAS,
   },
+  idle: {
+    expeditionMaxMinutes: rules.EXPEDITION_MAX_MINUTES,
+    expeditionDrainMultiplier: rules.EXPEDITION_DRAIN_MULTIPLIER,
+    expeditionDropEveryMinutes: rules.EXPEDITION_DROP_EVERY_MINUTES,
+    expeditionPowerMultiplierMin: rules.EXPEDITION_POWER_MULTIPLIER_MIN,
+    expeditionPowerMultiplierMax: rules.EXPEDITION_POWER_MULTIPLIER_MAX,
+    expeditionAreas: ADVENTURE_AREAS.filter(area => getExpeditionBaseRate(area.id)).map(area => ({
+      id: area.id,
+      name: area.name,
+      emoji: area.emoji,
+      baseRatePerHour: getExpeditionBaseRate(area.id),
+      autoBattleRewards: area.stages
+        .filter(stage => !stage.isBoss)
+        .map(stage => ({ name: stage.enemy.name, coins: calcAutoBattleReward(stage) })),
+    })),
+    autoBattleCooldownSeconds: rules.AUTO_BATTLE_COOLDOWN_MS / 1000,
+    autoBattleStaminaCost: rules.AUTO_BATTLE_STAMINA_COST,
+    autoBattleDailyCoinCap: rules.AUTO_BATTLE_DAILY_COIN_CAP,
+  },
   economy: {
     shopItems: SHOP_ITEMS,
+    dailyQuests: DAILY_QUESTS,
     dexDiscoveryGems: rules.DEX_DISCOVERY_GEM_REWARD,
   },
 })

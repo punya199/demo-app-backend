@@ -5,11 +5,14 @@ import {
 } from '../../db/entities/monster.entity'
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
+  AUTO_BATTLE_STAMINA_COST,
   BATTLE_STAMINA_COST,
   BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
   DEATH_AFTER_SICK_MINUTES,
   DIET_TEA_WEIGHT_LOSS,
+  EXPEDITION_DRAIN_MULTIPLIER,
+  EXPEDITION_MAX_MINUTES,
   FEED_WEIGHT_GAIN,
   HATCH_FULLNESS,
   HATCH_STRENGTH,
@@ -22,6 +25,7 @@ import {
   MINIGAME_STAMINA_REWARDS,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
+  AUTO_BATTLE_COOLDOWN_MS,
   ONLINE_EVOLUTION_MULTIPLIER,
   ONLINE_GRACE_MINUTES,
   PREMIUM_MEAT_FULLNESS,
@@ -78,6 +82,11 @@ export interface IMonsterState {
   lastSeenAt: Date | null
   lastTrainedAt: Date | null
   lastMinigameAt: Date | null
+  lastAutoBattleAt: Date | null
+  expeditionAreaId: string | null
+  expeditionMinutes: number
+  expeditionRate: number
+  expeditionReturned: boolean
   diedAt: Date | null
   deathCause: EnumMonsterDeathCause | null
 }
@@ -125,6 +134,11 @@ export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
     lastSeenAt: now,
     lastTrainedAt: null,
     lastMinigameAt: null,
+    lastAutoBattleAt: null,
+    expeditionAreaId: null,
+    expeditionMinutes: 0,
+    expeditionRate: 0,
+    expeditionReturned: false,
     diedAt: null,
     deathCause: null,
   }
@@ -192,9 +206,27 @@ const die = (
   events.push({ type: EnumMonsterLogType.DEATH, at, payload: { cause } })
 }
 
+// Out exploring and still collecting: not yet back home.
+const isExploring = (state: IMonsterState) =>
+  state.expeditionAreaId !== null && !state.expeditionReturned
+
 const isOnlineAt = (state: IMonsterState, at: Date) =>
   !!state.lastSeenAt &&
   at.getTime() <= state.lastSeenAt.getTime() + ONLINE_GRACE_MINUTES * MINUTE_MS
+
+const returnFromExpedition = (
+  state: IMonsterState,
+  reason: 'time' | 'unwell',
+  at: Date,
+  events: IMonsterEvent[]
+) => {
+  state.expeditionReturned = true
+  events.push({
+    type: EnumMonsterLogType.ACTION,
+    at,
+    payload: { action: 'expedition_return', areaId: state.expeditionAreaId, reason },
+  })
+}
 
 // Advances the state by one game minute ending at `at`.
 const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
@@ -216,8 +248,9 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
   state.ageMinutes += 1
 
   const rates = STAGE_RATES[state.stage]
-  state.fullness = Math.max(0, state.fullness - 1 / rates.fullnessMinutes)
-  state.strength = Math.max(0, state.strength - 1 / rates.strengthMinutes)
+  const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
+  state.fullness = Math.max(0, state.fullness - careDrain / rates.fullnessMinutes)
+  state.strength = Math.max(0, state.strength - careDrain / rates.strengthMinutes)
   state.stamina = Math.max(
     0,
     state.stamina -
@@ -225,7 +258,10 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
         (isOnline ? STAMINA_DRAIN_FULL_MINUTES_ONLINE : STAMINA_DRAIN_FULL_MINUTES_OFFLINE)
   )
 
-  state.poopMinutes += 1
+  // Nothing piles up at home while the monster is away.
+  if (!isExploring(state)) {
+    state.poopMinutes += 1
+  }
   if (state.poopMinutes >= rates.poopEveryMinutes) {
     state.poopMinutes = 0
     if (state.poops < MAX_POOPS) {
@@ -272,6 +308,18 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
   if (state.ageMinutes >= LIFESPAN_MINUTES) {
     die(state, EnumMonsterDeathCause.OLD_AGE, at, events)
     return
+  }
+
+  // A minute only counts while the monster is healthy; otherwise it heads home with what it has.
+  if (isExploring(state)) {
+    if (state.isSick || state.fullness <= 0) {
+      returnFromExpedition(state, 'unwell', at, events)
+    } else {
+      state.expeditionMinutes += 1
+      if (state.expeditionMinutes >= EXPEDITION_MAX_MINUTES) {
+        returnFromExpedition(state, 'time', at, events)
+      }
+    }
   }
 
   if (isStageTimeUp) {
@@ -404,18 +452,28 @@ export const assertCanBattle = (state: IMonsterState) => {
   if (state.isSick) {
     throw new MonsterRuleError('Monster is sick')
   }
+  if (state.expeditionAreaId) {
+    throw new MonsterRuleError('Monster is on an expedition')
+  }
 }
 
 export const applyBattleOutcome = (
   current: IMonsterState,
   won: boolean,
   payload: Record<string, unknown>,
-  now: Date
+  now: Date,
+  isAuto = false
 ): IMonsterStepResult => {
   assertCanBattle(current)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
-  state.stamina = Math.max(0, state.stamina - BATTLE_STAMINA_COST)
+  state.stamina = Math.max(
+    0,
+    state.stamina - (isAuto ? AUTO_BATTLE_STAMINA_COST : BATTLE_STAMINA_COST)
+  )
+  if (isAuto) {
+    state.lastAutoBattleAt = now
+  }
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   if (won) {
     state.wins += 1
@@ -424,7 +482,13 @@ export const applyBattleOutcome = (
   }
   return {
     state,
-    events: [{ type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won } }],
+    events: [
+      {
+        type: EnumMonsterLogType.BATTLE,
+        at: now,
+        payload: { ...payload, won, ...(isAuto && { isAuto }) },
+      },
+    ],
   }
 }
 
@@ -454,6 +518,66 @@ export const applyMinigame = (
       { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'minigame', hits, reward } },
     ],
   }
+}
+
+// Auto-battle is rate-limited here; the per-day coin cap needs the wallet history (AdventureService).
+export const assertAutoBattleReady = (state: IMonsterState, now: Date) => {
+  if (
+    state.lastAutoBattleAt &&
+    now.getTime() - state.lastAutoBattleAt.getTime() < AUTO_BATTLE_COOLDOWN_MS
+  ) {
+    throw new MonsterRuleError('Auto-battle is not ready yet')
+  }
+}
+
+// `rate` is coins/hour, worked out by the caller from the area and the monster's power.
+export const startExpedition = (
+  current: IMonsterState,
+  areaId: string,
+  rate: number,
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (state.expeditionAreaId) {
+    throw new MonsterRuleError('Monster is already on an expedition')
+  }
+  if (state.isSick || state.fullness <= 0) {
+    throw new MonsterRuleError('Monster is too unwell to explore')
+  }
+  state.expeditionAreaId = areaId
+  state.expeditionMinutes = 0
+  state.expeditionRate = rate
+  state.expeditionReturned = false
+  return {
+    state,
+    events: [
+      { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'expedition_start', areaId } },
+    ],
+  }
+}
+
+export const claimExpedition = (
+  current: IMonsterState,
+  reward: { coins: number; items: string[] },
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (!state.expeditionAreaId) {
+    throw new MonsterRuleError('Monster is not on an expedition')
+  }
+  const payload = {
+    action: 'expedition_claim',
+    areaId: state.expeditionAreaId,
+    minutes: state.expeditionMinutes,
+    ...reward,
+  }
+  state.expeditionAreaId = null
+  state.expeditionMinutes = 0
+  state.expeditionRate = 0
+  state.expeditionReturned = false
+  return { state, events: [{ type: EnumMonsterLogType.ACTION, at: now, payload }] }
 }
 
 export const refillStamina = (current: IMonsterState, now: Date): IMonsterStepResult => {

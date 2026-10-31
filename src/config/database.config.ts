@@ -6,6 +6,8 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
+import { DailyQuestProgressEntity } from '../db/entities/daily-quest-progress.entity'
+import { InventoryItemEntity } from '../db/entities/inventory-item.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
 import { MonsterDexEntity } from '../db/entities/monster-dex.entity'
 import { MonsterLogEntity } from '../db/entities/monster-log.entity'
@@ -41,6 +43,8 @@ export const entities = [
   AdventureProgressEntity,
   WalletEntity,
   WalletTransactionEntity,
+  InventoryItemEntity,
+  DailyQuestProgressEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
