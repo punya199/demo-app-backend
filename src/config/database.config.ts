@@ -6,6 +6,7 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
+import { RaidProgressEntity } from '../db/entities/raid-progress.entity'
 import { PvpBattleEntity } from '../db/entities/pvp-battle.entity'
 import { PvpDefenseEntity } from '../db/entities/pvp-defense.entity'
 import { PvpRatingEntity } from '../db/entities/pvp-rating.entity'
@@ -57,6 +58,7 @@ export const entities = [
   PvpDefenseEntity,
   PvpRatingEntity,
   PvpBattleEntity,
+  RaidProgressEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

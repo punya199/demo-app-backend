@@ -520,13 +520,15 @@ export const applyMinigame = (
   }
 }
 
-// An arena fight costs what a normal one does but does not touch `wins`/`losses`: those feed the
-// evolution rules, which are meant to be earned in the adventure. Ratings are tracked apart.
+// An arena or Boss Raid fight costs what a normal one does but does not touch `wins`/`losses`:
+// those feed the evolution rules, which are meant to be earned in the adventure. Ratings and raid
+// progress are tracked apart.
 export const applyPvpOutcome = (
   current: IMonsterState,
   won: boolean,
   payload: Record<string, unknown>,
-  now: Date
+  now: Date,
+  mode: 'pvp' | 'raid' = 'pvp'
 ): IMonsterStepResult => {
   assertCanBattle(current)
   const state = { ...current }
@@ -535,9 +537,7 @@ export const applyPvpOutcome = (
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   return {
     state,
-    events: [
-      { type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won, mode: 'pvp' } },
-    ],
+    events: [{ type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won, mode } }],
   }
 }
 

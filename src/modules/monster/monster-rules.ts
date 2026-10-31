@@ -116,7 +116,6 @@ export const EQUIPMENT_BOX_PRICE = 120
 export const EQUIPMENT_DROP_CHANCE_BP = 800
 // Shop materials.
 export const ENHANCE_STONE_PRICE = 40
-export const PROTECT_SCROLL_GEM_PRICE = 5
 // Expeditions bring home one enhance stone per this many minutes explored.
 export const EXPEDITION_STONE_EVERY_MINUTES = 60
 
@@ -135,3 +134,15 @@ export const PVP_SEASON_MIN_FIGHTS = 5
 export const PVP_SEASON_RESET_KEEP = 0.5
 export const PVP_DISPLAY_NAME_MIN = 2
 export const PVP_DISPLAY_NAME_MAX = 16
+
+// Boss sets (phase 5). A set whose worn pieces are all enhanced to at least this level has its
+// percentage bonuses multiplied (special battle effects are unchanged).
+export const SET_ENHANCE_THRESHOLD = 10
+export const SET_ENHANCE_MULTIPLIER = 1.5
+// Set pieces have a stronger main stat than plain pieces of the same grade.
+export const SET_PIECE_MAIN_MULTIPLIER = 1.2
+
+// Boss Raid (phase 5). Difficulty tables and token prices are data in raid-data.ts.
+export const RAID_DAILY_ATTEMPTS = 3
+// Boss tokens a win pays (the boss's own token, spent to exchange for a piece of its set).
+export const RAID_BOSS_TOKENS_PER_WIN = 1

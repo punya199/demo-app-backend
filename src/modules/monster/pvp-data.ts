@@ -59,13 +59,14 @@ export interface ISeasonReward {
   maxRank: number | null
   coin: number
   gem: number
+  raidToken: number
 }
 
 export const PVP_SEASON_REWARDS: ISeasonReward[] = [
-  { maxRank: 1, coin: 1000, gem: 30 },
-  { maxRank: 3, coin: 600, gem: 20 },
-  { maxRank: 10, coin: 300, gem: 10 },
-  { maxRank: null, coin: 100, gem: 3 },
+  { maxRank: 1, coin: 1000, gem: 30, raidToken: 20 },
+  { maxRank: 3, coin: 600, gem: 20, raidToken: 12 },
+  { maxRank: 10, coin: 300, gem: 10, raidToken: 6 },
+  { maxRank: null, coin: 100, gem: 3, raidToken: 2 },
 ]
 
 // Reward for a final rank among players with at least PVP_SEASON_MIN_FIGHTS fights.

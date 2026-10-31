@@ -30,6 +30,12 @@ import { InventoryService } from './inventory.service'
 import { EQUIPMENT_BOX_PRICE, EQUIPMENT_CAPACITY } from './monster-rules'
 import { MonsterService } from './monster.service'
 
+const MATERIAL_CURRENCY = {
+  coin: EnumWalletCurrency.COIN,
+  gem: EnumWalletCurrency.GEM,
+  raid_token: EnumWalletCurrency.RAID_TOKEN,
+} as const
+
 const rand = () => randomInt(0, 1_000_000) / 1_000_000
 
 export const toEquipmentCore = (row: EquipmentItemEntity): IEquipmentItem => ({
@@ -69,27 +75,37 @@ export const loadEquipmentBonus = async (userId: string, etm: EntityManager) => 
   return calcEquipmentBonus(worn.map(toEquipmentCore))
 }
 
-// Adds a freshly rolled piece to the user's bag unless it is full. Returns null when full.
-export const grantEquipment = async (
+export const isEquipmentBagFull = async (userId: string, etm: EntityManager) =>
+  (await etm.count(EquipmentItemEntity, { where: { userId } })) >= EQUIPMENT_CAPACITY
+
+// Adds a piece to the user's bag unless it is full, and logs where it came from. Returns null when
+// full. Callers that charge for the piece check isEquipmentBagFull first so a full bag costs nothing.
+export const grantItem = async (
   userId: string,
-  grade: EnumEquipmentGrade,
+  item: IEquipmentItem,
   source: string,
   etm: EntityManager
 ) => {
-  const count = await etm.count(EquipmentItemEntity, { where: { userId } })
-  if (count >= EQUIPMENT_CAPACITY) {
+  if (await isEquipmentBagFull(userId, etm)) {
     return null
   }
-  const rolled = rollEquipment(grade, rand)
-  const row = await etm.save(EquipmentItemEntity, { userId, ...rolled, equipped: false })
+  const row = await etm.save(EquipmentItemEntity, { userId, ...item, equipped: false })
   await etm.save(EquipmentLogEntity, {
     userId,
     equipmentId: row.id,
     type: EnumEquipmentLogType.OBTAIN,
-    payload: { source, grade, templateId: row.templateId },
+    payload: { source, grade: item.grade, templateId: row.templateId },
   })
   return row
 }
+
+// Rolls a plain piece of the grade and adds it to the bag.
+export const grantEquipment = (
+  userId: string,
+  grade: EnumEquipmentGrade,
+  source: string,
+  etm: EntityManager
+) => grantItem(userId, rollEquipment(grade, rand), source, etm)
 
 @Injectable()
 export class EquipmentService {
@@ -111,6 +127,8 @@ export class EquipmentService {
       capacity: EQUIPMENT_CAPACITY,
       items: rows.map(toEquipmentView),
       setBonuses: calcSetBonuses(worn),
+      // Special battle effects the worn sets give (burn, shield, regen, double strike).
+      activeEffects: calcEquipmentBonus(worn).effects,
       bonus: calcEquipmentBonus(worn),
       // The living monster's battle stats with the worn gear; null without a hatched monster.
       stats: monster ? toFighter(monster, calcEquipmentBonus(worn)).stats : null,
@@ -210,7 +228,7 @@ export class EquipmentService {
     return this.dataSource.transaction(async etm => {
       const wallet = await this.walletService.change(
         userId,
-        material.currency === 'gem' ? EnumWalletCurrency.GEM : EnumWalletCurrency.COIN,
+        MATERIAL_CURRENCY[material.currency],
         -material.price,
         EnumWalletTransactionReason.SHOP_PURCHASE,
         material.id,

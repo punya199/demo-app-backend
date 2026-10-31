@@ -1,15 +1,18 @@
 import { createRng } from './battle-engine'
 import {
+  buildSetPiece,
   calcEquipmentBonus,
   calcSetBonuses,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   enhanceMultiplier,
+  findSetPieceTemplate,
   getItemStats,
   IEquipmentItem,
   ISetDefinition,
   rollEquipment,
   rollGrade,
+  SET_DEFINITIONS,
   SLOT_MAIN_STAT,
 } from './equipment-data'
 
@@ -122,5 +125,63 @@ describe('rolling', () => {
       expect(rolled.mainValue).toBe(Math.round(SLOT_MAIN_STAT[rolled.slot].base * 2.2))
       expect(rolled.setId).toBeNull()
     }
+  })
+})
+
+describe('boss sets', () => {
+  const wearSet = (setId: string, count: number, enhanceLevel = 0) =>
+    Object.values(EnumEquipmentSlot)
+      .slice(0, count)
+      .map(slot => ({
+        ...buildSetPiece(`${setId}_${slot}`, EnumEquipmentGrade.EPIC),
+        enhanceLevel,
+      }))
+
+  it('has all four slots as templates for each of the four sets', () => {
+    for (const setId of Object.keys(SET_DEFINITIONS)) {
+      for (const slot of Object.values(EnumEquipmentSlot)) {
+        expect(findSetPieceTemplate(setId, slot)).toBeDefined()
+      }
+    }
+    expect(Object.keys(SET_DEFINITIONS).sort()).toEqual(
+      ['blazing', 'deep_root', 'swift_thunder', 'tidal_guard'].sort()
+    )
+  })
+
+  it('gives set pieces fixed secondary stats and a stronger main stat than plain pieces', () => {
+    const piece = buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC)
+    expect(piece.subStats).toEqual({ atk: 4, spd: 2 })
+    expect(buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC)).toEqual(piece)
+    expect(piece.mainValue).toBe(Math.round(4 * 2.2 * 1.2))
+    expect(piece.mainValue).toBeGreaterThan(Math.round(4 * 2.2))
+    expect(() => buildSetPiece('wooden_sword', EnumEquipmentGrade.COMMON)).toThrow()
+  })
+
+  it('applies the roadmap bonuses: percent at 2 pieces, a battle effect at 4', () => {
+    expect(calcEquipmentBonus(wearSet('blazing', 2)).pct.atk).toBeCloseTo(0.15)
+    expect(calcEquipmentBonus(wearSet('blazing', 2)).effects).toEqual({})
+    expect(calcEquipmentBonus(wearSet('blazing', 4)).effects).toEqual({ burnTurns: 3 })
+    expect(calcEquipmentBonus(wearSet('tidal_guard', 2)).pct.def).toBeCloseTo(0.2)
+    expect(calcEquipmentBonus(wearSet('tidal_guard', 4)).effects.shieldPct).toBe(0.15)
+    expect(calcEquipmentBonus(wearSet('deep_root', 2)).pct.hp).toBeCloseTo(0.2)
+    expect(calcEquipmentBonus(wearSet('deep_root', 4)).effects.regenPct).toBe(0.05)
+    expect(calcEquipmentBonus(wearSet('swift_thunder', 2)).pct.spd).toBeCloseTo(0.15)
+    expect(calcEquipmentBonus(wearSet('swift_thunder', 4)).effects.doubleStrikeChance).toBe(0.2)
+  })
+
+  it('multiplies the percent bonus by 1.5 only when every worn piece is +10 or more', () => {
+    expect(calcEquipmentBonus(wearSet('blazing', 2, 10)).pct.atk).toBeCloseTo(0.15 * 1.5)
+    const mixed = [...wearSet('blazing', 2, 10).slice(0, 1), ...wearSet('blazing', 2, 9).slice(1)]
+    expect(calcEquipmentBonus(mixed).pct.atk).toBeCloseTo(0.15)
+    // the battle effect is never boosted
+    expect(calcEquipmentBonus(wearSet('blazing', 4, 15)).effects).toEqual({ burnTurns: 3 })
+  })
+
+  it('combines effects from different sets and mixes 2+2', () => {
+    const mixed = [...wearSet('blazing', 4).slice(0, 2), ...wearSet('deep_root', 4).slice(2)]
+    const bonus = calcEquipmentBonus(mixed)
+    expect(bonus.pct.atk).toBeCloseTo(0.15)
+    expect(bonus.pct.hp).toBeCloseTo(0.2)
+    expect(bonus.effects).toEqual({})
   })
 })

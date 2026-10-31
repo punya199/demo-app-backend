@@ -11,12 +11,26 @@ export const HUNGRY_ATK_MULTIPLIER = 0.8
 export const OVERWEIGHT_RATIO = 1.5
 export const OVERWEIGHT_SPD_MULTIPLIER = 0.8
 
+// Set effects (phase 5). A fighter without `effects` fights exactly as before: the engine only
+// touches the RNG for effects that are present, so stored fights keep replaying identically.
+export interface IFighterEffects {
+  // Skill hits burn the target for this many of its own turns.
+  burnTurns?: number
+  // Starts the fight with a shield of this share of max HP.
+  shieldPct?: number
+  // Heals this share of max HP at the start of each of its own turns.
+  regenPct?: number
+  // Chance to strike again right after attacking (never chains).
+  doubleStrikeChance?: number
+}
+
 export interface IFighter {
   name: string
   emoji: string
   element: EnumMonsterLine
   stats: IBattleStats
   skill: ISkill
+  effects?: IFighterEffects
 }
 
 const hearts = (value: number) => Math.min(MAX_HEARTS, Math.ceil(Math.round(value * 1000) / 1000))
@@ -46,6 +60,7 @@ export const toFighter = (
   // Out of stamina: every stat is halved.
   const exhausted = state.stamina <= 0 ? NO_STAMINA_STAT_MULTIPLIER : 1
 
+  const hasEffects = Object.keys(equipment.effects).length > 0
   return {
     name: species.name,
     emoji: species.emoji,
@@ -57,5 +72,7 @@ export const toFighter = (
       spd: Math.round(withEquipment(spd, 'spd', equipment) * exhausted),
     },
     skill: species.skill,
+    // Left out entirely without set effects, so stored fighters look exactly as before.
+    ...(hasEffects && { effects: equipment.effects }),
   }
 }

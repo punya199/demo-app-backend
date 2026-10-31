@@ -534,6 +534,14 @@ export class PvpService {
         season,
         etm
       )
+      wallet = await this.walletService.change(
+        userId,
+        EnumWalletCurrency.RAID_TOKEN,
+        reward.raidToken,
+        EnumWalletTransactionReason.PVP_SEASON_REWARD,
+        season,
+        etm
+      )
       return { season, rank, reward, wallet }
     })
   }

@@ -11,11 +11,26 @@ import {
 export interface IWalletBalance {
   coin: number
   gem: number
+  raidToken: number
 }
+
+// The wallet column each currency lives in, and the error for running short of it.
+const COLUMN = {
+  [EnumWalletCurrency.COIN]: 'coin',
+  [EnumWalletCurrency.GEM]: 'gem',
+  [EnumWalletCurrency.RAID_TOKEN]: 'raidToken',
+} as const
+
+const NOT_ENOUGH = {
+  [EnumWalletCurrency.COIN]: 'Not enough coins',
+  [EnumWalletCurrency.GEM]: 'Not enough gems',
+  [EnumWalletCurrency.RAID_TOKEN]: 'Not enough raid tokens',
+} as const
 
 const toBalance = (wallet: WalletEntity | null): IWalletBalance => ({
   coin: wallet?.coin ?? 0,
   gem: wallet?.gem ?? 0,
+  raidToken: wallet?.raidToken ?? 0,
 })
 
 @Injectable()
@@ -53,13 +68,12 @@ export class WalletService {
       lock: { mode: 'pessimistic_write' },
     })
 
-    const balanceAfter = wallet[currency] + amount
+    const column = COLUMN[currency]
+    const balanceAfter = wallet[column] + amount
     if (balanceAfter < 0) {
-      throw new BadRequestException(
-        currency === EnumWalletCurrency.COIN ? 'Not enough coins' : 'Not enough gems'
-      )
+      throw new BadRequestException(NOT_ENOUGH[currency])
     }
-    wallet[currency] = balanceAfter
+    wallet[column] = balanceAfter
     await etm.save(WalletEntity, wallet)
     await etm.save(WalletTransactionEntity, {
       userId,

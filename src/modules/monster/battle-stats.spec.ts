@@ -63,6 +63,7 @@ describe('toFighter with equipment', () => {
   const bonus = {
     flat: { hp: 10, atk: 3, def: 2, spd: 1 },
     pct: { hp: 0, atk: 0.1, def: 0, spd: 0 },
+    effects: {},
   }
 
   it('adds flat stats, then scales by set percentages', () => {
@@ -78,5 +79,20 @@ describe('toFighter with equipment', () => {
     const rested = toFighter(monster({ strength: 0 }), bonus).stats
     const exhausted = toFighter(monster({ strength: 0, stamina: 0 }), bonus).stats
     expect(exhausted.hp).toBe(Math.round(rested.hp * 0.5))
+  })
+})
+
+describe('toFighter set effects', () => {
+  it('leaves `effects` out entirely without a set effect, so stored fighters are unchanged', () => {
+    expect('effects' in toFighter(monster())).toBe(false)
+  })
+
+  it('carries the worn set effects onto the fighter', () => {
+    const bonus = {
+      flat: { hp: 0, atk: 0, def: 0, spd: 0 },
+      pct: { hp: 0, atk: 0, def: 0, spd: 0 },
+      effects: { burnTurns: 3 },
+    }
+    expect(toFighter(monster(), bonus).effects).toEqual({ burnTurns: 3 })
   })
 })

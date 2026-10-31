@@ -21,6 +21,10 @@ export class WalletEntity extends BaseModelEntity {
   @Column({ name: 'gem', type: 'integer', default: 0 })
   gem: number
 
+  // Earned from Boss Raid, World Boss and PvP seasons; spent on protect scrolls.
+  @Column({ name: 'raid_token', type: 'integer', default: 0 })
+  raidToken: number
+
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_wallets_user_id' })
   @ManyToOne(() => UserEntity)
   user: UserEntity
