@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/punya199/demo-app-backend/compare/v1.16.0...v1.17.0) (2026-10-31)
+
+
+### New
+
+* add async PvP arena with ELO, seasons and stamina auto recovery (phase 4) ([33a16c5](https://github.com/punya199/demo-app-backend/commit/33a16c5a11150e5cf9a42b9900607f523e11c1d1))
+
 # [1.16.0](https://github.com/punya199/demo-app-backend/compare/v1.15.0...v1.16.0) (2026-10-31)
 
 
