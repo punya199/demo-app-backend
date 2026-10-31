@@ -31,6 +31,8 @@ import {
   SUB_STAT_COUNT,
 } from './equipment-data'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
+import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from './elo'
+import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
@@ -62,8 +64,8 @@ export const buildWiki = () => ({
   },
   stamina: {
     max: rules.MAX_STAMINA,
-    drainFullMinutesOffline: rules.STAMINA_DRAIN_FULL_MINUTES_OFFLINE,
-    drainFullMinutesOnline: rules.STAMINA_DRAIN_FULL_MINUTES_ONLINE,
+    recoveryPerMinute: rules.STAMINA_RECOVERY_PER_MINUTE,
+    recoveryOnlineMultiplier: rules.STAMINA_RECOVERY_ONLINE_MULTIPLIER,
     battleCost: rules.BATTLE_STAMINA_COST,
     noStaminaStatMultiplier: rules.NO_STAMINA_STAT_MULTIPLIER,
     minigameRounds: rules.MINIGAME_ROUNDS,
@@ -136,6 +138,29 @@ export const buildWiki = () => ({
       pityMax: PITY_MAX,
       steps: ENHANCE_STEPS,
     },
+  },
+  pvp: {
+    stages: PVP_STAGES,
+    startRating: START_RATING,
+    minRating: MIN_RATING,
+    kAttacker: K_ATTACKER,
+    kDefender: K_DEFENDER,
+    dailyAttempts: rules.PVP_DAILY_ATTEMPTS,
+    winCoin: rules.PVP_WIN_COIN,
+    lossCoin: rules.PVP_LOSS_COIN,
+    defenseCooldownMinutes: rules.PVP_DEFENSE_COOLDOWN_MS / 60_000,
+    opponentCount: rules.PVP_OPPONENT_COUNT,
+    maxFightsPerOpponentPerDay: rules.PVP_MAX_FIGHTS_PER_OPPONENT_PER_DAY,
+    ratingWindow: rules.PVP_RATING_WINDOW,
+    seasonMinFights: rules.PVP_SEASON_MIN_FIGHTS,
+    seasonResetKeep: rules.PVP_SEASON_RESET_KEEP,
+    seasonRewards: PVP_SEASON_REWARDS,
+    npcs: PVP_NPCS.map(npc => ({
+      stage: npc.stage,
+      name: npc.fighter.name,
+      emoji: npc.fighter.emoji,
+      rating: npc.rating,
+    })),
   },
   economy: {
     shopItems: SHOP_ITEMS,

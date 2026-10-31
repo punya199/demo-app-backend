@@ -14,6 +14,8 @@ import { InventoryController } from './inventory.controller'
 import { InventoryService } from './inventory.service'
 import { MonsterController } from './monster.controller'
 import { MonsterService } from './monster.service'
+import { PvpController } from './pvp.controller'
+import { PvpService } from './pvp.service'
 import { QuestController } from './quest.controller'
 import { QuestService } from './quest.service'
 import { ShopController } from './shop.controller'
@@ -29,6 +31,7 @@ import { ShopService } from './shop.service'
     QuestController,
     ExpeditionController,
     EquipmentController,
+    PvpController,
   ],
   providers: [
     MonsterService,
@@ -39,6 +42,7 @@ import { ShopService } from './shop.service'
     ExpeditionService,
     EquipmentService,
     EnhanceService,
+    PvpService,
   ],
 })
 export class MonsterModule {}

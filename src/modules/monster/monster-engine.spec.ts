@@ -8,6 +8,7 @@ import {
   applyAction,
   applyBattleOutcome,
   applyMinigame,
+  applyPvpOutcome,
   applyShopItem,
   assertAutoBattleReady,
   assertCanBattle,
@@ -29,8 +30,8 @@ import {
   LIFESPAN_MINUTES,
   MINIGAME_COOLDOWN_MS,
   STAGE_DURATION_MINUTES,
-  STAMINA_DRAIN_FULL_MINUTES_OFFLINE,
-  STAMINA_DRAIN_FULL_MINUTES_ONLINE,
+  STAMINA_RECOVERY_ONLINE_MULTIPLIER,
+  STAMINA_RECOVERY_PER_MINUTE,
 } from './monster-rules'
 import { EnumShopItemId } from './shop-data'
 
@@ -142,16 +143,28 @@ describe('tick', () => {
       expect(state.fullness).toBeCloseTo(4 - 2 / 60)
     })
 
-    it('drains stamina half as fast online', () => {
-      const offline = tick(monster(), minutesAfter(NOW, 2)).state.stamina
-      const online = tick(monster({ lastSeenAt: NOW }), minutesAfter(NOW, 2)).state.stamina
-      expect(100 - offline).toBeCloseTo((2 * 100) / STAMINA_DRAIN_FULL_MINUTES_OFFLINE)
-      expect(100 - online).toBeCloseTo((2 * 100) / STAMINA_DRAIN_FULL_MINUTES_ONLINE)
+    it('recovers stamina on its own, twice as fast while online', () => {
+      // online counts for ONLINE_GRACE_MINUTES (2) after the last request
+      const offline = tick(monster({ stamina: 10 }), minutesAfter(NOW, 2)).state.stamina
+      const online = tick(monster({ stamina: 10, lastSeenAt: NOW }), minutesAfter(NOW, 2)).state
+        .stamina
+      expect(offline - 10).toBeCloseTo(2 * STAMINA_RECOVERY_PER_MINUTE)
+      expect(online - 10).toBeCloseTo(
+        2 * STAMINA_RECOVERY_PER_MINUTE * STAMINA_RECOVERY_ONLINE_MULTIPLIER
+      )
     })
 
-    it('runs stamina down to 0 and no further', () => {
-      const { state } = tick(monster(), minutesAfter(NOW, STAMINA_DRAIN_FULL_MINUTES_OFFLINE + 30))
-      expect(state.stamina).toBe(0)
+    it('recovers from empty to full in 200 offline minutes and stops at 100', () => {
+      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 199)).state.stamina).toBeLessThan(100)
+      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 200)).state.stamina).toBe(100)
+      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 600)).state.stamina).toBe(100)
+    })
+
+    it('keeps recovering while out on an expedition', () => {
+      const out = startExpedition(monster({ stamina: 0 }), 'meadow', 100, NOW).state
+      expect(tick(out, minutesAfter(NOW, 20)).state.stamina).toBeCloseTo(
+        20 * STAMINA_RECOVERY_PER_MINUTE
+      )
     })
   })
 
@@ -519,5 +532,28 @@ describe('auto-battle', () => {
     expect(() =>
       assertAutoBattleReady(state, new Date(NOW.getTime() + AUTO_BATTLE_COOLDOWN_MS))
     ).not.toThrow()
+  })
+})
+
+describe('applyPvpOutcome', () => {
+  it('costs stamina and weight but leaves wins and losses alone', () => {
+    const { state, events } = applyPvpOutcome(
+      monster({ weight: 30 }),
+      true,
+      { opponentId: 'x' },
+      NOW
+    )
+    expect(state.stamina).toBe(90)
+    expect(state.weight).toBe(29)
+    expect(state.wins).toBe(0)
+    expect(state.losses).toBe(0)
+    expect(events[0].payload).toMatchObject({ won: true, mode: 'pvp', opponentId: 'x' })
+  })
+
+  it('refuses a sick monster or one out on an expedition', () => {
+    expect(() => applyPvpOutcome(monster({ isSick: true }), true, {}, NOW)).toThrow('sick')
+    expect(() => applyPvpOutcome(monster({ expeditionAreaId: 'meadow' }), true, {}, NOW)).toThrow(
+      'expedition'
+    )
   })
 })

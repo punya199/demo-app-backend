@@ -6,6 +6,9 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
+import { PvpBattleEntity } from '../db/entities/pvp-battle.entity'
+import { PvpDefenseEntity } from '../db/entities/pvp-defense.entity'
+import { PvpRatingEntity } from '../db/entities/pvp-rating.entity'
 import { EnhanceLogEntity } from '../db/entities/enhance-log.entity'
 import { EquipmentItemEntity } from '../db/entities/equipment-item.entity'
 import { EquipmentLogEntity } from '../db/entities/equipment-log.entity'
@@ -51,6 +54,9 @@ export const entities = [
   EquipmentItemEntity,
   EquipmentLogEntity,
   EnhanceLogEntity,
+  PvpDefenseEntity,
+  PvpRatingEntity,
+  PvpBattleEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
