@@ -6,6 +6,11 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
+import { FriendInteractionEntity } from '../db/entities/friend-interaction.entity'
+import { FriendshipEntity } from '../db/entities/friendship.entity'
+import { PlayerProfileEntity } from '../db/entities/player-profile.entity'
+import { RentalEntity } from '../db/entities/rental.entity'
+import { SupportUnitEntity } from '../db/entities/support-unit.entity'
 import { WorldBossDamageEntity } from '../db/entities/world-boss-damage.entity'
 import { WorldBossEntity } from '../db/entities/world-boss.entity'
 import { RaidProgressEntity } from '../db/entities/raid-progress.entity'
@@ -63,6 +68,11 @@ export const entities = [
   RaidProgressEntity,
   WorldBossEntity,
   WorldBossDamageEntity,
+  PlayerProfileEntity,
+  FriendshipEntity,
+  FriendInteractionEntity,
+  SupportUnitEntity,
+  RentalEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

@@ -1,6 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { isUUID } from 'class-validator'
 import { randomInt } from 'crypto'
 import { DataSource, EntityManager } from 'typeorm'
+import { EnumFriendshipStatus, FriendshipEntity } from '../../db/entities/friendship.entity'
+import { RentalEntity } from '../../db/entities/rental.entity'
+import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
 import { WorldBossDamageEntity } from '../../db/entities/world-boss-damage.entity'
 import { WorldBossEntity } from '../../db/entities/world-boss.entity'
 import {
@@ -8,7 +12,7 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
-import { toFighter } from './battle-stats'
+import { IFighter, toFighter } from './battle-stats'
 import { countFightsToday } from './daily-fights'
 import { defaultDisplayName } from './display-name'
 import {
@@ -25,8 +29,16 @@ import {
 } from './equipment.service'
 import { InventoryService } from './inventory.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
-import { WORLD_BOSS_DAILY_HITS, WORLD_BOSS_ROUNDS } from './monster-rules'
+import {
+  FRIEND_POINTS_RENTAL,
+  RENTAL_FEE,
+  RENTAL_OWNER_DAILY_CAP,
+  WORLD_BOSS_DAILY_HITS,
+  WORLD_BOSS_ROUNDS,
+} from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
+import { calcRentalFee, orderPair } from './social-data'
+import { getQuestDayStart } from './quest-data'
 import { bossTokenItemId, isStageAtLeast, RAID_EXCHANGE_COST } from './raid-data'
 import { simulateTeamBattle } from './team-battle'
 import {
@@ -161,7 +173,7 @@ export class WorldBossService {
     }
   }
 
-  async attack(userId: string) {
+  async attack(userId: string, supportId?: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
       // Lock order is always monster, then boss: every attacker takes them the same way.
@@ -191,8 +203,13 @@ export class WorldBossService {
 
       const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
       const enemy = getWorldBossFighter(definition, boss.hp)
+      const rental = supportId ? await this.rentAlly(userId, supportId, now, etm) : null
+      const team = rental ? [player, rental.ally] : [player]
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateTeamBattle([player], enemy, seed, WORLD_BOSS_ROUNDS)
+      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_ROUNDS)
+      // The renter's ranking counts only their own damage; the ally's still empties the boss.
+      const ownDamage = result.damageByMember[0]
+      const allyDamage = result.damageByMember[1] ?? 0
 
       boss.hp = result.bossHpAfter
       if (result.bossDefeated) {
@@ -206,14 +223,24 @@ export class WorldBossService {
          ON CONFLICT ("world_boss_id", "user_id") WHERE deleted_at IS NULL
          DO UPDATE SET "damage" = "world_boss_damage"."damage" + $3,
                        "hits" = "world_boss_damage"."hits" + 1, "updated_at" = now()`,
-        [boss.id, userId, result.damageDealt]
+        [boss.id, userId, ownDamage]
       )
+      if (rental) {
+        await etm.save(RentalEntity, {
+          renterId: userId,
+          ownerId: rental.ownerId,
+          supportUnitId: rental.unitId,
+          worldBossId: boss.id,
+          fee: rental.fee,
+          allyDamage,
+        })
+      }
 
       const outcome = withRuleErrors(() =>
         applyPvpOutcome(
           monster,
           result.bossDefeated,
-          { week: boss.week, damage: result.damageDealt, seed, rounds: result.rounds },
+          { week: boss.week, damage: ownDamage, seed, rounds: result.rounds },
           now,
           'world_boss'
         )
@@ -228,17 +255,77 @@ export class WorldBossService {
           rounds: result.rounds,
           events: result.events,
           player,
+          // Everyone who fought on the player's side, the player first.
+          team,
           enemy,
-          damage: result.damageDealt,
-          survived: result.survivors.length > 0,
+          damage: ownDamage,
+          survived: result.survivors.includes(0),
         },
-        damage: result.damageDealt,
+        damage: ownDamage,
+        ally: rental
+          ? {
+              name: rental.ally.name,
+              emoji: rental.ally.emoji,
+              damage: allyDamage,
+              fee: rental.fee,
+            }
+          : null,
         bossHp: boss.hp,
         maxHp: boss.maxHp,
         isKillingBlow: result.bossDefeated,
         hitsLeft: Math.max(0, WORLD_BOSS_DAILY_HITS - used),
       }
     })
+  }
+
+  // Rents a friend's support unit for one fight. Only friends' units can be rented, and the
+  // answer for "not a friend" is the same as for "no such unit" so ids can't be probed.
+  private async rentAlly(userId: string, supportId: string, now: Date, etm: EntityManager) {
+    const unit = isUUID(supportId)
+      ? await etm.findOne(SupportUnitEntity, { where: { id: supportId } })
+      : null
+    const friendship =
+      unit && unit.userId !== userId
+        ? await etm.findOne(FriendshipEntity, {
+            where: { ...orderPair(userId, unit.userId), status: EnumFriendshipStatus.ACCEPTED },
+          })
+        : null
+    if (!unit || !friendship) {
+      throw new BadRequestException('Support unit is not available')
+    }
+
+    // Both wallets are locked in user-id order first, so two players renting from each other at the
+    // same moment wait for each other. The owner's earnings so far today are then stable.
+    await this.walletService.lockWallets([userId, unit.userId], etm)
+    const [earned] = await etm.query<{ total: number }[]>(
+      `SELECT COALESCE(SUM("fee"), 0)::int AS "total" FROM "rentals"
+       WHERE "owner_id" = $1 AND "created_at" >= $2 AND "deleted_at" IS NULL`,
+      [unit.userId, getQuestDayStart(now)]
+    )
+    const fee = calcRentalFee(earned.total, RENTAL_FEE, RENTAL_OWNER_DAILY_CAP)
+    if (fee > 0) {
+      await this.walletService.change(
+        userId,
+        EnumWalletCurrency.COIN,
+        -fee,
+        EnumWalletTransactionReason.RENTAL_FEE,
+        unit.id,
+        etm
+      )
+      await this.walletService.change(
+        unit.userId,
+        EnumWalletCurrency.COIN,
+        fee,
+        EnumWalletTransactionReason.RENTAL_INCOME,
+        unit.id,
+        etm
+      )
+    }
+    await etm.query(`UPDATE "friendships" SET "points" = "points" + $2 WHERE "id" = $1`, [
+      friendship.id,
+      FRIEND_POINTS_RENTAL,
+    ])
+    return { ally: unit.fighter as unknown as IFighter, ownerId: unit.userId, unitId: unit.id, fee }
   }
 
   // Top damage dealers of a week. Players appear by their arena name only; ids never leave.
@@ -256,10 +343,11 @@ export class WorldBossService {
     >(
       `SELECT * FROM (
          SELECT RANK() OVER (ORDER BY d."damage" DESC)::int AS "rank", d."user_id", d."damage", d."hits",
-                p."display_name", p."fighter"->>'emoji' AS "emoji"
+                pr."display_name", p."fighter"->>'emoji' AS "emoji"
          FROM "world_boss_damage" d
          JOIN "world_bosses" b ON b."id" = d."world_boss_id"
          LEFT JOIN "pvp_defenses" p ON p."user_id" = d."user_id" AND p."deleted_at" IS NULL
+         LEFT JOIN "player_profiles" pr ON pr."user_id" = d."user_id" AND pr."deleted_at" IS NULL
          WHERE b."week" = $1 AND d."deleted_at" IS NULL AND b."deleted_at" IS NULL
        ) ranked
        ORDER BY "rank", "hits" DESC

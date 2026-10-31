@@ -20,14 +20,18 @@ describe('world boss', () => {
   const { wallet, monsters } = buildCore()
   const inventory = new InventoryService(dataSource, monsters)
   const worldBoss = new WorldBossService(dataSource, monsters, inventory, wallet)
-  const week = getWeek(new Date()).key
+  // Looked up when used: a test that straddles Monday midnight (Thai time) must still agree with
+  // the service about which week it is.
+  const currentWeek = () => getWeek(new Date()).key
 
   const striker = () => createUserWithMonster(monsters, 'ultimate', 'flame_ultimate', 'wb')
   const bossRow = async () =>
     (
       await sql<
         { hp: number; max_hp: number; defeated_at: Date | null; killed_by_user_id: string | null }[]
-      >(`SELECT hp, max_hp, defeated_at, killed_by_user_id FROM world_bosses WHERE week=$1`, [week])
+      >(`SELECT hp, max_hp, defeated_at, killed_by_user_id FROM world_bosses WHERE week=$1`, [
+        currentWeek(),
+      ])
     )[0]
 
   beforeAll(async () => {
@@ -43,7 +47,7 @@ describe('world boss', () => {
     await Promise.all(Array.from({ length: 10 }, () => worldBoss.getStatus(user)))
     const [count] = await sql<{ c: number }[]>(
       `SELECT count(*)::int c FROM world_bosses WHERE week=$1`,
-      [week]
+      [currentWeek()]
     )
     expect(count.c).toBe(1)
     const status = await worldBoss.getStatus(user)
@@ -65,7 +69,7 @@ describe('world boss', () => {
     const [sum] = await sql<{ total: number; hits: number }[]>(
       `SELECT COALESCE(SUM(d.damage),0)::int total, COALESCE(SUM(d.hits),0)::int hits
        FROM world_boss_damage d JOIN world_bosses b ON b.id = d.world_boss_id WHERE b.week=$1`,
-      [week]
+      [currentWeek()]
     )
     expect(before.hp - after.hp).toBe(sum.total)
     expect(sum.total).toBeGreaterThan(0)
@@ -88,7 +92,7 @@ describe('world boss', () => {
 
   it('credits the finishing hit, caps damage at the HP left, and then refuses more', async () => {
     const finisher = await striker()
-    await sql(`UPDATE world_bosses SET hp = 40 WHERE week=$1`, [week])
+    await sql(`UPDATE world_bosses SET hp = 40 WHERE week=$1`, [currentWeek()])
     const result = await worldBoss.attack(finisher)
     expect(result.isKillingBlow).toBe(true)
     expect(result.damage).toBe(40)
@@ -103,12 +107,12 @@ describe('world boss', () => {
   it('pays a defeated boss once, with the guaranteed killing-blow piece and the token', async () => {
     const [finisher] = await sql<{ id: string }[]>(
       `SELECT killed_by_user_id AS id FROM world_bosses WHERE week=$1`,
-      [week]
+      [currentWeek()]
     )
     const user = finisher.id
     const before = await wallet.getBalance(user)
     const claims = await Promise.allSettled(
-      Array.from({ length: 4 }, () => worldBoss.claim(user, week))
+      Array.from({ length: 4 }, () => worldBoss.claim(user, currentWeek()))
     )
     expect(succeeded(claims)).toBe(1)
     const after = await wallet.getBalance(user)
@@ -126,17 +130,17 @@ describe('world boss', () => {
     )
     expect(piece.set_id).toBe('swift_thunder')
     expect(piece.grade).toBe(EnumEquipmentGrade.EPIC)
-    await expect(worldBoss.claim(user, week)).rejects.toThrow(/No world boss reward/)
+    await expect(worldBoss.claim(user, currentWeek())).rejects.toThrow(/No world boss reward/)
   })
 
   it('refuses to claim a week that is still running', async () => {
     await sql(
       `UPDATE world_bosses SET hp = 5000, defeated_at = NULL, killed_by_user_id = NULL WHERE week=$1`,
-      [week]
+      [currentWeek()]
     )
     const user = await striker()
     await worldBoss.attack(user)
-    await expect(worldBoss.claim(user, week)).rejects.toThrow(/not ended/)
+    await expect(worldBoss.claim(user, currentWeek())).rejects.toThrow(/not ended/)
     await expect(worldBoss.claim(user, '2000-W01')).rejects.toThrow(/not found/i)
   })
 

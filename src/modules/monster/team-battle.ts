@@ -21,6 +21,9 @@ export interface ITeamBattleResult {
   events: ITeamBattleEvent[]
   // HP the boss lost, burn included. The same number the boss's HP dropped by.
   damageDealt: number
+  // How much of damageDealt each team member is responsible for (burn goes to whoever lit it, and
+  // the finishing hit counts only the HP that was left). Adds up to damageDealt.
+  damageByMember: number[]
   bossHpAfter: number
   bossDefeated: boolean
   // Team members still standing at the end.
@@ -34,7 +37,7 @@ interface ICombatant {
   hp: number
   maxHp: number
   shield: number
-  burn: { turns: number; damage: number } | null
+  burn: { turns: number; damage: number; source: number } | null
 }
 
 const makeCombatant = (
@@ -62,11 +65,13 @@ export const simulateTeamBattle = (
   const members = team.map((fighter, index) => makeCombatant(fighter, 'player', index))
   const bossCombatant = makeCombatant(boss, 'enemy', 0)
   const events: ITeamBattleEvent[] = []
+  const damageByMember = team.map(() => 0)
 
   const result = (round: number): ITeamBattleResult => ({
     rounds: round,
     events,
     damageDealt: boss.stats.hp - bossCombatant.hp,
+    damageByMember,
     bossHpAfter: bossCombatant.hp,
     bossDefeated: bossCombatant.hp === 0,
     survivors: members.filter(member => member.hp > 0).map(member => member.member),
@@ -105,7 +110,11 @@ export const simulateTeamBattle = (
     )
     const absorbed = Math.min(target.shield, damage)
     target.shield -= absorbed
+    const hpBefore = target.hp
     target.hp = Math.max(0, target.hp - (damage - absorbed))
+    if (attacker.side === 'player') {
+      damageByMember[attacker.member] += hpBefore - target.hp
+    }
     record(round, attacker, target, {
       moveName: isSkill ? attacker.fighter.skill.name : 'โจมตี',
       isSkill,
@@ -132,7 +141,11 @@ export const simulateTeamBattle = (
       // opposite side, as in the 1-vs-1 engine, so replay code reads it as "that side's HP changed".
       if (actor.burn) {
         const burning = actor.burn
+        const hpBeforeBurn = actor.hp
         actor.hp = Math.max(0, actor.hp - burning.damage)
+        if (actor.side === 'enemy') {
+          damageByMember[burning.source] += hpBeforeBurn - actor.hp
+        }
         burning.turns -= 1
         if (burning.turns <= 0) {
           actor.burn = null
@@ -193,6 +206,7 @@ export const simulateTeamBattle = (
         target.burn = {
           turns: actor.fighter.effects.burnTurns,
           damage: Math.max(1, Math.round(actor.fighter.stats.atk * BURN_DAMAGE_ATK_RATIO)),
+          source: actor.member,
         }
       }
       const doubleChance = actor.fighter.effects?.doubleStrikeChance

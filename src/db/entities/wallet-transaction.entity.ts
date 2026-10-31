@@ -23,6 +23,8 @@ export enum EnumWalletTransactionReason {
   PVP_SEASON_REWARD = 'pvp_season_reward',
   RAID_REWARD = 'raid_reward',
   WORLD_BOSS_REWARD = 'world_boss_reward',
+  RENTAL_FEE = 'rental_fee',
+  RENTAL_INCOME = 'rental_income',
 }
 
 @Entity({

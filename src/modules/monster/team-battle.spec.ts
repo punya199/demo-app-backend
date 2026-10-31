@@ -123,3 +123,34 @@ describe('simulateTeamBattle', () => {
     expect(events.every(event => event.member >= 0 && event.member < team.length)).toBe(true)
   })
 })
+
+describe('damage by member', () => {
+  it('adds up to the damage dealt, with each member credited for their own hits', () => {
+    const strong = fighter({ stats: { atk: 60, spd: 9 } })
+    const weak = fighter({ stats: { atk: 15, spd: 8 } })
+    const result = simulateTeamBattle([strong, weak], boss(100_000), 3, 10)
+    expect(result.damageByMember.reduce((sum, value) => sum + value, 0)).toBe(result.damageDealt)
+    expect(result.damageByMember[0]).toBeGreaterThan(result.damageByMember[1])
+    expect(result.damageByMember[1]).toBeGreaterThan(0)
+  })
+
+  it('credits only the HP that was left to the finishing hit', () => {
+    const result = simulateTeamBattle([fighter(), fighter()], boss(40), 1, 10)
+    expect(result.bossDefeated).toBe(true)
+    expect(result.damageByMember.reduce((sum, value) => sum + value, 0)).toBe(40)
+  })
+
+  it('credits burn damage to the member who lit it', () => {
+    const burner = fighter({ stats: { atk: 20, spd: 99 }, effects: { burnTurns: 3 } })
+    const idle = fighter({ stats: { atk: 1, spd: 1 } })
+    const result = simulateTeamBattle(
+      [burner, idle],
+      boss(100_000, { stats: { def: 1000 } }),
+      1,
+      10
+    )
+    const burn = result.events.filter(event => event.kind === 'burn')
+    expect(burn.length).toBeGreaterThan(0)
+    expect(result.damageByMember.reduce((sum, value) => sum + value, 0)).toBe(result.damageDealt)
+  })
+})

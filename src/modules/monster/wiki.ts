@@ -161,6 +161,18 @@ export const buildWiki = () => ({
     killingBlowGrade: WORLD_BOSS_KILLING_BLOW_GRADE,
     rankRewards: WORLD_BOSS_RANK_REWARDS,
   },
+  social: {
+    friendLimit: rules.FRIEND_LIMIT,
+    requestLimit: rules.FRIEND_REQUEST_LIMIT,
+    greetsPerDayPerFriend: rules.GREETS_PER_DAY_PER_FRIEND,
+    giftsPerDay: rules.GIFTS_PER_DAY,
+    pointsGreet: rules.FRIEND_POINTS_GREET,
+    pointsGift: rules.FRIEND_POINTS_GIFT,
+    pointsRental: rules.FRIEND_POINTS_RENTAL,
+    supportCooldownMinutes: rules.SUPPORT_COOLDOWN_MS / 60_000,
+    rentalFee: rules.RENTAL_FEE,
+    rentalOwnerDailyCap: rules.RENTAL_OWNER_DAILY_CAP,
+  },
   pvp: {
     stages: PVP_STAGES,
     startRating: START_RATING,

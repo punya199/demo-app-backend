@@ -13,14 +13,17 @@ import {
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
 import { PVP_NPCS } from './pvp-data'
 import { getSeason } from './pvp-season'
+import { ProfileService } from './profile.service'
 import { PvpService } from './pvp.service'
 
 jest.setTimeout(120_000)
 
 describe('async PvP arena', () => {
   const { wallet, monsters } = buildCore()
-  const pvp = new PvpService(dataSource, monsters, wallet)
-  const season = getSeason(new Date())
+  const pvp = new PvpService(dataSource, monsters, wallet, new ProfileService(dataSource))
+  // Looked up when used, not once up front: a test that straddles the Thai month change (midnight
+  // on the 1st) must still agree with the service about which season it is.
+  const currentSeason = () => getSeason(new Date())
   let a: string
   let b: string
   let c: string
@@ -86,7 +89,7 @@ describe('async PvP arena', () => {
       (
         await sql<{ rating: number }[]>(
           `SELECT rating FROM pvp_ratings WHERE user_id=$1 AND season=$2`,
-          [userId, season]
+          [userId, currentSeason()]
         )
       )[0].rating
     expect(await rating(a)).toBe(won ? 1016 : 984)
@@ -144,7 +147,7 @@ describe('async PvP arena', () => {
     )
     expect((await pvp.getStatus(a)).claimableSeasons[0].rank).toBe(1)
     expect((await pvp.getStatus(c)).claimableSeasons).toHaveLength(0)
-    await expect(pvp.claimSeason(a, season)).rejects.toThrow(/not ended/)
+    await expect(pvp.claimSeason(a, currentSeason())).rejects.toThrow(/not ended/)
     await expect(pvp.claimSeason(c, '2000-01')).rejects.toThrow(/Not enough fights/)
 
     const before = await wallet.getBalance(a)

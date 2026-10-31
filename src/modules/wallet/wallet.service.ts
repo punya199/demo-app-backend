@@ -46,6 +46,25 @@ export class WalletService {
     return toBalance(wallet)
   }
 
+  // Takes the row locks of several wallets up front, in user-id order. A transaction that will move
+  // coins between two players calls this first, so two such transactions running in opposite
+  // directions wait for each other instead of deadlocking.
+  async lockWallets(userIds: string[], etm: EntityManager) {
+    for (const userId of [...new Set(userIds)].sort()) {
+      await etm
+        .createQueryBuilder()
+        .insert()
+        .into(WalletEntity)
+        .values({ userId, coin: 0, gem: 0 })
+        .orIgnore()
+        .execute()
+      await etm.findOneOrFail(WalletEntity, {
+        where: { userId },
+        lock: { mode: 'pessimistic_write' },
+      })
+    }
+  }
+
   // Adds (positive) or spends (negative) one currency inside the caller's transaction. The wallet
   // row is locked until that transaction ends, so concurrent requests can't double-spend.
   async change(

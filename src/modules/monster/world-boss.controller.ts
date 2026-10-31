@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
+import { WorldBossAttackBodyDto } from './dto/social.dto'
 import {
   ClaimWorldBossBodyDto,
   WorldBossExchangeBodyDto,
@@ -20,8 +21,8 @@ export class WorldBossController {
 
   @AuthUser()
   @Post('attack')
-  async attack(@ReqUser() user: IAppJwtPayload) {
-    return this.worldBossService.attack(user['user-id'])
+  async attack(@Body() body: WorldBossAttackBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.worldBossService.attack(user['user-id'], body.supportId)
   }
 
   @AuthUser()

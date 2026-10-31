@@ -151,3 +151,16 @@ export const RAID_BOSS_TOKENS_PER_WIN = 1
 export const WORLD_BOSS_DAILY_HITS = 3
 // A hit lasts this many rounds (or until the team is wiped out).
 export const WORLD_BOSS_ROUNDS = 10
+
+// Friends and rental (phase 5c).
+export const FRIEND_LIMIT = 30
+export const FRIEND_REQUEST_LIMIT = 20
+export const GREETS_PER_DAY_PER_FRIEND = 1
+export const GIFTS_PER_DAY = 3
+export const FRIEND_POINTS_GREET = 1
+export const FRIEND_POINTS_GIFT = 2
+export const FRIEND_POINTS_RENTAL = 3
+export const SUPPORT_COOLDOWN_MS = 30 * 60 * 1000
+// What a renter pays the owner per rental, and the most one owner can earn from rentals a day.
+export const RENTAL_FEE = 20
+export const RENTAL_OWNER_DAILY_CAP = 200

@@ -48,6 +48,10 @@ const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000
 export const getQuestDate = (now: Date) =>
   new Date(now.getTime() + BANGKOK_OFFSET_MS).toISOString().slice(0, 10)
 
+// The start of today's Thai day.
+export const getQuestDayStart = (now: Date) =>
+  new Date(getQuestResetAt(now).getTime() - 24 * 60 * 60 * 1000)
+
 // When today's quests reset: the next Thai midnight.
 export const getQuestResetAt = (now: Date) => {
   const shifted = now.getTime() + BANGKOK_OFFSET_MS
