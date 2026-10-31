@@ -153,7 +153,11 @@ describe('async PvP arena', () => {
     )
     expect(succeeded(claims)).toBe(1)
     const after = await wallet.getBalance(a)
-    expect([after.coin - before.coin, after.gem - before.gem]).toEqual([1000, 30])
+    expect([
+      after.coin - before.coin,
+      after.gem - before.gem,
+      after.raidToken - before.raidToken,
+    ]).toEqual([1000, 30, 20])
     const second = await pvp.claimSeason(b, '2000-01')
     expect([second.rank, second.reward.coin]).toEqual([2, 600])
   })

@@ -31,6 +31,12 @@ import {
   SUB_STAT_COUNT,
 } from './equipment-data'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
+import {
+  RAID_BOSSES,
+  RAID_DIFFICULTIES,
+  RAID_EXCHANGE_COST,
+  RAID_FIRST_CLEAR_MULTIPLIER,
+} from './raid-data'
 import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from './elo'
 import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
@@ -161,6 +167,16 @@ export const buildWiki = () => ({
       emoji: npc.fighter.emoji,
       rating: npc.rating,
     })),
+  },
+  raid: {
+    dailyAttempts: rules.RAID_DAILY_ATTEMPTS,
+    bossTokensPerWin: rules.RAID_BOSS_TOKENS_PER_WIN,
+    firstClearMultiplier: RAID_FIRST_CLEAR_MULTIPLIER,
+    exchangeCost: RAID_EXCHANGE_COST,
+    bosses: RAID_BOSSES,
+    difficulties: RAID_DIFFICULTIES,
+    setEnhanceThreshold: rules.SET_ENHANCE_THRESHOLD,
+    setEnhanceMultiplier: rules.SET_ENHANCE_MULTIPLIER,
   },
   economy: {
     shopItems: SHOP_ITEMS,

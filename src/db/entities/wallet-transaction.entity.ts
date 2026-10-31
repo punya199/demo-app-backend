@@ -5,6 +5,7 @@ import { UserEntity } from './user.entity'
 export enum EnumWalletCurrency {
   COIN = 'coin',
   GEM = 'gem',
+  RAID_TOKEN = 'raid_token',
 }
 
 export enum EnumWalletTransactionReason {
@@ -20,6 +21,7 @@ export enum EnumWalletTransactionReason {
   ENHANCE = 'enhance',
   PVP_REWARD = 'pvp_reward',
   PVP_SEASON_REWARD = 'pvp_season_reward',
+  RAID_REWARD = 'raid_reward',
 }
 
 @Entity({
