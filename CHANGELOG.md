@@ -1,3 +1,14 @@
+# [1.16.0](https://github.com/punya199/demo-app-backend/compare/v1.15.0...v1.16.0) (2026-10-31)
+
+
+### New
+
+* add monster equipment, enhancing and enhance stones (phase 3) ([ecb23e1](https://github.com/punya199/demo-app-backend/commit/ecb23e1414ad81c7a77f03d015dd16ad9c1f6d75))
+
+### Update
+
+* bump Node to 22.23.4 in Dockerfile and .nvmrc ([3bdc687](https://github.com/punya199/demo-app-backend/commit/3bdc687b09e433efa2c42b9808b2f958cfb21a52))
+
 # [1.15.0](https://github.com/punya199/demo-app-backend/compare/v1.14.0...v1.15.0) (2026-10-31)
 
 
