@@ -9,6 +9,7 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
+import { calcExpeditionCoins, calcExpeditionDrops } from './idle-data'
 import {
   applyAction,
   applyMinigame,
@@ -22,11 +23,13 @@ import {
   tick,
 } from './monster-engine'
 import {
+  AUTO_BATTLE_COOLDOWN_MS,
   DEX_DISCOVERY_GEM_REWARD,
   MINIGAME_COOLDOWN_MS,
   STAMINA_REFILL_GEM_PRICE,
   TRAIN_COOLDOWN_MS,
 } from './monster-rules'
+import { recordQuestProgress } from './quest.service'
 import { getSpecies, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
@@ -60,6 +63,10 @@ export const toMonsterView = (monster: MonsterEntity) => {
     emoji: species.emoji,
     trainReadyAt: readyAt(monster.lastTrainedAt, TRAIN_COOLDOWN_MS),
     minigameReadyAt: readyAt(monster.lastMinigameAt, MINIGAME_COOLDOWN_MS),
+    // What collecting the expedition would pay right now (0 when not out).
+    expeditionPendingCoins: calcExpeditionCoins(monster.expeditionMinutes, monster.expeditionRate),
+    expeditionPendingDrops: calcExpeditionDrops(monster.expeditionMinutes),
+    autoBattleReadyAt: readyAt(monster.lastAutoBattleAt, AUTO_BATTLE_COOLDOWN_MS),
     evolution: {
       ...evolution,
       next: evolution.nextSpeciesId ? speciesSummary(evolution.nextSpeciesId) : null,
@@ -220,6 +227,8 @@ export class MonsterService {
         payload: { ...event.payload, at: event.at.toISOString() },
       }))
     )
+
+    await recordQuestProgress(monster.ownerId, new Date(), events, etm)
 
     const evolvedTo = events
       .filter(event => event.type === EnumMonsterLogType.EVOLVE)

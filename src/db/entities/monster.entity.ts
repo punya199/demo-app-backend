@@ -112,6 +112,23 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'last_minigame_at', type: 'timestamp with time zone', nullable: true })
   lastMinigameAt: Date | null
 
+  // Set while on an expedition (see EXPEDITION_* in monster-rules.ts). `expedition_rate` is the
+  // coins/hour fixed at departure; `expedition_returned` = it came home and waits to be collected.
+  @Column({ name: 'expedition_area_id', type: 'varchar', nullable: true })
+  expeditionAreaId: string | null
+
+  @Column({ name: 'expedition_minutes', type: 'integer', default: 0 })
+  expeditionMinutes: number
+
+  @Column({ name: 'expedition_rate', type: 'real', default: 0 })
+  expeditionRate: number
+
+  @Column({ name: 'expedition_returned', type: 'boolean', default: false })
+  expeditionReturned: boolean
+
+  @Column({ name: 'last_auto_battle_at', type: 'timestamp with time zone', nullable: true })
+  lastAutoBattleAt: Date | null
+
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null
 

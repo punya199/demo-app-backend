@@ -13,6 +13,9 @@ export enum EnumWalletTransactionReason {
   BOSS_FIRST_CLEAR = 'boss_first_clear',
   DEX_DISCOVERY = 'dex_discovery',
   STAMINA_REFILL = 'stamina_refill',
+  DAILY_QUEST = 'daily_quest',
+  EXPEDITION_REWARD = 'expedition_reward',
+  AUTO_BATTLE_REWARD = 'auto_battle_reward',
 }
 
 @Entity({

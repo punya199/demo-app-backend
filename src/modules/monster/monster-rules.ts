@@ -86,3 +86,21 @@ export const PREMIUM_MEAT_WEIGHT_GAIN = 1
 export const PROTEIN_STRENGTH = 2
 export const PROTEIN_WEIGHT_GAIN = 1
 export const DIET_TEA_WEIGHT_LOSS = 5
+
+// Idle mode, offline: send the monster out on an expedition and collect when back. Minutes only
+// accrue while it is healthy; it heads home on its own when sick, starving or out of time.
+export const EXPEDITION_MAX_MINUTES = 8 * 60
+// Fullness/strength drain this much as fast while out exploring.
+export const EXPEDITION_DRAIN_MULTIPLIER = 0.5
+// One consumable drop per this many minutes explored.
+export const EXPEDITION_DROP_EVERY_MINUTES = 4 * 60
+// A monster stronger or weaker than the area's recommended form earns more or less, within bounds.
+export const EXPEDITION_POWER_MULTIPLIER_MIN = 0.5
+export const EXPEDITION_POWER_MULTIPLIER_MAX = 1.5
+
+// Idle mode, online: auto-battle repeats an already-cleared normal stage. Each fight is cheap in
+// stamina and pays a fraction of the stage reward, with a per-day coin cap against scripts.
+export const AUTO_BATTLE_COOLDOWN_MS = 60 * 1000
+export const AUTO_BATTLE_STAMINA_COST = 1
+export const AUTO_BATTLE_REWARD_RATIO = 0.2
+export const AUTO_BATTLE_DAILY_COIN_CAP = 1500

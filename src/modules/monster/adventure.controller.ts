@@ -17,6 +17,6 @@ export class AdventureController {
   @AuthUser()
   @Post('battle')
   async battle(@Body() body: AdventureBattleBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.adventureService.battle(user['user-id'], body.stageId)
+    return this.adventureService.battle(user['user-id'], body.stageId, body.auto ?? false)
   }
 }

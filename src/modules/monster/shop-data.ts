@@ -13,8 +13,8 @@ export interface IShopItem {
   price: number
 }
 
-// Phase 2a items are used the moment they are bought (no inventory yet), so their effects live
-// in applyShopItem() in monster-engine.ts.
+// Bought items wait in the inventory until used (POST /inventory/use); their effects live in
+// applyShopItem() in monster-engine.ts.
 export const SHOP_ITEMS: IShopItem[] = [
   {
     id: EnumShopItemId.PREMIUM_MEAT,

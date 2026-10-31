@@ -9,16 +9,23 @@ import {
   applyBattleOutcome,
   applyMinigame,
   applyShopItem,
+  assertAutoBattleReady,
   assertCanBattle,
+  claimExpedition,
   createEgg,
   EnumMonsterAction,
   getEvolutionProgress,
   IMonsterState,
   MonsterRuleError,
   refillStamina,
+  startExpedition,
   tick,
 } from './monster-engine'
 import {
+  AUTO_BATTLE_COOLDOWN_MS,
+  AUTO_BATTLE_STAMINA_COST,
+  EXPEDITION_DRAIN_MULTIPLIER,
+  EXPEDITION_MAX_MINUTES,
   LIFESPAN_MINUTES,
   MINIGAME_COOLDOWN_MS,
   STAGE_DURATION_MINUTES,
@@ -446,5 +453,71 @@ describe('applyShopItem', () => {
 
   it('rejects items on an egg', () => {
     expect(() => applyShopItem(egg(), EnumShopItemId.PROTEIN, NOW)).toThrow(MonsterRuleError)
+  })
+})
+
+describe('expedition', () => {
+  const away = (overrides: Partial<IMonsterState> = {}) =>
+    startExpedition(monster(overrides), 'meadow', 100, NOW).state
+
+  it('collects minutes while healthy and drains care at the reduced rate', () => {
+    const home = tick(monster(), minutesAfter(NOW, 60)).state
+    const out = tick(away(), minutesAfter(NOW, 60)).state
+    expect(out.expeditionMinutes).toBe(60)
+    expect(4 - out.fullness).toBeCloseTo((4 - home.fullness) * EXPEDITION_DRAIN_MULTIPLIER)
+  })
+
+  it('heads home on its own after the time limit and stops collecting', () => {
+    // A perfect-form monster has enough fullness for the whole trip; an adult only just does.
+    const { state, events } = tick(
+      away({ stage: EnumMonsterStage.PERFECT }),
+      minutesAfter(NOW, EXPEDITION_MAX_MINUTES + 60)
+    )
+    expect(state.expeditionMinutes).toBe(EXPEDITION_MAX_MINUTES)
+    expect(state.expeditionReturned).toBe(true)
+    expect(events.filter(event => event.payload.action === 'expedition_return')).toHaveLength(1)
+  })
+
+  it('heads home when it falls sick, keeping what it gathered', () => {
+    // 1 heart of fullness lasts 60 minutes as an adult, halved while exploring: empty at 120.
+    const { state } = tick(away({ fullness: 1 }), minutesAfter(NOW, 300))
+    expect(state.expeditionReturned).toBe(true)
+    expect(state.expeditionMinutes).toBeGreaterThan(100)
+    expect(state.expeditionMinutes).toBeLessThan(125)
+    // Feeding it afterwards does not send it back out.
+    const before = state.expeditionMinutes
+    expect(
+      tick(applyAction(state, EnumMonsterAction.FEED, NOW).state, minutesAfter(NOW, 400)).state
+        .expeditionMinutes
+    ).toBe(before)
+  })
+
+  it('blocks battles and a second trip, and refuses a sick monster', () => {
+    expect(() => assertCanBattle(away())).toThrow('on an expedition')
+    expect(() => startExpedition(away(), 'coast', 100, NOW)).toThrow('already on an expedition')
+    expect(() => startExpedition(monster({ isSick: true }), 'meadow', 100, NOW)).toThrow('unwell')
+    expect(() => startExpedition(monster({ fullness: 0 }), 'meadow', 100, NOW)).toThrow('unwell')
+  })
+
+  it('clears the trip when collected, and only works on a trip', () => {
+    const out = tick(away(), minutesAfter(NOW, 30)).state
+    const { state, events } = claimExpedition(out, { coins: 50, items: [] }, NOW)
+    expect(state.expeditionAreaId).toBeNull()
+    expect(state.expeditionMinutes).toBe(0)
+    expect(events[0].payload).toMatchObject({ action: 'expedition_claim', minutes: 30, coins: 50 })
+    expect(() => claimExpedition(monster(), { coins: 0, items: [] }, NOW)).toThrow(
+      'not on an expedition'
+    )
+  })
+})
+
+describe('auto-battle', () => {
+  it('costs less stamina and is rate-limited', () => {
+    const { state } = applyBattleOutcome(monster(), true, {}, NOW, true)
+    expect(state.stamina).toBe(100 - AUTO_BATTLE_STAMINA_COST)
+    expect(() => assertAutoBattleReady(state, minutesAfter(NOW, 0))).toThrow('not ready')
+    expect(() =>
+      assertAutoBattleReady(state, new Date(NOW.getTime() + AUTO_BATTLE_COOLDOWN_MS))
+    ).not.toThrow()
   })
 })
