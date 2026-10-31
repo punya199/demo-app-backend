@@ -14,6 +14,8 @@ import { InventoryController } from './inventory.controller'
 import { InventoryService } from './inventory.service'
 import { MonsterController } from './monster.controller'
 import { MonsterService } from './monster.service'
+import { WorldBossController } from './world-boss.controller'
+import { WorldBossService } from './world-boss.service'
 import { RaidController } from './raid.controller'
 import { RaidService } from './raid.service'
 import { PvpController } from './pvp.controller'
@@ -35,6 +37,7 @@ import { ShopService } from './shop.service'
     EquipmentController,
     PvpController,
     RaidController,
+    WorldBossController,
   ],
   providers: [
     MonsterService,
@@ -47,6 +50,7 @@ import { ShopService } from './shop.service'
     EnhanceService,
     PvpService,
     RaidService,
+    WorldBossService,
   ],
 })
 export class MonsterModule {}

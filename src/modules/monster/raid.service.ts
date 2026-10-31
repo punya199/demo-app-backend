@@ -24,6 +24,7 @@ import {
 } from './equipment.service'
 import { InventoryService } from './inventory.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
+import { countFightsToday } from './daily-fights'
 import { RAID_BOSS_TOKENS_PER_WIN, RAID_DAILY_ATTEMPTS } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import {
@@ -38,9 +39,7 @@ import {
   RAID_FIRST_CLEAR_MULTIPLIER,
   requiredDifficultyForGrade,
 } from './raid-data'
-import { getQuestResetAt } from './quest-data'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const SLOTS = Object.values(EnumEquipmentSlot)
 
 @Injectable()
@@ -52,19 +51,6 @@ export class RaidService {
     private readonly walletService: WalletService
   ) {}
 
-  // Raid fights today (Thai day), counted from the battle log across all of the user's monsters.
-  private async attemptsToday(userId: string, now: Date, etm: EntityManager) {
-    const since = new Date(getQuestResetAt(now).getTime() - DAY_MS)
-    const [row] = await etm.query<{ attempts: number }[]>(
-      `SELECT count(*)::int AS "attempts" FROM "monster_logs" l
-       JOIN "monsters" m ON m."id" = l."monster_id"
-       WHERE m."owner_id" = $1 AND l."type" = 'battle' AND l."payload"->>'mode' = 'raid'
-         AND l."created_at" >= $2 AND l."deleted_at" IS NULL`,
-      [userId, since]
-    )
-    return row.attempts
-  }
-
   private async loadProgress(userId: string, etm: EntityManager) {
     const rows = await etm.find(RaidProgressEntity, { where: { userId } })
     return new Map(rows.map(row => [`${row.bossId}:${row.difficulty}`, row]))
@@ -75,7 +61,7 @@ export class RaidService {
     const etm = this.dataSource.manager
     const [progress, attempts, inventory, monster] = await Promise.all([
       this.loadProgress(userId, etm),
-      this.attemptsToday(userId, now, etm),
+      countFightsToday(userId, 'raid', now, etm),
       this.inventoryService.getInventory(userId, etm),
       this.monsterService.getLatestAlive(userId, etm),
     ])
@@ -138,7 +124,7 @@ export class RaidService {
       if (previous && !progress.get(`${boss.id}:${previous.difficulty}`)?.clearCount) {
         throw new BadRequestException('Clear the previous difficulty first')
       }
-      const attempts = await this.attemptsToday(userId, now, etm)
+      const attempts = await countFightsToday(userId, 'raid', now, etm)
       if (attempts >= RAID_DAILY_ATTEMPTS) {
         throw new BadRequestException('Daily raid limit reached')
       }

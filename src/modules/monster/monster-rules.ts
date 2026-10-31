@@ -146,3 +146,8 @@ export const SET_PIECE_MAIN_MULTIPLIER = 1.2
 export const RAID_DAILY_ATTEMPTS = 3
 // Boss tokens a win pays (the boss's own token, spent to exchange for a piece of its set).
 export const RAID_BOSS_TOKENS_PER_WIN = 1
+
+// World Boss (phase 5b). The boss, rotation and reward tables are data in world-boss-data.ts.
+export const WORLD_BOSS_DAILY_HITS = 3
+// A hit lasts this many rounds (or until the team is wiped out).
+export const WORLD_BOSS_ROUNDS = 10

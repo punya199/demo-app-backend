@@ -32,6 +32,13 @@ import {
 } from './equipment-data'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
 import {
+  WORLD_BOSS_DEFEATED_BONUS,
+  WORLD_BOSS_KILLING_BLOW_GRADE,
+  WORLD_BOSS_PARTICIPATION_PER_HIT,
+  WORLD_BOSS_RANK_REWARDS,
+  WORLD_BOSS_ROTATION,
+} from './world-boss-data'
+import {
   RAID_BOSSES,
   RAID_DIFFICULTIES,
   RAID_EXCHANGE_COST,
@@ -144,6 +151,15 @@ export const buildWiki = () => ({
       pityMax: PITY_MAX,
       steps: ENHANCE_STEPS,
     },
+  },
+  worldBoss: {
+    dailyHits: rules.WORLD_BOSS_DAILY_HITS,
+    rounds: rules.WORLD_BOSS_ROUNDS,
+    bosses: WORLD_BOSS_ROTATION,
+    perHit: WORLD_BOSS_PARTICIPATION_PER_HIT,
+    defeatedBonus: WORLD_BOSS_DEFEATED_BONUS,
+    killingBlowGrade: WORLD_BOSS_KILLING_BLOW_GRADE,
+    rankRewards: WORLD_BOSS_RANK_REWARDS,
   },
   pvp: {
     stages: PVP_STAGES,

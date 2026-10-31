@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { createHash, randomInt } from 'crypto'
+import { randomInt } from 'crypto'
 import { isUUID } from 'class-validator'
 import { DataSource, EntityManager, In, MoreThanOrEqual } from 'typeorm'
 import { PvpBattleEntity } from '../../db/entities/pvp-battle.entity'
@@ -12,6 +12,7 @@ import {
 import { WalletService } from '../wallet/wallet.service'
 import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
+import { defaultDisplayName } from './display-name'
 import { calcElo, START_RATING } from './elo'
 import { loadEquipmentBonus } from './equipment.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
@@ -39,11 +40,6 @@ interface IPvpCandidateFull extends IPvpCandidate {
   displayName: string
   fighter: IFighter
 }
-
-// Names other players see: a user-chosen arena name, or a short tag from a hash of the user id.
-// The username is never shown (PDPA).
-const defaultDisplayName = (userId: string) =>
-  `ผู้ฝึก#${createHash('sha256').update(userId).digest('hex').slice(0, 4)}`
 
 const toOpponentView = (candidate: IPvpCandidateFull) => ({
   id: candidate.id,

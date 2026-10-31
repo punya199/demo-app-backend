@@ -88,6 +88,35 @@ export const BURN_DAMAGE_ATK_RATIO = 0.25
 
 const opposite = (side: BattleSide): BattleSide => (side === 'player' ? 'enemy' : 'player')
 
+export interface IHitRoll {
+  damage: number
+  isCritical: boolean
+  effectiveness: Effectiveness
+}
+
+// One hit's damage: rolls (in this fixed order) crit then variance. Shared by the 1-vs-1 engine and
+// the team engine so both always deal damage the same way.
+export const rollHit = (
+  attacker: IFighter,
+  defender: IFighter,
+  isSkill: boolean,
+  rng: () => number,
+  ignoreElements = false
+): IHitRoll => {
+  const effectiveness = ignoreElements
+    ? 'normal'
+    : getEffectiveness(attacker.element, defender.element)
+  const isCritical = rng() < CRITICAL_CHANCE
+  const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
+  const raw =
+    attacker.stats.atk *
+      (isSkill ? attacker.skill.power : 1) *
+      effectivenessMultiplier[effectiveness] -
+    defender.stats.def * DEFENSE_FACTOR
+  const damage = Math.max(1, Math.round(raw * variance * (isCritical ? CRITICAL_MULTIPLIER : 1)))
+  return { damage, isCritical, effectiveness }
+}
+
 export interface IBattleOptions {
   // Fights where the element triangle must not decide the outcome (Boss Raid: every line has to be
   // able to beat every boss). Off by default, so existing fights replay unchanged.
@@ -121,18 +150,13 @@ export const simulateBattle = (
     const target = opposite(actor)
     const attacker = fighters[actor]
     const defender = fighters[target]
-    const effectiveness = options.ignoreElements
-      ? 'normal'
-      : getEffectiveness(attacker.element, defender.element)
-    const isCritical = rng() < CRITICAL_CHANCE
-    const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
-
-    const raw =
-      attacker.stats.atk *
-        (isSkill ? attacker.skill.power : 1) *
-        effectivenessMultiplier[effectiveness] -
-      defender.stats.def * DEFENSE_FACTOR
-    const damage = Math.max(1, Math.round(raw * variance * (isCritical ? CRITICAL_MULTIPLIER : 1)))
+    const { damage, isCritical, effectiveness } = rollHit(
+      attacker,
+      defender,
+      isSkill,
+      rng,
+      options.ignoreElements
+    )
     const absorbed = Math.min(shield[target], damage)
     shield[target] -= absorbed
     hp[target] = Math.max(0, hp[target] - (damage - absorbed))
