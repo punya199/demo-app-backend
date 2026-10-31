@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { createHash, randomInt } from 'crypto'
+import { randomInt } from 'crypto'
 import { isUUID } from 'class-validator'
 import { DataSource, EntityManager, In, MoreThanOrEqual } from 'typeorm'
 import { PvpBattleEntity } from '../../db/entities/pvp-battle.entity'
@@ -10,8 +10,10 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
+import { ProfileService } from './profile.service'
 import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
+import { defaultDisplayName } from './display-name'
 import { calcElo, START_RATING } from './elo'
 import { loadEquipmentBonus } from './equipment.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
@@ -40,11 +42,6 @@ interface IPvpCandidateFull extends IPvpCandidate {
   fighter: IFighter
 }
 
-// Names other players see: a user-chosen arena name, or a short tag from a hash of the user id.
-// The username is never shown (PDPA).
-const defaultDisplayName = (userId: string) =>
-  `ผู้ฝึก#${createHash('sha256').update(userId).digest('hex').slice(0, 4)}`
-
 const toOpponentView = (candidate: IPvpCandidateFull) => ({
   id: candidate.id,
   displayName: candidate.displayName,
@@ -63,7 +60,8 @@ export class PvpService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly monsterService: MonsterService,
-    private readonly walletService: WalletService
+    private readonly walletService: WalletService,
+    private readonly profileService: ProfileService
   ) {}
 
   // Rating a user starts a season with: soft reset of their latest earlier season, else the start.
@@ -156,7 +154,7 @@ export class PvpService {
       attemptsLeft: Math.max(0, PVP_DAILY_ATTEMPTS - attempts),
       defense: defense
         ? {
-            displayName: defense.displayName,
+            displayName: (await this.profileService.ensureProfile(userId, etm)).displayName,
             fighter: defense.fighter as unknown as IFighter,
             stage: defense.stage,
             setAt: defense.setAt,
@@ -185,14 +183,19 @@ export class PvpService {
         { ...monster, stamina: MAX_STAMINA },
         await loadEquipmentBonus(userId, etm)
       )
-      const name = displayName?.trim() || existing?.displayName || defaultDisplayName(userId)
+      // The arena name is the player's profile name, shared with friends and the boss ranking.
+      if (displayName?.trim()) {
+        await this.profileService.setDisplayName(userId, displayName, etm)
+      } else {
+        await this.profileService.ensureProfile(userId, etm)
+      }
       await etm.query(
-        `INSERT INTO "pvp_defenses" ("user_id", "display_name", "fighter", "stage", "species_id", "set_at")
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO "pvp_defenses" ("user_id", "fighter", "stage", "species_id", "set_at")
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT ("user_id") WHERE deleted_at IS NULL
-         DO UPDATE SET "display_name" = $2, "fighter" = $3, "stage" = $4, "species_id" = $5,
-                       "set_at" = $6, "updated_at" = now()`,
-        [userId, name, JSON.stringify(fighter), monster.stage, monster.speciesId, now]
+         DO UPDATE SET "fighter" = $2, "stage" = $3, "species_id" = $4,
+                       "set_at" = $5, "updated_at" = now()`,
+        [userId, JSON.stringify(fighter), monster.stage, monster.speciesId, now]
       )
       // Joining the ladder: defenders show up in the standings even before their first fight.
       await this.ensureRating(userId, season, etm)
@@ -209,11 +212,18 @@ export class PvpService {
     etm: EntityManager
   ): Promise<IPvpCandidateFull[]> {
     const rows = await etm.query<
-      { id: string; user_id: string; display_name: string; fighter: IFighter; rating: number }[]
+      {
+        id: string
+        user_id: string
+        display_name: string | null
+        fighter: IFighter
+        rating: number
+      }[]
     >(
-      `SELECT d."id", d."user_id", d."display_name", d."fighter",
+      `SELECT d."id", d."user_id", pr."display_name", d."fighter",
               COALESCE(r."rating", ROUND($4::int + (COALESCE(p."rating", $4::int) - $4::int) * $5::numeric)::int) AS "rating"
        FROM "pvp_defenses" d
+       LEFT JOIN "player_profiles" pr ON pr."user_id" = d."user_id" AND pr."deleted_at" IS NULL
        LEFT JOIN "pvp_ratings" r
          ON r."user_id" = d."user_id" AND r."season" = $3 AND r."deleted_at" IS NULL
        LEFT JOIN LATERAL (
@@ -227,7 +237,7 @@ export class PvpService {
     const real = rows.map(row => ({
       id: row.id,
       userId: row.user_id,
-      displayName: row.display_name,
+      displayName: row.display_name ?? defaultDisplayName(row.user_id),
       fighter: row.fighter,
       rating: row.rating,
       isNpc: false,
@@ -327,6 +337,10 @@ export class PvpService {
         throw new BadRequestException('Opponent is not available')
       }
 
+      const names = await this.profileService.getNames(
+        defense ? [userId, defense.userId] : [userId],
+        etm
+      )
       const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
       const enemy = npc ? npc.fighter : (defense!.fighter as unknown as IFighter)
       const seed = randomInt(0, 2 ** 31)
@@ -365,8 +379,8 @@ export class PvpService {
         attackerId: userId,
         defenderId: defense?.userId ?? null,
         opponentId,
-        attackerName: myDefense.displayName,
-        defenderName: defense?.displayName ?? npc!.fighter.name,
+        attackerName: names.get(userId)!,
+        defenderName: defense ? names.get(defense.userId)! : npc!.fighter.name,
         seed,
         attacker: player as unknown as Record<string, unknown>,
         defender: enemy as unknown as Record<string, unknown>,
@@ -455,6 +469,7 @@ export class PvpService {
         rating: number
         wins: number
         losses: number
+        user_id: string
         display_name: string | null
         emoji: string | null
         name: string | null
@@ -463,10 +478,11 @@ export class PvpService {
     >(
       `SELECT * FROM (
          SELECT RANK() OVER (ORDER BY r."rating" DESC)::int AS "rank", r."rating", r."wins", r."losses",
-                d."display_name", d."fighter"->>'emoji' AS "emoji", d."fighter"->>'name' AS "name",
-                (r."user_id" = $2) AS "is_me"
+                r."user_id", pr."display_name", d."fighter"->>'emoji' AS "emoji",
+                d."fighter"->>'name' AS "name", (r."user_id" = $2) AS "is_me"
          FROM "pvp_ratings" r
          LEFT JOIN "pvp_defenses" d ON d."user_id" = r."user_id" AND d."deleted_at" IS NULL
+         LEFT JOIN "player_profiles" pr ON pr."user_id" = r."user_id" AND pr."deleted_at" IS NULL
          WHERE r."season" = $1 AND ("r"."wins" + r."losses") > 0 AND r."deleted_at" IS NULL
        ) ranked
        ORDER BY "rank", "wins" DESC
@@ -477,7 +493,8 @@ export class PvpService {
       season,
       entries: rows.map(row => ({
         rank: row.rank,
-        displayName: row.display_name ?? 'ผู้ฝึกนิรนาม',
+        // The id is only used here to build a default name; it is never sent out.
+        displayName: row.display_name ?? defaultDisplayName(row.user_id),
         emoji: row.emoji,
         name: row.name,
         rating: row.rating,

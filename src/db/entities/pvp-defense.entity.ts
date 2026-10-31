@@ -3,7 +3,7 @@ import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
 // A user's arena defense: a frozen copy of their monster's fight stats (gear included, stamina
-// full). `display_name` is what other players see - never the username (PDPA).
+// full). The name other players see is the player's profile name - never the username (PDPA).
 @Entity({
   name: 'pvp_defenses',
 })
@@ -17,9 +17,6 @@ import { UserEntity } from './user.entity'
 export class PvpDefenseEntity extends BaseModelEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string
-
-  @Column({ name: 'display_name', type: 'varchar' })
-  displayName: string
 
   // IFighter from battle-stats.ts
   @Column({ name: 'fighter', type: 'jsonb' })

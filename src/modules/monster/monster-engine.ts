@@ -528,7 +528,7 @@ export const applyPvpOutcome = (
   won: boolean,
   payload: Record<string, unknown>,
   now: Date,
-  mode: 'pvp' | 'raid' = 'pvp'
+  mode: 'pvp' | 'raid' | 'world_boss' = 'pvp'
 ): IMonsterStepResult => {
   assertCanBattle(current)
   const state = { ...current }

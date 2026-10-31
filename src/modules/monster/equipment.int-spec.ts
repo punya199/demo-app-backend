@@ -108,6 +108,11 @@ describe('equipment and enhancing', () => {
   })
 
   it('soft-deletes a piece that breaks', async () => {
+    // Plenty of coins and stones, so running dry can't end the loop before a break happens.
+    await give(userId, 1_000_000, 50)
+    await dataSource.transaction(etm =>
+      inventory.add(userId, EnumMaterialId.ENHANCE_STONE, etm, 2000)
+    )
     let broke = false
     for (let attempt = 0; attempt < 400 && !broke; attempt++) {
       await sql(`UPDATE equipment_items SET enhance_level=14 WHERE id=$1 AND deleted_at IS NULL`, [
