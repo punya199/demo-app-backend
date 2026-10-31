@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/punya199/demo-app-backend/compare/v1.14.0...v1.15.0) (2026-10-31)
+
+
+### New
+
+* add monster inventory, daily quests and idle modes (phase 2b/2c) ([f960d6a](https://github.com/punya199/demo-app-backend/commit/f960d6a6da626d7ac9ff6b073d9ff518cb39bbdf))
+
 # [1.14.0](https://github.com/punya199/demo-app-backend/compare/v1.13.0...v1.14.0) (2026-10-30)
 
 
