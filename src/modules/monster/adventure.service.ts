@@ -16,9 +16,11 @@ import {
 } from './adventure-data'
 import { simulateBattle } from './battle-engine'
 import { toFighter } from './battle-stats'
+import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
+import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
 import { calcAutoBattleReward } from './idle-data'
 import { applyBattleOutcome, assertAutoBattleReady, assertCanBattle } from './monster-engine'
-import { AUTO_BATTLE_DAILY_COIN_CAP } from './monster-rules'
+import { AUTO_BATTLE_DAILY_COIN_CAP, EQUIPMENT_DROP_CHANCE_BP } from './monster-rules'
 import { getQuestResetAt } from './quest-data'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 
@@ -99,7 +101,7 @@ export class AdventureService {
         }
       }
 
-      const player = toFighter(monster)
+      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
       const enemy = entry.stage.enemy
       const seed = randomInt(0, 2 ** 31)
       const result = simulateBattle(player, enemy, seed)
@@ -163,6 +165,21 @@ export class AdventureService {
         }
       }
 
+      // Manual wins may drop a piece for the area's grades; auto-battle never does.
+      let drop: ReturnType<typeof toEquipmentView> | null = null
+      let dropBagFull = false
+      const rates = DROP_GRADE_RATES_BY_AREA[entry.area.id]
+      if (result.won && !isAuto && rates && randomInt(0, 10_000) < EQUIPMENT_DROP_CHANCE_BP) {
+        const row = await grantEquipment(
+          userId,
+          rollGrade(rates, randomInt(0, 1_000_000) / 1_000_000),
+          `battle:${stageId}`,
+          etm
+        )
+        drop = row ? toEquipmentView(row) : null
+        dropBagFull = !row
+      }
+
       return {
         monster: toMonsterView(saved),
         battle: {
@@ -175,6 +192,8 @@ export class AdventureService {
           reward,
           gemReward,
           isFirstClear,
+          drop,
+          dropBagFull,
         },
         wallet,
       }

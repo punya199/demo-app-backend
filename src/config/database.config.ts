@@ -6,6 +6,9 @@ import { HouseRentEntity } from '../db/entities/house-rent'
 import { HouseRentDetailEntity } from '../db/entities/house-rent-detail.entity'
 import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
+import { EnhanceLogEntity } from '../db/entities/enhance-log.entity'
+import { EquipmentItemEntity } from '../db/entities/equipment-item.entity'
+import { EquipmentLogEntity } from '../db/entities/equipment-log.entity'
 import { DailyQuestProgressEntity } from '../db/entities/daily-quest-progress.entity'
 import { InventoryItemEntity } from '../db/entities/inventory-item.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
@@ -45,6 +48,9 @@ export const entities = [
   WalletTransactionEntity,
   InventoryItemEntity,
   DailyQuestProgressEntity,
+  EquipmentItemEntity,
+  EquipmentLogEntity,
+  EnhanceLogEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

@@ -104,3 +104,15 @@ export const AUTO_BATTLE_COOLDOWN_MS = 60 * 1000
 export const AUTO_BATTLE_STAMINA_COST = 1
 export const AUTO_BATTLE_REWARD_RATIO = 0.2
 export const AUTO_BATTLE_DAILY_COIN_CAP = 1500
+
+// Equipment (phase 3). Slot/grade data lives in equipment-data.ts, the enhance table in
+// enhance-engine.ts.
+export const EQUIPMENT_CAPACITY = 50
+export const EQUIPMENT_BOX_PRICE = 120
+// Chance (out of 10,000) that a manual adventure win drops a piece; auto-battle and expeditions never do.
+export const EQUIPMENT_DROP_CHANCE_BP = 800
+// Shop materials.
+export const ENHANCE_STONE_PRICE = 40
+export const PROTECT_SCROLL_GEM_PRICE = 5
+// Expeditions bring home one enhance stone per this many minutes explored.
+export const EXPEDITION_STONE_EVERY_MINUTES = 60

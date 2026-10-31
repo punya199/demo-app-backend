@@ -17,6 +17,20 @@ import {
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
 import * as rules from './monster-rules'
+import {
+  BOX_GRADE_RATES,
+  DISMANTLE_STONES,
+  DROP_GRADE_RATES_BY_AREA,
+  ENHANCE_BONUS_PER_LEVEL,
+  ENHANCE_MILESTONE_BONUS,
+  ENHANCE_MILESTONE_EVERY,
+  GRADE_MULTIPLIER,
+  MATERIALS,
+  SET_DEFINITIONS,
+  SLOT_MAIN_STAT,
+  SUB_STAT_COUNT,
+} from './equipment-data'
+import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
@@ -99,6 +113,29 @@ export const buildWiki = () => ({
     autoBattleCooldownSeconds: rules.AUTO_BATTLE_COOLDOWN_MS / 1000,
     autoBattleStaminaCost: rules.AUTO_BATTLE_STAMINA_COST,
     autoBattleDailyCoinCap: rules.AUTO_BATTLE_DAILY_COIN_CAP,
+  },
+  equipment: {
+    capacity: rules.EQUIPMENT_CAPACITY,
+    slots: SLOT_MAIN_STAT,
+    gradeMultiplier: GRADE_MULTIPLIER,
+    subStatCount: SUB_STAT_COUNT,
+    boxPrice: rules.EQUIPMENT_BOX_PRICE,
+    boxGradeRates: BOX_GRADE_RATES,
+    dropChancePercent: rules.EQUIPMENT_DROP_CHANCE_BP / 100,
+    dropGradeRatesByArea: DROP_GRADE_RATES_BY_AREA,
+    dismantleStones: DISMANTLE_STONES,
+    materials: MATERIALS,
+    expeditionStoneEveryMinutes: rules.EXPEDITION_STONE_EVERY_MINUTES,
+    sets: SET_DEFINITIONS,
+    enhance: {
+      maxLevel: MAX_ENHANCE_LEVEL,
+      bonusPerLevel: ENHANCE_BONUS_PER_LEVEL,
+      milestoneBonus: ENHANCE_MILESTONE_BONUS,
+      milestoneEvery: ENHANCE_MILESTONE_EVERY,
+      pityPerFail: PITY_PER_FAIL,
+      pityMax: PITY_MAX,
+      steps: ENHANCE_STEPS,
+    },
   },
   economy: {
     shopItems: SHOP_ITEMS,

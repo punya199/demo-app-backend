@@ -191,6 +191,16 @@ export class MonsterService {
     }
   }
 
+  // The owner's latest monster if it is hatched and alive, without locking or ticking: for
+  // read-only displays such as the equipment screen's stat totals.
+  async getLatestAlive(userId: string, etm: EntityManager) {
+    const monster = await etm.findOne(MonsterEntity, {
+      where: { ownerId: userId },
+      order: { bornAt: 'DESC' },
+    })
+    return monster && !monster.diedAt && monster.stage !== EnumMonsterStage.EGG ? monster : null
+  }
+
   // Loads the owner's most recent monster with a row lock and catches it up to `now`, so every
   // caller in the same transaction sees (and can act on) the current state.
   async lockAndTickLatest(userId: string, now: Date, etm: EntityManager) {

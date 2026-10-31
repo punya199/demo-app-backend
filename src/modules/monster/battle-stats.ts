@@ -1,4 +1,5 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
+import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from './equipment-data'
 import { IMonsterState } from './monster-engine'
 import { MAX_HEARTS, NO_STAMINA_STAT_MULTIPLIER } from './monster-rules'
 import { getSpecies, IBattleStats, ISkill } from './species-data'
@@ -20,7 +21,14 @@ export interface IFighter {
 
 const hearts = (value: number) => Math.min(MAX_HEARTS, Math.ceil(Math.round(value * 1000) / 1000))
 
-export const toFighter = (state: IMonsterState): IFighter => {
+const withEquipment = (value: number, key: keyof IBattleStats, equipment: IEquipmentBonus) =>
+  (value + equipment.flat[key]) * (1 + equipment.pct[key])
+
+// Equipment adds flat stats first, then set bonuses scale the total.
+export const toFighter = (
+  state: IMonsterState,
+  equipment: IEquipmentBonus = NO_EQUIPMENT_BONUS
+): IFighter => {
   const species = getSpecies(state.speciesId)
   if (species.stage === EnumMonsterStage.EGG) {
     throw new Error('An egg cannot fight')
@@ -43,10 +51,10 @@ export const toFighter = (state: IMonsterState): IFighter => {
     emoji: species.emoji,
     element: species.line,
     stats: {
-      hp: Math.round(species.stats.hp * exhausted),
-      atk: Math.round(atk * exhausted),
-      def: Math.round(species.stats.def * exhausted),
-      spd: Math.round(spd * exhausted),
+      hp: Math.round(withEquipment(species.stats.hp, 'hp', equipment) * exhausted),
+      atk: Math.round(withEquipment(atk, 'atk', equipment) * exhausted),
+      def: Math.round(withEquipment(species.stats.def, 'def', equipment) * exhausted),
+      spd: Math.round(withEquipment(spd, 'spd', equipment) * exhausted),
     },
     skill: species.skill,
   }

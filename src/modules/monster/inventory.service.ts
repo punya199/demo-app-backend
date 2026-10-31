@@ -22,13 +22,28 @@ export class InventoryService {
   }
 
   // Atomic increment: concurrent purchases of the same item can't lose a count.
-  async add(userId: string, itemId: string, etm: EntityManager) {
+  async add(userId: string, itemId: string, etm: EntityManager, quantity = 1) {
     await etm.query(
-      `INSERT INTO "inventory_items" ("user_id", "item_id", "quantity") VALUES ($1, $2, 1)
+      `INSERT INTO "inventory_items" ("user_id", "item_id", "quantity") VALUES ($1, $2, $3)
        ON CONFLICT ("user_id", "item_id") WHERE deleted_at IS NULL
-       DO UPDATE SET "quantity" = "inventory_items"."quantity" + 1, "updated_at" = now()`,
-      [userId, itemId]
+       DO UPDATE SET "quantity" = "inventory_items"."quantity" + $3, "updated_at" = now()`,
+      [userId, itemId, quantity]
     )
+  }
+
+  // Takes `quantity` out of the bag in one conditional UPDATE; false when there isn't enough.
+  async spend(userId: string, itemId: string, quantity: number, etm: EntityManager) {
+    const taken = await etm
+      .createQueryBuilder()
+      .update(InventoryItemEntity)
+      .set({ quantity: () => `quantity - ${Math.trunc(quantity)}` })
+      .where('user_id = :userId AND item_id = :itemId AND quantity >= :quantity', {
+        userId,
+        itemId,
+        quantity,
+      })
+      .execute()
+    return !!taken.affected
   }
 
   async use(userId: string, itemId: EnumShopItemId) {
@@ -42,13 +57,7 @@ export class InventoryService {
 
       // Check the item works on this monster before taking it out of the bag.
       const result = withRuleErrors(() => applyShopItem(monster, itemId, now))
-      const taken = await etm
-        .createQueryBuilder()
-        .update(InventoryItemEntity)
-        .set({ quantity: () => 'quantity - 1' })
-        .where('user_id = :userId AND item_id = :itemId AND quantity > 0', { userId, itemId })
-        .execute()
-      if (!taken.affected) {
+      if (!(await this.spend(userId, itemId, 1, etm))) {
         throw new BadRequestException('You do not have this item')
       }
 
