@@ -3,6 +3,7 @@ import {
   AUTO_BATTLE_REWARD_RATIO,
   EXPEDITION_DROP_EVERY_MINUTES,
   EXPEDITION_POWER_MULTIPLIER_MAX,
+  EXPEDITION_STONE_EVERY_MINUTES,
   EXPEDITION_POWER_MULTIPLIER_MIN,
 } from './monster-rules'
 import { EnumShopItemId } from './shop-data'
@@ -40,6 +41,9 @@ export const getExpeditionBaseRate = (areaId: string) => EXPEDITION_COINS_PER_HO
 
 export const calcExpeditionCoins = (minutes: number, ratePerHour: number) =>
   Math.floor((minutes * ratePerHour) / 60)
+
+export const calcExpeditionStones = (minutes: number) =>
+  Math.floor(minutes / EXPEDITION_STONE_EVERY_MINUTES)
 
 export const calcExpeditionDrops = (minutes: number) =>
   Math.floor(minutes / EXPEDITION_DROP_EVERY_MINUTES)

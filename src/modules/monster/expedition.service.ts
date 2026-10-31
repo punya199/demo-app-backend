@@ -10,9 +10,12 @@ import {
 import { WalletService } from '../wallet/wallet.service'
 import { ADVENTURE_AREAS, isStageUnlocked } from './adventure-data'
 import { toFighter } from './battle-stats'
+import { EnumMaterialId } from './equipment-data'
+import { loadEquipmentBonus } from './equipment.service'
 import {
   calcExpeditionCoins,
   calcExpeditionDrops,
+  calcExpeditionStones,
   EXPEDITION_DROP_ITEMS,
   findExpeditionArea,
   getExpeditionBaseRate,
@@ -48,7 +51,7 @@ export class ExpeditionService {
       const unlocked = new Set(await this.getUnlockedAreaIds(userId, etm))
       const stats =
         monster && !monster.diedAt && monster.stage !== EnumMonsterStage.EGG
-          ? toFighter(monster).stats
+          ? toFighter(monster, await loadEquipmentBonus(userId, etm)).stats
           : null
       return {
         maxMinutes: EXPEDITION_MAX_MINUTES,
@@ -81,8 +84,14 @@ export class ExpeditionService {
         throw new BadRequestException('Area is locked')
       }
 
+      const equipment = await loadEquipmentBonus(userId, etm)
       const result = withRuleErrors(() =>
-        startExpedition(monster, areaId, getExpeditionRate(area, toFighter(monster).stats), now)
+        startExpedition(
+          monster,
+          areaId,
+          getExpeditionRate(area, toFighter(monster, equipment).stats),
+          now
+        )
       )
       const saved = await this.monsterService.saveState(monster, result.state, etm)
       await this.monsterService.saveEvents(saved, result.events, etm)
@@ -104,6 +113,12 @@ export class ExpeditionService {
       const items = Array.from({ length: calcExpeditionDrops(monster.expeditionMinutes) }, () => {
         return EXPEDITION_DROP_ITEMS[randomInt(0, EXPEDITION_DROP_ITEMS.length)] as string
       })
+      // Enhance stones are a steady yield; the consumable drops above are the lucky extras.
+      items.push(
+        ...Array<string>(calcExpeditionStones(monster.expeditionMinutes)).fill(
+          EnumMaterialId.ENHANCE_STONE
+        )
+      )
       const result = withRuleErrors(() => claimExpedition(monster, { coins, items }, now))
       const saved = await this.monsterService.saveState(monster, result.state, etm)
       await this.monsterService.saveEvents(saved, result.events, etm)
@@ -119,8 +134,12 @@ export class ExpeditionService {
           etm
         )
       }
+      const counts = new Map<string, number>()
       for (const itemId of items) {
-        await this.inventoryService.add(userId, itemId, etm)
+        counts.set(itemId, (counts.get(itemId) ?? 0) + 1)
+      }
+      for (const [itemId, quantity] of counts) {
+        await this.inventoryService.add(userId, itemId, etm, quantity)
       }
       return {
         monster: toMonsterView(saved),

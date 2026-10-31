@@ -58,3 +58,25 @@ describe('toFighter', () => {
     expect(() => toFighter(createEgg(EnumMonsterLine.TIDE, NOW))).toThrow()
   })
 })
+
+describe('toFighter with equipment', () => {
+  const bonus = {
+    flat: { hp: 10, atk: 3, def: 2, spd: 1 },
+    pct: { hp: 0, atk: 0.1, def: 0, spd: 0 },
+  }
+
+  it('adds flat stats, then scales by set percentages', () => {
+    const base = toFighter(monster({ strength: 0 })).stats
+    const geared = toFighter(monster({ strength: 0 }), bonus).stats
+    expect(geared.hp).toBe(Math.round(species.stats.hp + 10))
+    expect(geared.atk).toBe(Math.round((species.stats.atk + 3) * 1.1))
+    expect(geared.def).toBe(base.def + 2)
+    expect(geared.spd).toBe(base.spd + 1)
+  })
+
+  it('still halves the whole total when out of stamina', () => {
+    const rested = toFighter(monster({ strength: 0 }), bonus).stats
+    const exhausted = toFighter(monster({ strength: 0, stamina: 0 }), bonus).stats
+    expect(exhausted.hp).toBe(Math.round(rested.hp * 0.5))
+  })
+})

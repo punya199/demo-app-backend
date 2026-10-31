@@ -16,6 +16,8 @@ export enum EnumWalletTransactionReason {
   DAILY_QUEST = 'daily_quest',
   EXPEDITION_REWARD = 'expedition_reward',
   AUTO_BATTLE_REWARD = 'auto_battle_reward',
+  EQUIPMENT_BOX = 'equipment_box',
+  ENHANCE = 'enhance',
 }
 
 @Entity({

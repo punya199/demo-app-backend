@@ -5,6 +5,9 @@ import { MonsterLogEntity } from '../../db/entities/monster-log.entity'
 import { WalletModule } from '../wallet/wallet.module'
 import { AdventureController } from './adventure.controller'
 import { AdventureService } from './adventure.service'
+import { EnhanceService } from './enhance.service'
+import { EquipmentController } from './equipment.controller'
+import { EquipmentService } from './equipment.service'
 import { ExpeditionController } from './expedition.controller'
 import { ExpeditionService } from './expedition.service'
 import { InventoryController } from './inventory.controller'
@@ -25,6 +28,7 @@ import { ShopService } from './shop.service'
     InventoryController,
     QuestController,
     ExpeditionController,
+    EquipmentController,
   ],
   providers: [
     MonsterService,
@@ -33,6 +37,8 @@ import { ShopService } from './shop.service'
     InventoryService,
     QuestService,
     ExpeditionService,
+    EquipmentService,
+    EnhanceService,
   ],
 })
 export class MonsterModule {}

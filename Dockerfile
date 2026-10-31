@@ -1,4 +1,4 @@
-FROM node:22.19.0-alpine3.21 AS builder
+FROM node:22.23.4-alpine3.23 AS builder
 
 ARG APP_VERSION
 ENV APP_VERSION=${APP_VERSION}
@@ -24,7 +24,7 @@ RUN yarn build
 # Use the node user from the image (instead of the root user)
 USER node
 
-FROM node:22.19.0-alpine3.21 AS runner
+FROM node:22.23.4-alpine3.23 AS runner
 
 ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
