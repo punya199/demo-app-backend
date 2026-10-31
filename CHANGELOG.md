@@ -1,3 +1,11 @@
+# [1.18.0](https://github.com/punya199/demo-app-backend/compare/v1.17.0...v1.18.0) (2026-10-31)
+
+
+### New
+
+* add boss sets with battle effects and solo Boss Raid (phase 5a) ([353479b](https://github.com/punya199/demo-app-backend/commit/353479bfc908e288426706638630e0e0a7d07b43))
+* add integration specs for monster economy, equipment and PvP ([cc60cac](https://github.com/punya199/demo-app-backend/commit/cc60cac73cd0c088b97856d10b43b15ddd00bc85))
+
 # [1.17.0](https://github.com/punya199/demo-app-backend/compare/v1.16.0...v1.17.0) (2026-10-31)
 
 
