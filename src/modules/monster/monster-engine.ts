@@ -35,8 +35,8 @@ import {
   SICK_AFTER_HUNGRY_MINUTES,
   STAGE_DURATION_MINUTES,
   STAGE_RATES,
-  STAMINA_DRAIN_FULL_MINUTES_OFFLINE,
-  STAMINA_DRAIN_FULL_MINUTES_ONLINE,
+  STAMINA_RECOVERY_ONLINE_MULTIPLIER,
+  STAMINA_RECOVERY_PER_MINUTE,
   TRAIN_COOLDOWN_MS,
   TRAIN_WEIGHT_LOSS,
   VITAMIN_WEIGHT_GAIN,
@@ -251,11 +251,11 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
   const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
   state.fullness = Math.max(0, state.fullness - careDrain / rates.fullnessMinutes)
   state.strength = Math.max(0, state.strength - careDrain / rates.strengthMinutes)
-  state.stamina = Math.max(
-    0,
-    state.stamina -
-      MAX_STAMINA /
-        (isOnline ? STAMINA_DRAIN_FULL_MINUTES_ONLINE : STAMINA_DRAIN_FULL_MINUTES_OFFLINE)
+  // Also while exploring: the monster rests between fights wherever it is.
+  state.stamina = Math.min(
+    MAX_STAMINA,
+    state.stamina +
+      STAMINA_RECOVERY_PER_MINUTE * (isOnline ? STAMINA_RECOVERY_ONLINE_MULTIPLIER : 1)
   )
 
   // Nothing piles up at home while the monster is away.
@@ -516,6 +516,27 @@ export const applyMinigame = (
     state,
     events: [
       { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'minigame', hits, reward } },
+    ],
+  }
+}
+
+// An arena fight costs what a normal one does but does not touch `wins`/`losses`: those feed the
+// evolution rules, which are meant to be earned in the adventure. Ratings are tracked apart.
+export const applyPvpOutcome = (
+  current: IMonsterState,
+  won: boolean,
+  payload: Record<string, unknown>,
+  now: Date
+): IMonsterStepResult => {
+  assertCanBattle(current)
+  const state = { ...current }
+  const species = getSpecies(state.speciesId)
+  state.stamina = Math.max(0, state.stamina - BATTLE_STAMINA_COST)
+  state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
+  return {
+    state,
+    events: [
+      { type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won, mode: 'pvp' } },
     ],
   }
 }

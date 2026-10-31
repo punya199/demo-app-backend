@@ -54,10 +54,13 @@ export const LIFESPAN_MINUTES = 5 * 24 * 60
 export const ONLINE_GRACE_MINUTES = 2
 export const ONLINE_EVOLUTION_MULTIPLIER = 2
 
-// Stamina: 0-100, drains over time (half as fast online). At 0 every battle stat is halved.
+// Stamina: 0-100, recovers over time (twice as fast online). At 0 every battle stat is halved.
 export const MAX_STAMINA = 100
-export const STAMINA_DRAIN_FULL_MINUTES_OFFLINE = 12 * 60
-export const STAMINA_DRAIN_FULL_MINUTES_ONLINE = 24 * 60
+// Stamina recovers by itself every minute (no passive drain): 0.5/min with the game closed (full in
+// 3h20), x2 while it is open. A battle costs 10, so one fight is back in 20 offline minutes, and
+// auto-battle (1 stamina per minute) can run indefinitely online.
+export const STAMINA_RECOVERY_PER_MINUTE = 0.5
+export const STAMINA_RECOVERY_ONLINE_MULTIPLIER = 2
 export const BATTLE_STAMINA_COST = 10
 export const NO_STAMINA_STAT_MULTIPLIER = 0.5
 
@@ -116,3 +119,19 @@ export const ENHANCE_STONE_PRICE = 40
 export const PROTECT_SCROLL_GEM_PRICE = 5
 // Expeditions bring home one enhance stone per this many minutes explored.
 export const EXPEDITION_STONE_EVERY_MINUTES = 60
+
+// Async PvP (phase 4). ELO constants live in elo.ts, season rewards in pvp-data.ts.
+export const PVP_DAILY_ATTEMPTS = 10
+export const PVP_WIN_COIN = 15
+export const PVP_LOSS_COIN = 3
+export const PVP_DEFENSE_COOLDOWN_MS = 30 * 60 * 1000
+export const PVP_OPPONENT_COUNT = 3
+// Real players only: the same defender can be challenged this many times per Thai day.
+export const PVP_MAX_FIGHTS_PER_OPPONENT_PER_DAY = 2
+// Real opponents must be within this many rating points of the challenger.
+export const PVP_RATING_WINDOW = 600
+export const PVP_SEASON_MIN_FIGHTS = 5
+// A new season starts from START_RATING plus this share of last season's gain or loss.
+export const PVP_SEASON_RESET_KEEP = 0.5
+export const PVP_DISPLAY_NAME_MIN = 2
+export const PVP_DISPLAY_NAME_MAX = 16
