@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/punya199/demo-app-backend/compare/v1.22.0...v1.23.0) (2026-11-01)
+
+
+### New
+
+* item grade sub-stat counts and special options for equipment ([5e11aad](https://github.com/punya199/demo-app-backend/commit/5e11aad4ed343e51e85a4c34896c45ee494ff273))
+
 # [1.22.0](https://github.com/punya199/demo-app-backend/compare/v1.21.1...v1.22.0) (2026-11-01)
 
 
