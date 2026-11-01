@@ -15,6 +15,7 @@ import {
   BOX_GRADE_RATES,
   calcEquipmentBonus,
   calcSetBonuses,
+  calcSetProgress,
   DISMANTLE_STONES,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
@@ -31,7 +32,12 @@ import {
 import { InventoryService } from './inventory.service'
 import { getSpecies } from './species-data'
 import { mergeCombatBonus } from './passive-data'
-import { EQUIPMENT_BOX_PRICE, EQUIPMENT_CAPACITY } from './monster-rules'
+import {
+  EQUIPMENT_BOX_PRICE,
+  EQUIPMENT_CAPACITY,
+  SET_ENHANCE_MULTIPLIER,
+  SET_ENHANCE_THRESHOLD,
+} from './monster-rules'
 import { MonsterService } from './monster.service'
 import { loadPassiveBonus } from './passive.service'
 
@@ -159,6 +165,9 @@ export class EquipmentService {
         emoji: getSpecies(row.speciesId).emoji,
       })),
       setBonuses: calcSetBonuses(worn),
+      // Every set with the pieces this pet wears, and its bonus tiers (the client only displays).
+      sets: calcSetProgress(worn),
+      enhance: { threshold: SET_ENHANCE_THRESHOLD, multiplier: SET_ENHANCE_MULTIPLIER },
       // Special battle effects the worn sets give (burn, shield, regen, double strike).
       activeEffects: calcEquipmentBonus(worn).effects,
       bonus: calcEquipmentBonus(worn),

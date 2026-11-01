@@ -337,6 +337,30 @@ export const calcSetBonuses = (
   return active
 }
 
+// Every set with how many of its pieces are worn, so a screen can show 'worn/full' and which
+// bonus tiers are on. `pieceCount` is the full set (its largest tier); `isEnhanced` means every
+// worn piece is at SET_ENHANCE_THRESHOLD or more (percent bonuses are multiplied).
+export const calcSetProgress = (
+  items: IEquipmentItem[],
+  definitions: Record<string, ISetDefinition> = SET_DEFINITIONS
+) =>
+  Object.entries(definitions).map(([setId, definition]) => {
+    const worn = items.filter(item => item.setId === setId)
+    return {
+      setId,
+      name: definition.name,
+      pieceCount: Math.max(...definition.bonuses.map(bonus => bonus.pieces)),
+      worn: worn.length,
+      isEnhanced:
+        worn.length > 0 && worn.every(piece => piece.enhanceLevel >= SET_ENHANCE_THRESHOLD),
+      tiers: definition.bonuses.map(bonus => ({
+        pieces: bonus.pieces,
+        pct: bonus.pct ?? null,
+        effect: bonus.effect ?? null,
+      })),
+    }
+  })
+
 // Chances and turn counts take the best value; shields and regeneration add up.
 const mergeEffects = (into: IFighterEffects, effect: IFighterEffects) => {
   if (effect.burnTurns) {
