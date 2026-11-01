@@ -104,6 +104,7 @@ export class EnhanceService {
       item.pity = result.newPity
       if (result.broke) {
         item.equipped = false
+        item.monsterId = null
         await etm.save(EquipmentItemEntity, item)
         await etm.softDelete(EquipmentItemEntity, { id: item.id })
       } else {

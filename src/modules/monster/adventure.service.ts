@@ -102,7 +102,7 @@ export class AdventureService {
         }
       }
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       const enemy = entry.stage.enemy
       const seed = randomInt(0, 2 ** 31)
       const result = simulateBattle(player, enemy, seed)

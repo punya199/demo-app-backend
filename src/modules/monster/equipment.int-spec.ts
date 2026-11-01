@@ -1,6 +1,7 @@
 // Runs against a real, throwaway Postgres via `yarn test:integration` (see int-test-helpers.ts).
 import dataSource from '../../config/database.config'
 import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
+import { EnumMonsterLine } from '../../db/entities/monster.entity'
 import { EnhanceService } from './enhance.service'
 import { EnumEquipmentGrade, EnumEquipmentSlot, EnumMaterialId } from './equipment-data'
 import { EquipmentService, grantEquipment } from './equipment.service'
@@ -34,6 +35,7 @@ describe('equipment and enhancing', () => {
   beforeAll(async () => {
     await startTestDatabase()
     userId = await createUser('equip')
+    await monsters.hatch(userId, EnumMonsterLine.FLAME)
   })
   afterAll(stopTestDatabase)
 
@@ -58,6 +60,51 @@ describe('equipment and enhancing', () => {
     expect(worn.map(item => item.id)).toEqual([second.id])
     await expect(equipment.dismantle(userId, second.id)).rejects.toThrow(/Take the equipment off/)
     await equipment.unequip(userId, EnumEquipmentSlot.WEAPON)
+  })
+
+  it('keeps a separate loadout per pet, moves a piece between pets, and frees it when its pet dies', async () => {
+    await monsters.hatch(userId, EnumMonsterLine.TIDE)
+    const [petA, petB] = (await monsters.getMyMonster(userId)).monsters
+    const piece = await grant(EnumEquipmentGrade.COMMON)
+    const other = await grant(EnumEquipmentGrade.COMMON)
+    await sql(`UPDATE equipment_items SET slot='armor' WHERE id = ANY($1)`, [[piece.id, other.id]])
+
+    // The same slot can be worn on both pets at once, by different pieces.
+    await equipment.equip(userId, piece.id, petA.id)
+    await equipment.equip(userId, other.id, petB.id)
+    const forA = await equipment.getEquipment(userId, undefined, petA.id)
+    expect(forA.monsterId).toBe(petA.id)
+    expect(forA.items.find(item => item.id === piece.id)?.monsterId).toBe(petA.id)
+    expect(forA.items.find(item => item.id === other.id)?.monsterId).toBe(petB.id)
+
+    // Equipping a piece worn by another pet moves it.
+    await equipment.equip(userId, piece.id, petB.id)
+    const rows = await sql<{ id: string; monster_id: string | null; equipped: boolean }[]>(
+      `SELECT id, monster_id, equipped FROM equipment_items WHERE id = ANY($1)`,
+      [[piece.id, other.id]]
+    )
+    expect(rows.find(row => row.id === piece.id)).toMatchObject({
+      monster_id: petB.id,
+      equipped: true,
+    })
+    expect(rows.find(row => row.id === other.id)).toMatchObject({
+      monster_id: null,
+      equipped: false,
+    })
+
+    // A pet that dies of old age returns what it wore to the bag.
+    await sql(
+      `UPDATE monsters SET stage='adult', species_id='flame_adultGood', age_minutes=7199, last_tick_at=now() - interval '10 minutes' WHERE id=$1`,
+      [petB.id]
+    )
+    await monsters.getMyMonster(userId)
+    const [freed] = await sql<{ monster_id: string | null; equipped: boolean }[]>(
+      `SELECT monster_id, equipped FROM equipment_items WHERE id=$1`,
+      [piece.id]
+    )
+    expect(freed).toEqual({ monster_id: null, equipped: false })
+    await equipment.dismantle(userId, piece.id)
+    await equipment.dismantle(userId, other.id)
   })
 
   it('enhances concurrently only as far as the stones go', async () => {

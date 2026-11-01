@@ -177,7 +177,7 @@ export class PvpService {
         throw new BadRequestException('Defense team was changed recently')
       }
 
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       // The arena name is the player's profile name, shared with friends and the boss ranking.
       if (displayName?.trim()) {
         await this.profileService.setDisplayName(userId, displayName, etm)
@@ -336,7 +336,7 @@ export class PvpService {
         defense ? [userId, defense.userId] : [userId],
         etm
       )
-      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       const enemy = npc ? npc.fighter : (defense!.fighter as unknown as IFighter)
       const seed = randomInt(0, 2 ** 31)
       const result = simulateBattle(player, enemy, seed)

@@ -49,7 +49,7 @@ export class SupportService {
       if (existing && now.getTime() - existing.setAt.getTime() < SUPPORT_COOLDOWN_MS) {
         throw new BadRequestException('Support unit was changed recently')
       }
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       await this.profileService.ensureProfile(userId, etm)
       await etm.query(
         `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at")

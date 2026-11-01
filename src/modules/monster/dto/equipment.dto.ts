@@ -7,6 +7,13 @@ export class EquipmentIdBodyDto {
   equipmentId: string
 }
 
+export class EquipBodyDto extends EquipmentIdBodyDto {
+  // Which living pet wears it; defaults to the selected one.
+  @IsOptional()
+  @IsUUID()
+  monsterId?: string
+}
+
 export class EnhanceBodyDto extends EquipmentIdBodyDto {
   @IsOptional()
   @IsBoolean()
@@ -17,6 +24,10 @@ export class UnequipBodyDto {
   @IsNotEmpty()
   @IsEnum(EnumEquipmentSlot)
   slot: EnumEquipmentSlot
+
+  @IsOptional()
+  @IsUUID()
+  monsterId?: string
 }
 
 export class BuyMaterialBodyDto {

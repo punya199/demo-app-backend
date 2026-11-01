@@ -1,8 +1,10 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
+import { MonsterEntity } from './monster.entity'
 import { UserEntity } from './user.entity'
 
-// Per user, not per monster: equipment carries over when a monster dies. Pieces are data-driven
+// Owned per user and worn by one pet at a time (`monster_id`, set while `equipped`): when that pet
+// dies or is merged away, the piece returns to the bag. Pieces are data-driven
 // (template_id from src/modules/monster/equipment-data.ts); rules for stats, sets and enhancing
 // live in equipment-data.ts and enhance-engine.ts. A broken piece is soft-deleted.
 @Entity({
@@ -11,7 +13,7 @@ import { UserEntity } from './user.entity'
 @Index('IDX_equipment_items_user_id', ['userId'], {
   where: 'deleted_at IS NULL',
 })
-@Index('IDX_equipment_items_user_id_slot_equipped', ['userId', 'slot'], {
+@Index('IDX_equipment_items_monster_id_slot_equipped', ['monsterId', 'slot'], {
   unique: true,
   where: 'equipped AND deleted_at IS NULL',
 })
@@ -48,7 +50,15 @@ export class EquipmentItemEntity extends BaseModelEntity {
   @Column({ name: 'equipped', type: 'boolean', default: false })
   equipped: boolean
 
+  // The pet wearing this piece; null in the bag.
+  @Column({ name: 'monster_id', type: 'uuid', nullable: true })
+  monsterId: string | null
+
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_equipment_items_user_id' })
   @ManyToOne(() => UserEntity)
   user: UserEntity
+
+  @JoinColumn({ name: 'monster_id', foreignKeyConstraintName: 'FK_equipment_items_monster_id' })
+  @ManyToOne(() => MonsterEntity, { onDelete: 'SET NULL' })
+  monster: MonsterEntity | null
 }

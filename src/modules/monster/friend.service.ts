@@ -270,7 +270,7 @@ export class FriendService {
             isExploring: !!monster.expeditionAreaId,
             wins: monster.wins,
             losses: monster.losses,
-            stats: toFighter(monster, await loadEquipmentBonus(friendId, etm)).stats,
+            stats: toFighter(monster, await loadEquipmentBonus(friendId, monster.id, etm)).stats,
           }
         : null,
     }

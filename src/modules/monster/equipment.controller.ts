@@ -1,7 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
-import { EnhanceBodyDto, EquipmentIdBodyDto, UnequipBodyDto } from './dto/equipment.dto'
+import {
+  EnhanceBodyDto,
+  EquipBodyDto,
+  EquipmentIdBodyDto,
+  UnequipBodyDto,
+} from './dto/equipment.dto'
 import { EnhanceService } from './enhance.service'
 import { EquipmentService } from './equipment.service'
 
@@ -14,20 +19,23 @@ export class EquipmentController {
 
   @AuthUser()
   @Get()
-  async getEquipment(@ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.getEquipment(user['user-id'])
+  async getEquipment(
+    @ReqUser() user: IAppJwtPayload,
+    @Query('monsterId', new ParseUUIDPipe({ optional: true })) monsterId?: string
+  ) {
+    return this.equipmentService.getEquipment(user['user-id'], undefined, monsterId)
   }
 
   @AuthUser()
   @Post('equip')
-  async equip(@Body() body: EquipmentIdBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.equip(user['user-id'], body.equipmentId)
+  async equip(@Body() body: EquipBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.equipmentService.equip(user['user-id'], body.equipmentId, body.monsterId)
   }
 
   @AuthUser()
   @Post('unequip')
   async unequip(@Body() body: UnequipBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.unequip(user['user-id'], body.slot)
+    return this.equipmentService.unequip(user['user-id'], body.slot, body.monsterId)
   }
 
   @AuthUser()

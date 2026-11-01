@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm'
+import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
 import {
   EnumMonsterDeathCause,
   EnumMonsterLine,
@@ -45,6 +46,14 @@ import { getSpecies, RARE_EGG_LINES, SPECIES } from './species-data'
 const HISTORY_LIMIT = 50
 
 const rand = () => randomInt(0, 1_000_000) / 1_000_000
+
+// A dead or merged pet takes nothing with it: the gear it wore goes back to the bag.
+export const releaseGear = (monsterId: string, etm: EntityManager) =>
+  etm.update(
+    EquipmentItemEntity,
+    { monsterId, equipped: true },
+    { equipped: false, monsterId: null }
+  )
 
 const SELECTED_ORDER = {
   selectedAt: { direction: 'DESC', nulls: 'LAST' },
@@ -214,6 +223,7 @@ export class MonsterService {
             selectedAt: null,
           })
         )
+        await releaseGear(parent.id, etm)
         await etm.save(MonsterLogEntity, {
           monsterId: parent.id,
           type: EnumMonsterLogType.DEATH,
@@ -280,6 +290,14 @@ export class MonsterService {
     }
   }
 
+  // Every living pet, selected one first, without locking or ticking (read-only displays).
+  async getLiving(userId: string, etm: EntityManager) {
+    return etm.find(MonsterEntity, {
+      where: { ownerId: userId, diedAt: IsNull() },
+      order: SELECTED_ORDER,
+    })
+  }
+
   // The owner's selected monster if it is hatched and alive, without locking or ticking: for
   // read-only displays such as the equipment screen's stat totals.
   async getLatestAlive(userId: string, etm: EntityManager) {
@@ -323,7 +341,12 @@ export class MonsterService {
   }
 
   async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {
-    return etm.save(MonsterEntity, Object.assign(monster, state))
+    const isDying = !monster.diedAt && !!state.diedAt
+    const saved = await etm.save(MonsterEntity, Object.assign(monster, state))
+    if (isDying) {
+      await releaseGear(saved.id, etm)
+    }
+    return saved
   }
 
   async saveEvents(monster: MonsterEntity, events: IMonsterEvent[], etm: EntityManager) {

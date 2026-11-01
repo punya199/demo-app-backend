@@ -206,7 +206,7 @@ export class WorldBossService {
       }
       const definition = findWorldBoss(boss.bossId)!
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       const enemy = getWorldBossFighter(definition, boss.hp)
       const rental = supportId ? await this.rentAlly(userId, supportId, now, etm) : null
       const team = rental ? [player, rental.ally] : [player]
