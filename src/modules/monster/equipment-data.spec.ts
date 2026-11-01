@@ -3,6 +3,7 @@ import {
   buildSetPiece,
   calcEquipmentBonus,
   calcSetBonuses,
+  calcSetProgress,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   enhanceMultiplier,
@@ -15,6 +16,7 @@ import {
   SET_DEFINITIONS,
   SLOT_MAIN_STAT,
 } from './equipment-data'
+import { SET_ENHANCE_THRESHOLD } from './monster-rules'
 
 const item = (overrides: Partial<IEquipmentItem> = {}): IEquipmentItem => ({
   templateId: 'wooden_sword',
@@ -91,6 +93,59 @@ describe('set bonuses', () => {
       item({ slot: EnumEquipmentSlot.HELMET, mainValue: 15 }),
     ])
     expect(bonus.flat).toEqual({ hp: 3 + 3 + 15, atk: 4, def: 0, spd: 0 })
+  })
+})
+
+describe('set progress', () => {
+  const piece = (setId: string | null, slot: EnumEquipmentSlot, enhanceLevel = 0) =>
+    item({ setId, slot, enhanceLevel })
+
+  it('lists every set with its worn count, full piece count and tiers', () => {
+    const progress = calcSetProgress(
+      [
+        piece('fire', EnumEquipmentSlot.WEAPON),
+        piece('fire', EnumEquipmentSlot.ARMOR),
+        piece(null, EnumEquipmentSlot.HELMET),
+      ],
+      sets
+    )
+    expect(progress.map(row => [row.setId, row.worn, row.pieceCount])).toEqual([
+      ['fire', 2, 4],
+      ['water', 0, 2],
+    ])
+    expect(progress[0].tiers).toEqual([
+      { pieces: 2, pct: { atk: 0.15 }, effect: null },
+      { pieces: 4, pct: { spd: 0.1 }, effect: null },
+    ])
+  })
+
+  it('counts only the worn pieces handed in, so each pet has its own count', () => {
+    const petA = [piece('fire', EnumEquipmentSlot.WEAPON), piece('fire', EnumEquipmentSlot.ARMOR)]
+    const petB = [piece('fire', EnumEquipmentSlot.HELMET)]
+    expect(calcSetProgress(petA, sets)[0].worn).toBe(2)
+    expect(calcSetProgress(petB, sets)[0].worn).toBe(1)
+  })
+
+  it('marks a set enhanced only when every worn piece is at the threshold', () => {
+    const level = SET_ENHANCE_THRESHOLD
+    const both = [
+      piece('fire', EnumEquipmentSlot.WEAPON, level),
+      piece('fire', EnumEquipmentSlot.ARMOR, level),
+    ]
+    expect(calcSetProgress(both, sets)[0].isEnhanced).toBe(true)
+    expect(
+      calcSetProgress([...both, piece('fire', EnumEquipmentSlot.HELMET, level - 1)], sets)[0]
+        .isEnhanced
+    ).toBe(false)
+    expect(calcSetProgress([], sets)[0].isEnhanced).toBe(false)
+  })
+
+  it('agrees with the live bonuses about which sets are enhanced', () => {
+    const worn = [
+      piece('fire', EnumEquipmentSlot.WEAPON, SET_ENHANCE_THRESHOLD),
+      piece('fire', EnumEquipmentSlot.ARMOR, SET_ENHANCE_THRESHOLD),
+    ]
+    expect(calcSetProgress(worn, sets)[0].isEnhanced).toBe(calcSetBonuses(worn, sets)[0].isEnhanced)
   })
 })
 

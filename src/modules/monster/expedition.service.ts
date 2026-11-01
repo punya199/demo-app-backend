@@ -52,7 +52,7 @@ export class ExpeditionService {
       const unlocked = new Set(await this.getUnlockedAreaIds(userId, etm))
       const stats =
         monster && !monster.diedAt && monster.stage !== EnumMonsterStage.EGG
-          ? toFighter(monster, await loadEquipmentBonus(userId, etm)).stats
+          ? toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm)).stats
           : null
       const { expeditionCoinMultiplier } = await loadPassiveBonus(userId, etm)
       return {
@@ -86,7 +86,7 @@ export class ExpeditionService {
         throw new BadRequestException('Area is locked')
       }
 
-      const equipment = await loadEquipmentBonus(userId, etm)
+      const equipment = await loadEquipmentBonus(userId, monster.id, etm)
       // Trainer passives raise the coin rate fixed at departure.
       const { expeditionCoinMultiplier } = await loadPassiveBonus(userId, etm)
       const result = withRuleErrors(() =>

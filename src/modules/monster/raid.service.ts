@@ -134,7 +134,7 @@ export class RaidService {
         throw new BadRequestException('Equipment bag is full')
       }
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       const enemy = getRaidBossFighter(boss, difficulty)
       const seed = randomInt(0, 2 ** 31)
       // The element triangle is off here (see raid-data.ts): every line must be able to win.

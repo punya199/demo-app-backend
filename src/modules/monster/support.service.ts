@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm'
 import { EnumFriendshipStatus, FriendshipEntity } from '../../db/entities/friendship.entity'
 import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
 import { IFighter, toFighter } from './battle-stats'
+import { loadPublicCostumes } from './costume.service'
 import { loadEquipmentBonus } from './equipment.service'
 import { RENTAL_FEE, SUPPORT_COOLDOWN_MS } from './monster-rules'
 import { MonsterService } from './monster.service'
@@ -15,6 +16,7 @@ const toUnitView = (unit: SupportUnitEntity) => {
     supportId: unit.id,
     emoji: fighter.emoji,
     name: fighter.name,
+    nickname: fighter.nickname ?? null,
     stage: unit.stage,
     stats: fighter.stats,
     effects: fighter.effects ?? null,
@@ -49,7 +51,7 @@ export class SupportService {
       if (existing && now.getTime() - existing.setAt.getTime() < SUPPORT_COOLDOWN_MS) {
         throw new BadRequestException('Support unit was changed recently')
       }
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       await this.profileService.ensureProfile(userId, etm)
       await etm.query(
         `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at")
@@ -82,9 +84,17 @@ export class SupportService {
         .getMany(),
       this.profileService.getNames(friendIds, etm),
     ])
+    const costumes = await loadPublicCostumes(
+      units.map(unit => unit.userId),
+      etm
+    )
     return {
       fee: RENTAL_FEE,
-      units: units.map(unit => ({ ...toUnitView(unit), ownerName: names.get(unit.userId)! })),
+      units: units.map(unit => ({
+        ...toUnitView(unit),
+        ownerName: names.get(unit.userId)!,
+        costume: costumes.get(unit.userId) ?? null,
+      })),
     }
   }
 }

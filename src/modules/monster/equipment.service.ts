@@ -3,6 +3,7 @@ import { randomInt } from 'crypto'
 import { DataSource, EntityManager } from 'typeorm'
 import { EnumEquipmentLogType, EquipmentLogEntity } from '../../db/entities/equipment-log.entity'
 import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
+import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import {
   EnumWalletCurrency,
   EnumWalletTransactionReason,
@@ -14,6 +15,7 @@ import {
   BOX_GRADE_RATES,
   calcEquipmentBonus,
   calcSetBonuses,
+  calcSetProgress,
   DISMANTLE_STONES,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
@@ -28,8 +30,14 @@ import {
   SLOT_MAIN_STAT,
 } from './equipment-data'
 import { InventoryService } from './inventory.service'
+import { getSpecies } from './species-data'
 import { mergeCombatBonus } from './passive-data'
-import { EQUIPMENT_BOX_PRICE, EQUIPMENT_CAPACITY } from './monster-rules'
+import {
+  EQUIPMENT_BOX_PRICE,
+  EQUIPMENT_CAPACITY,
+  SET_ENHANCE_MULTIPLIER,
+  SET_ENHANCE_THRESHOLD,
+} from './monster-rules'
 import { MonsterService } from './monster.service'
 import { loadPassiveBonus } from './passive.service'
 
@@ -69,12 +77,14 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
     enhanceLevel: row.enhanceLevel,
     pity: row.pity,
     equipped: row.equipped,
+    // The pet wearing it (null in the bag).
+    monsterId: row.monsterId,
   }
 }
 
-// The monster stats bonus from everything the user currently wears.
-export const loadEquipmentBonus = async (userId: string, etm: EntityManager) => {
-  const worn = await etm.find(EquipmentItemEntity, { where: { userId, equipped: true } })
+// The stats bonus for one pet: what it wears, plus the player's trainer passives.
+export const loadEquipmentBonus = async (userId: string, monsterId: string, etm: EntityManager) => {
+  const worn = await etm.find(EquipmentItemEntity, { where: { monsterId, equipped: true } })
   // Trainer passives ride along with the gear, so every fight and snapshot includes them.
   return mergeCombatBonus(
     calcEquipmentBonus(worn.map(toEquipmentCore)),
@@ -123,28 +133,46 @@ export class EquipmentService {
     private readonly walletService: WalletService
   ) {}
 
-  async getEquipment(userId: string, etm: EntityManager = this.dataSource.manager) {
+  // The gear screen for one pet (the selected one unless `monsterId` is given): its worn pieces
+  // are the items whose `monsterId` is its id; pieces worn by another pet say so.
+  async getEquipment(
+    userId: string,
+    etm: EntityManager = this.dataSource.manager,
+    monsterId?: string
+  ) {
     const rows = await etm.find(EquipmentItemEntity, {
       where: { userId },
       order: { createdAt: 'DESC' },
     })
-    const worn = rows.filter(row => row.equipped).map(toEquipmentCore)
-    const monster = await this.monsterService.getLatestAlive(userId, etm)
-    const fighter = monster
-      ? toFighter(
-          monster,
-          mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
-        )
-      : null
+    const living = await this.monsterService.getLiving(userId, etm)
+    const pet = (monsterId ? living.find(row => row.id === monsterId) : living[0]) ?? null
+    const worn = rows.filter(row => row.equipped && row.monsterId === pet?.id).map(toEquipmentCore)
+    const fighter =
+      pet && pet.stage !== EnumMonsterStage.EGG
+        ? toFighter(
+            pet,
+            mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
+          )
+        : null
     return {
       capacity: EQUIPMENT_CAPACITY,
       items: rows.map(toEquipmentView),
+      // The pet this screen is about, and every living pet so a piece can say who wears it.
+      monsterId: pet?.id ?? null,
+      pets: living.map(row => ({
+        id: row.id,
+        name: getSpecies(row.speciesId).name,
+        emoji: getSpecies(row.speciesId).emoji,
+      })),
       setBonuses: calcSetBonuses(worn),
+      // Every set with the pieces this pet wears, and its bonus tiers (the client only displays).
+      sets: calcSetProgress(worn),
+      enhance: { threshold: SET_ENHANCE_THRESHOLD, multiplier: SET_ENHANCE_MULTIPLIER },
       // Special battle effects the worn sets give (burn, shield, regen, double strike).
       activeEffects: calcEquipmentBonus(worn).effects,
       bonus: calcEquipmentBonus(worn),
-      // The living monster's battle stats with the worn gear and passives, and its crit rate, crit
-      // damage and evasion; null without a hatched monster.
+      // The pet's battle stats with its worn gear and the passives, and its crit rate, crit damage
+      // and evasion; null for an egg or without a pet.
       stats: fighter?.stats ?? null,
       combat: fighter ? combatTotals(fighter.effects) : null,
     }
@@ -161,57 +189,68 @@ export class EquipmentService {
     return item
   }
 
-  // Gear can't change while the monster is away, or an expedition could be re-geared for rate.
-  private async assertHome(userId: string, now: Date, etm: EntityManager) {
-    const monster = await this.monsterService.lockAndTickLatest(userId, now, etm)
-    if (monster && !monster.diedAt && monster.expeditionAreaId) {
-      throw new BadRequestException('Monster is on an expedition')
-    }
-  }
-
-  async equip(userId: string, equipmentId: string) {
+  // Gear can't change while a pet is away, or an expedition could be re-geared for rate: neither
+  // the pet getting a piece nor the pet losing one may be exploring.
+  async equip(userId: string, equipmentId: string, monsterId?: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
-      await this.assertHome(userId, now, etm)
+      const living = await this.monsterService.lockAndTickLiving(userId, now, etm)
+      const pet = monsterId ? living.find(row => row.id === monsterId) : living[0]
+      if (!pet) {
+        throw new NotFoundException('Monster not found')
+      }
       const item = await this.lockItem(userId, equipmentId, etm)
-      if (!item.equipped) {
-        // Free the slot first: the unique index allows one worn piece per slot.
+      const previous = living.find(row => row.id === item.monsterId)
+      if ([pet, previous].some(row => row?.expeditionAreaId)) {
+        throw new BadRequestException('Monster is on an expedition')
+      }
+      if (!(item.equipped && item.monsterId === pet.id)) {
+        // Free the slot first: the unique index allows one worn piece per pet and slot. A piece
+        // worn by another pet moves here (the screen asks first).
         await etm.update(
           EquipmentItemEntity,
-          { userId, slot: item.slot, equipped: true },
-          { equipped: false }
+          { monsterId: pet.id, slot: item.slot, equipped: true },
+          { equipped: false, monsterId: null }
         )
         item.equipped = true
+        item.monsterId = pet.id
         await etm.save(EquipmentItemEntity, item)
         await etm.save(EquipmentLogEntity, {
           userId,
           equipmentId,
           type: EnumEquipmentLogType.EQUIP,
-          payload: { slot: item.slot },
+          payload: { slot: item.slot, monsterId: pet.id, from: previous?.id ?? null },
         })
       }
-      return this.getEquipment(userId, etm)
+      return this.getEquipment(userId, etm, pet.id)
     })
   }
 
-  async unequip(userId: string, slot: EnumEquipmentSlot) {
+  async unequip(userId: string, slot: EnumEquipmentSlot, monsterId?: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
-      await this.assertHome(userId, now, etm)
+      const living = await this.monsterService.lockAndTickLiving(userId, now, etm)
+      const pet = monsterId ? living.find(row => row.id === monsterId) : living[0]
+      if (!pet) {
+        throw new NotFoundException('Monster not found')
+      }
+      if (pet.expeditionAreaId) {
+        throw new BadRequestException('Monster is on an expedition')
+      }
       const result = await etm.update(
         EquipmentItemEntity,
-        { userId, slot, equipped: true },
-        { equipped: false }
+        { monsterId: pet.id, slot, equipped: true },
+        { equipped: false, monsterId: null }
       )
       if (result.affected) {
         await etm.save(EquipmentLogEntity, {
           userId,
           equipmentId: null,
           type: EnumEquipmentLogType.UNEQUIP,
-          payload: { slot },
+          payload: { slot, monsterId: pet.id },
         })
       }
-      return this.getEquipment(userId, etm)
+      return this.getEquipment(userId, etm, pet.id)
     })
   }
 

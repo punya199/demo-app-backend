@@ -141,6 +141,17 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'selected_at', type: 'timestamp with time zone', nullable: true })
   selectedAt: Date | null
 
+  // Chosen by the owner and shown to other players next to the species (see monster-name.ts).
+  @Column({ name: 'nickname', type: 'varchar', length: 16, nullable: true })
+  nickname: string | null
+
+  @Column({ name: 'last_renamed_at', type: 'timestamp with time zone', nullable: true })
+  lastRenamedAt: Date | null
+
+  // What the pet wears: slot -> costume id (see src/modules/monster/costume-data.ts).
+  @Column({ name: 'costume', type: 'jsonb', default: () => `'{}'` })
+  costume: Record<string, string>
+
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null
 

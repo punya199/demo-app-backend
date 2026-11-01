@@ -15,6 +15,8 @@ import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
 import { defaultDisplayName } from './display-name'
 import { calcElo, START_RATING } from './elo'
+import { ILoadout } from './costume-data'
+import { grantCostume, loadPublicCostumes } from './costume.service'
 import { loadEquipmentBonus } from './equipment.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
 import {
@@ -31,6 +33,8 @@ import { isEligibleOpponent, IPvpCandidate, pickOpponents } from './pvp-matchmak
 import { getSeason, getSeasonResetAt, isSeasonOver } from './pvp-season'
 import { getQuestResetAt } from './quest-data'
 
+// Costume given to the top ranks of a finished season (a catalog id, never sold).
+const SEASON_COSTUME_ID = 'rainbow'
 const HISTORY_LIMIT = 20
 const LEADERBOARD_LIMIT = 20
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -41,11 +45,13 @@ interface IPvpCandidateFull extends IPvpCandidate {
   fighter: IFighter
 }
 
-const toOpponentView = (candidate: IPvpCandidateFull) => ({
+const toOpponentView = (candidate: IPvpCandidateFull, costume: ILoadout | null) => ({
   id: candidate.id,
   displayName: candidate.displayName,
   emoji: candidate.fighter.emoji,
   name: candidate.fighter.name,
+  nickname: candidate.fighter.nickname ?? null,
+  costume,
   element: candidate.fighter.element,
   stats: candidate.fighter.stats,
   rating: candidate.rating,
@@ -177,7 +183,7 @@ export class PvpService {
         throw new BadRequestException('Defense team was changed recently')
       }
 
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       // The arena name is the player's profile name, shared with friends and the boss ranking.
       if (displayName?.trim()) {
         await this.profileService.setDisplayName(userId, displayName, etm)
@@ -270,7 +276,18 @@ export class PvpService {
     const rating = row?.rating ?? (await this.initialRating(userId, season, etm))
     const candidates = await this.loadCandidates(userId, monster.stage, season, etm)
     const picked = pickOpponents(candidates, rating, await this.fightsToday(userId, now, etm))
-    return { opponents: picked.map(toOpponentView) }
+    const costumes = await loadPublicCostumes(
+      picked.flatMap(candidate => (candidate.userId ? [candidate.userId] : [])),
+      etm
+    )
+    return {
+      opponents: picked.map(candidate =>
+        toOpponentView(
+          candidate,
+          candidate.userId ? (costumes.get(candidate.userId) ?? null) : null
+        )
+      ),
+    }
   }
 
   async battle(userId: string, opponentId: string) {
@@ -336,7 +353,7 @@ export class PvpService {
         defense ? [userId, defense.userId] : [userId],
         etm
       )
-      const player = toFighter(monster, await loadEquipmentBonus(userId, etm))
+      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
       const enemy = npc ? npc.fighter : (defense!.fighter as unknown as IFighter)
       const seed = randomInt(0, 2 ** 31)
       const result = simulateBattle(player, enemy, seed)
@@ -468,13 +485,14 @@ export class PvpService {
         display_name: string | null
         emoji: string | null
         name: string | null
+        nickname: string | null
         is_me: boolean
       }[]
     >(
       `SELECT * FROM (
          SELECT RANK() OVER (ORDER BY r."rating" DESC)::int AS "rank", r."rating", r."wins", r."losses",
                 r."user_id", pr."display_name", d."fighter"->>'emoji' AS "emoji",
-                d."fighter"->>'name' AS "name", (r."user_id" = $2) AS "is_me"
+                d."fighter"->>'name' AS "name", d."fighter"->>'nickname' AS "nickname", (r."user_id" = $2) AS "is_me"
          FROM "pvp_ratings" r
          LEFT JOIN "pvp_defenses" d ON d."user_id" = r."user_id" AND d."deleted_at" IS NULL
          LEFT JOIN "player_profiles" pr ON pr."user_id" = r."user_id" AND pr."deleted_at" IS NULL
@@ -484,14 +502,20 @@ export class PvpService {
        LIMIT ${LEADERBOARD_LIMIT}`,
       [season, userId]
     )
+    const costumes = await loadPublicCostumes(
+      rows.map(row => row.user_id),
+      this.dataSource.manager
+    )
     return {
       season,
       entries: rows.map(row => ({
+        costume: costumes.get(row.user_id) ?? null,
         rank: row.rank,
         // The id is only used here to build a default name; it is never sent out.
         displayName: row.display_name ?? defaultDisplayName(row.user_id),
         emoji: row.emoji,
         name: row.name,
+        nickname: row.nickname,
         rating: row.rating,
         wins: row.wins,
         losses: row.losses,
@@ -554,7 +578,12 @@ export class PvpService {
         season,
         etm
       )
-      return { season, rank, reward, wallet }
+      // The top three of a season also take home the rainbow halo.
+      const costumeId = rank <= 3 ? SEASON_COSTUME_ID : null
+      if (costumeId) {
+        await grantCostume(userId, costumeId, etm)
+      }
+      return { season, rank, reward, wallet, costumeId }
     })
   }
 }

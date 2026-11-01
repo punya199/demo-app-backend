@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm'
+import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
 import {
   EnumMonsterDeathCause,
   EnumMonsterLine,
@@ -39,12 +40,21 @@ import {
 } from './monster-rules'
 import { createFused } from './monster-merge'
 import { loadPassiveBonus } from './passive.service'
+import { normalizeNickname, RENAME_COOLDOWN_MS } from './monster-name'
 import { recordQuestProgress } from './quest.service'
 import { getSpecies, RARE_EGG_LINES, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
 
 const rand = () => randomInt(0, 1_000_000) / 1_000_000
+
+// A dead or merged pet takes nothing with it: the gear it wore goes back to the bag.
+export const releaseGear = (monsterId: string, etm: EntityManager) =>
+  etm.update(
+    EquipmentItemEntity,
+    { monsterId, equipped: true },
+    { equipped: false, monsterId: null }
+  )
 
 const SELECTED_ORDER = {
   selectedAt: { direction: 'DESC', nulls: 'LAST' },
@@ -77,6 +87,8 @@ export const toMonsterView = (monster: MonsterEntity) => {
   return {
     ...monster,
     name: species.name,
+    // What the owner calls it, falling back to the species name.
+    displayName: monster.nickname ?? species.name,
     emoji: species.emoji,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
     // Min / max / rolled value per stat for this form (see monster-potential.ts).
@@ -153,6 +165,34 @@ export class MonsterService {
     })
   }
 
+  async rename(userId: string, monsterId: string, input: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      const monster = living.find(row => row.id === monsterId)
+      if (!monster) {
+        throw new NotFoundException('Monster not found')
+      }
+      let nickname: string | null
+      try {
+        nickname = normalizeNickname(input)
+      } catch (error) {
+        throw new BadRequestException((error as Error).message)
+      }
+      if (
+        monster.lastRenamedAt &&
+        now.getTime() - monster.lastRenamedAt.getTime() < RENAME_COOLDOWN_MS
+      ) {
+        throw new BadRequestException('Pet was renamed recently')
+      }
+      const saved = await etm.save(
+        MonsterEntity,
+        Object.assign(monster, { nickname, lastRenamedAt: now })
+      )
+      return { monster: toMonsterView(saved) }
+    })
+  }
+
   async select(userId: string, monsterId: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
@@ -204,7 +244,14 @@ export class MonsterService {
         etm
       )
 
-      const created = await etm.save(MonsterEntity, { ownerId: userId, ...state, selectedAt: now })
+      const baseMonster = baseId === firstId ? first : second
+      // The fused pet keeps the name of the parent it is based on.
+      const created = await etm.save(MonsterEntity, {
+        ownerId: userId,
+        ...state,
+        nickname: baseMonster.nickname,
+        selectedAt: now,
+      })
       for (const parent of [first, second]) {
         await etm.save(
           MonsterEntity,
@@ -214,6 +261,7 @@ export class MonsterService {
             selectedAt: null,
           })
         )
+        await releaseGear(parent.id, etm)
         await etm.save(MonsterLogEntity, {
           monsterId: parent.id,
           type: EnumMonsterLogType.DEATH,
@@ -280,6 +328,14 @@ export class MonsterService {
     }
   }
 
+  // Every living pet, selected one first, without locking or ticking (read-only displays).
+  async getLiving(userId: string, etm: EntityManager) {
+    return etm.find(MonsterEntity, {
+      where: { ownerId: userId, diedAt: IsNull() },
+      order: SELECTED_ORDER,
+    })
+  }
+
   // The owner's selected monster if it is hatched and alive, without locking or ticking: for
   // read-only displays such as the equipment screen's stat totals.
   async getLatestAlive(userId: string, etm: EntityManager) {
@@ -323,7 +379,12 @@ export class MonsterService {
   }
 
   async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {
-    return etm.save(MonsterEntity, Object.assign(monster, state))
+    const isDying = !monster.diedAt && !!state.diedAt
+    const saved = await etm.save(MonsterEntity, Object.assign(monster, state))
+    if (isDying) {
+      await releaseGear(saved.id, etm)
+    }
+    return saved
   }
 
   async saveEvents(monster: MonsterEntity, events: IMonsterEvent[], etm: EntityManager) {

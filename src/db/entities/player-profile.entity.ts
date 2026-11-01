@@ -25,6 +25,10 @@ export class PlayerProfileEntity extends BaseModelEntity {
   @Column({ name: 'friend_code', type: 'varchar' })
   friendCode: string
 
+  // Whether other players see the costume of the selected pet (friends, arena, rankings, rentals).
+  @Column({ name: 'show_costume', type: 'boolean', default: true })
+  showCostume: boolean
+
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'FK_player_profiles_user_id' })
   @ManyToOne(() => UserEntity)
   user: UserEntity

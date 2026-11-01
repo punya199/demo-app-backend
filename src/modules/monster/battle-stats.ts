@@ -32,6 +32,8 @@ export interface IFighterEffects {
 
 export interface IFighter {
   name: string
+  // The owner's name for the pet, left out when it has none (see monster-name.ts).
+  nickname?: string
   emoji: string
   element: EnumMonsterLine
   stats: IBattleStats
@@ -79,6 +81,7 @@ export const toFighter = (
   const hasEffects = Object.keys(effects).length > 0
   return {
     name: species.name,
+    ...(state.nickname && { nickname: state.nickname }),
     emoji: species.emoji,
     // A fused monster fights with the element of the parent chosen as its base (`state.line`).
     element: species.stage === EnumMonsterStage.FUSED ? state.line : species.line,
