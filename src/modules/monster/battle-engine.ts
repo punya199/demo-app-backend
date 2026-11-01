@@ -37,6 +37,8 @@ export interface IBattleEvent {
   kind?: BattleEventKind
   // Damage the target's set shield soaked up (included in `damage`).
   absorbed?: number
+  // The target dodged the hit (damage is 0).
+  isDodged?: boolean
 }
 
 export interface IBattleResult {
@@ -45,21 +47,29 @@ export interface IBattleResult {
   events: IBattleEvent[]
 }
 
-// Each element beats the next one: flame burns leaf, leaf drinks tide, tide douses flame.
-export const BEATS: Record<EnumMonsterLine, EnumMonsterLine> = {
-  [EnumMonsterLine.FLAME]: EnumMonsterLine.LEAF,
-  [EnumMonsterLine.LEAF]: EnumMonsterLine.TIDE,
-  [EnumMonsterLine.TIDE]: EnumMonsterLine.FLAME,
+// What each element beats (x1.3 against them; they hit it for x0.8). The natural ring has every
+// element beat two and lose to two, and keeps the original triangle inside it: flame burns leaf,
+// leaf drinks tide, tide douses flame.
+export const BEATS: Record<EnumMonsterLine, EnumMonsterLine[]> = {
+  [EnumMonsterLine.FLAME]: [EnumMonsterLine.LEAF, EnumMonsterLine.EARTH],
+  [EnumMonsterLine.LEAF]: [EnumMonsterLine.TIDE, EnumMonsterLine.LIGHTNING],
+  [EnumMonsterLine.TIDE]: [EnumMonsterLine.FLAME, EnumMonsterLine.EARTH],
+  [EnumMonsterLine.EARTH]: [EnumMonsterLine.LEAF, EnumMonsterLine.LIGHTNING],
+  [EnumMonsterLine.LIGHTNING]: [EnumMonsterLine.TIDE, EnumMonsterLine.FLAME],
+  // The spiritual triangle. Across the two groups every hit is normal.
+  [EnumMonsterLine.HOLY]: [EnumMonsterLine.DARK],
+  [EnumMonsterLine.DARK]: [EnumMonsterLine.SHADOW],
+  [EnumMonsterLine.SHADOW]: [EnumMonsterLine.HOLY],
 }
 
 export const getEffectiveness = (
   attacker: EnumMonsterLine,
   defender: EnumMonsterLine
 ): Effectiveness => {
-  if (BEATS[attacker] === defender) {
+  if (BEATS[attacker].includes(defender)) {
     return 'strong'
   }
-  if (BEATS[defender] === attacker) {
+  if (BEATS[defender].includes(attacker)) {
     return 'weak'
   }
   return 'normal'
@@ -92,6 +102,8 @@ export interface IHitRoll {
   damage: number
   isCritical: boolean
   effectiveness: Effectiveness
+  // The defender dodged: no damage, and no crit or variance roll was spent.
+  isDodged?: boolean
 }
 
 // One hit's damage: rolls (in this fixed order) crit then variance. Shared by the 1-vs-1 engine and
@@ -106,14 +118,23 @@ export const rollHit = (
   const effectiveness = ignoreElements
     ? 'normal'
     : getEffectiveness(attacker.element, defender.element)
-  const isCritical = rng() < CRITICAL_CHANCE
+  // Evasion is drawn from the RNG only for a defender that has it, so old fights replay unchanged.
+  if (defender.effects?.evasion && rng() < defender.effects.evasion) {
+    return { damage: 0, isCritical: false, effectiveness, isDodged: true }
+  }
+  const isCritical = rng() < CRITICAL_CHANCE + (attacker.effects?.critChance ?? 0)
   const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
   const raw =
     attacker.stats.atk *
       (isSkill ? attacker.skill.power : 1) *
       effectivenessMultiplier[effectiveness] -
     defender.stats.def * DEFENSE_FACTOR
-  const damage = Math.max(1, Math.round(raw * variance * (isCritical ? CRITICAL_MULTIPLIER : 1)))
+  const damage = Math.max(
+    1,
+    Math.round(
+      raw * variance * (isCritical ? CRITICAL_MULTIPLIER + (attacker.effects?.critDamage ?? 0) : 1)
+    )
+  )
   return { damage, isCritical, effectiveness }
 }
 
@@ -150,7 +171,7 @@ export const simulateBattle = (
     const target = opposite(actor)
     const attacker = fighters[actor]
     const defender = fighters[target]
-    const { damage, isCritical, effectiveness } = rollHit(
+    const { damage, isCritical, effectiveness, isDodged } = rollHit(
       attacker,
       defender,
       isSkill,
@@ -172,6 +193,7 @@ export const simulateBattle = (
       targetHp: hp[target],
       ...(kind && { kind }),
       ...(absorbed > 0 && { absorbed }),
+      ...(isDodged && { isDodged }),
     })
   }
 

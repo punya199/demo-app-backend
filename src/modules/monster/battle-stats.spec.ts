@@ -43,17 +43,6 @@ describe('toFighter', () => {
     )
   })
 
-  it('halves every stat when out of stamina', () => {
-    const rested = toFighter(monster({ strength: 0 })).stats
-    const exhausted = toFighter(monster({ strength: 0, stamina: 0 })).stats
-    expect(exhausted).toEqual({
-      hp: Math.round(rested.hp * 0.5),
-      atk: Math.round(rested.atk * 0.5),
-      def: Math.round(rested.def * 0.5),
-      spd: Math.round(rested.spd * 0.5),
-    })
-  })
-
   it('refuses an egg', () => {
     expect(() => toFighter(createEgg(EnumMonsterLine.TIDE, NOW))).toThrow()
   })
@@ -73,12 +62,6 @@ describe('toFighter with equipment', () => {
     expect(geared.atk).toBe(Math.round((species.stats.atk + 3) * 1.1))
     expect(geared.def).toBe(base.def + 2)
     expect(geared.spd).toBe(base.spd + 1)
-  })
-
-  it('still halves the whole total when out of stamina', () => {
-    const rested = toFighter(monster({ strength: 0 }), bonus).stats
-    const exhausted = toFighter(monster({ strength: 0, stamina: 0 }), bonus).stats
-    expect(exhausted.hp).toBe(Math.round(rested.hp * 0.5))
   })
 })
 

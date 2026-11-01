@@ -101,7 +101,7 @@ export const simulateTeamBattle = (
     isSkill: boolean,
     kind?: 'double'
   ) => {
-    const { damage, isCritical, effectiveness } = rollHit(
+    const { damage, isCritical, effectiveness, isDodged } = rollHit(
       attacker.fighter,
       target.fighter,
       isSkill,
@@ -123,6 +123,7 @@ export const simulateTeamBattle = (
       effectiveness,
       ...(kind && { kind }),
       ...(absorbed > 0 && { absorbed }),
+      ...(isDodged && { isDodged }),
     })
   }
 

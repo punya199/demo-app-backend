@@ -137,14 +137,22 @@ describe('boss sets', () => {
         enhanceLevel,
       }))
 
-  it('has all four slots as templates for each of the four sets', () => {
+  it('has all four slots as templates for each set', () => {
     for (const setId of Object.keys(SET_DEFINITIONS)) {
       for (const slot of Object.values(EnumEquipmentSlot)) {
         expect(findSetPieceTemplate(setId, slot)).toBeDefined()
       }
     }
     expect(Object.keys(SET_DEFINITIONS).sort()).toEqual(
-      ['blazing', 'deep_root', 'swift_thunder', 'tidal_guard'].sort()
+      [
+        'blazing',
+        'deep_root',
+        'nightfall',
+        'radiant',
+        'shadow_veil',
+        'swift_thunder',
+        'tidal_guard',
+      ].sort()
     )
   })
 

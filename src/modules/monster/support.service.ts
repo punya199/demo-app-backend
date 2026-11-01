@@ -4,7 +4,7 @@ import { EnumFriendshipStatus, FriendshipEntity } from '../../db/entities/friend
 import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
 import { IFighter, toFighter } from './battle-stats'
 import { loadEquipmentBonus } from './equipment.service'
-import { MAX_STAMINA, RENTAL_FEE, SUPPORT_COOLDOWN_MS } from './monster-rules'
+import { RENTAL_FEE, SUPPORT_COOLDOWN_MS } from './monster-rules'
 import { MonsterService } from './monster.service'
 import { isPvpStage } from './pvp-data'
 import { ProfileService } from './profile.service'
@@ -49,11 +49,7 @@ export class SupportService {
       if (existing && now.getTime() - existing.setAt.getTime() < SUPPORT_COOLDOWN_MS) {
         throw new BadRequestException('Support unit was changed recently')
       }
-      // Stamina counts as full: a rented unit is never weaker for having fought lately.
-      const fighter = toFighter(
-        { ...monster, stamina: MAX_STAMINA },
-        await loadEquipmentBonus(userId, etm)
-      )
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
       await this.profileService.ensureProfile(userId, etm)
       await etm.query(
         `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at")

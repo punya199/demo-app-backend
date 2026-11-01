@@ -19,6 +19,7 @@ import { toFighter } from './battle-stats'
 import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
 import { calcAutoBattleReward } from './idle-data'
+import { loadPassiveBonus } from './passive.service'
 import { applyBattleOutcome, assertAutoBattleReady, assertCanBattle } from './monster-engine'
 import { AUTO_BATTLE_DAILY_COIN_CAP, EQUIPMENT_DROP_CHANCE_BP } from './monster-rules'
 import { getQuestResetAt } from './quest-data'
@@ -169,7 +170,13 @@ export class AdventureService {
       let drop: ReturnType<typeof toEquipmentView> | null = null
       let dropBagFull = false
       const rates = DROP_GRADE_RATES_BY_AREA[entry.area.id]
-      if (result.won && !isAuto && rates && randomInt(0, 10_000) < EQUIPMENT_DROP_CHANCE_BP) {
+      if (
+        result.won &&
+        !isAuto &&
+        rates &&
+        randomInt(0, 10_000) <
+          EQUIPMENT_DROP_CHANCE_BP * (await loadPassiveBonus(userId, etm)).equipmentDropMultiplier
+      ) {
         const row = await grantEquipment(
           userId,
           rollGrade(rates, randomInt(0, 1_000_000) / 1_000_000),

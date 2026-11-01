@@ -24,8 +24,8 @@ import {
 } from './equipment.service'
 import { InventoryService } from './inventory.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
-import { countFightsToday } from './daily-fights'
-import { RAID_BOSS_TOKENS_PER_WIN, RAID_DAILY_ATTEMPTS } from './monster-rules'
+import { countFightsInWindow, getWindow } from './daily-fights'
+import { RAID_ATTEMPTS, RAID_BOSS_TOKENS_PER_WIN, RAID_RESET_HOURS } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import {
   bossTokenItemId,
@@ -61,14 +61,15 @@ export class RaidService {
     const etm = this.dataSource.manager
     const [progress, attempts, inventory, monster] = await Promise.all([
       this.loadProgress(userId, etm),
-      countFightsToday(userId, 'raid', now, etm),
+      countFightsInWindow(userId, 'raid', RAID_RESET_HOURS, now, etm),
       this.inventoryService.getInventory(userId, etm),
       this.monsterService.getLatestAlive(userId, etm),
     ])
     const owned = new Map(inventory.items.map(item => [item.itemId, item.quantity]))
 
     return {
-      attemptsLeft: Math.max(0, RAID_DAILY_ATTEMPTS - attempts),
+      attemptsLeft: Math.max(0, RAID_ATTEMPTS - attempts),
+      resetsAt: getWindow(now, RAID_RESET_HOURS).resetsAt,
       bosses: RAID_BOSSES.map(boss => ({
         id: boss.id,
         name: boss.name,
@@ -124,9 +125,9 @@ export class RaidService {
       if (previous && !progress.get(`${boss.id}:${previous.difficulty}`)?.clearCount) {
         throw new BadRequestException('Clear the previous difficulty first')
       }
-      const attempts = await countFightsToday(userId, 'raid', now, etm)
-      if (attempts >= RAID_DAILY_ATTEMPTS) {
-        throw new BadRequestException('Daily raid limit reached')
+      const attempts = await countFightsInWindow(userId, 'raid', RAID_RESET_HOURS, now, etm)
+      if (attempts >= RAID_ATTEMPTS) {
+        throw new BadRequestException('Raid attempts used up until the next reset')
       }
       // A win always drops a piece, so refuse before fighting rather than lose it afterwards.
       if (await isEquipmentBagFull(userId, etm)) {
@@ -210,7 +211,8 @@ export class RaidService {
         raidTokens,
         bossTokens: result.won ? RAID_BOSS_TOKENS_PER_WIN : 0,
         drop,
-        attemptsLeft: Math.max(0, RAID_DAILY_ATTEMPTS - attempts - 1),
+        attemptsLeft: Math.max(0, RAID_ATTEMPTS - attempts - 1),
+        resetsAt: getWindow(now, RAID_RESET_HOURS).resetsAt,
         wallet,
       }
     })

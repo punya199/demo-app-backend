@@ -12,6 +12,7 @@ import { ADVENTURE_AREAS, isStageUnlocked } from './adventure-data'
 import { toFighter } from './battle-stats'
 import { EnumMaterialId } from './equipment-data'
 import { loadEquipmentBonus } from './equipment.service'
+import { loadPassiveBonus } from './passive.service'
 import {
   calcExpeditionCoins,
   calcExpeditionDrops,
@@ -53,6 +54,7 @@ export class ExpeditionService {
         monster && !monster.diedAt && monster.stage !== EnumMonsterStage.EGG
           ? toFighter(monster, await loadEquipmentBonus(userId, etm)).stats
           : null
+      const { expeditionCoinMultiplier } = await loadPassiveBonus(userId, etm)
       return {
         maxMinutes: EXPEDITION_MAX_MINUTES,
         areas: ADVENTURE_AREAS.filter(area => findExpeditionArea(area.id)).map(area => ({
@@ -62,7 +64,7 @@ export class ExpeditionService {
           unlocked: unlocked.has(area.id),
           baseRatePerHour: getExpeditionBaseRate(area.id),
           // What this monster would earn right now; null without a hatched monster.
-          ratePerHour: stats ? getExpeditionRate(area, stats) : null,
+          ratePerHour: stats ? getExpeditionRate(area, stats) * expeditionCoinMultiplier : null,
         })),
       }
     })
@@ -85,11 +87,13 @@ export class ExpeditionService {
       }
 
       const equipment = await loadEquipmentBonus(userId, etm)
+      // Trainer passives raise the coin rate fixed at departure.
+      const { expeditionCoinMultiplier } = await loadPassiveBonus(userId, etm)
       const result = withRuleErrors(() =>
         startExpedition(
           monster,
           areaId,
-          getExpeditionRate(area, toFighter(monster, equipment).stats),
+          getExpeditionRate(area, toFighter(monster, equipment).stats) * expeditionCoinMultiplier,
           now
         )
       )

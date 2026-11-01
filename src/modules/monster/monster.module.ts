@@ -16,6 +16,8 @@ import { MonsterController } from './monster.controller'
 import { MonsterService } from './monster.service'
 import { FriendController } from './friend.controller'
 import { FriendService } from './friend.service'
+import { PassiveController } from './passive.controller'
+import { PassiveService } from './passive.service'
 import { ProfileController } from './profile.controller'
 import { ProfileService } from './profile.service'
 import { SupportController } from './support.controller'
@@ -47,6 +49,7 @@ import { ShopService } from './shop.service'
     ProfileController,
     FriendController,
     SupportController,
+    PassiveController,
   ],
   providers: [
     MonsterService,
@@ -63,6 +66,7 @@ import { ShopService } from './shop.service'
     ProfileService,
     FriendService,
     SupportService,
+    PassiveService,
   ],
 })
 export class MonsterModule {}

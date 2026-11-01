@@ -16,7 +16,15 @@ import {
   OVERWEIGHT_RATIO,
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
+import {
+  PASSIVE_ECONOMY_CAP,
+  PASSIVE_FREE_REFUNDS,
+  PASSIVE_MAX_POINTS,
+  PASSIVE_RESPEC_GEM_PRICE,
+  PVP_SEASON_POINTS,
+} from './passive-data'
 import * as rules from './monster-rules'
+import * as potential from './monster-potential'
 import {
   BOX_GRADE_RATES,
   DISMANTLE_STONES,
@@ -49,7 +57,14 @@ import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
-import { SPECIES } from './species-data'
+import {
+  FUSED_FORMS,
+  fusedSpeciesId,
+  getSpecies,
+  RARE_EGG_LINES,
+  SPECIES,
+  SPIRITUAL_LINES,
+} from './species-data'
 
 // Everything the in-game guide explains, read straight from the rule constants and game data so
 // the guide can never drift from how the game actually behaves.
@@ -66,6 +81,7 @@ export const buildWiki = () => ({
     deathAfterSickMinutes: rules.DEATH_AFTER_SICK_MINUTES,
     deathAfterHungryMinutes: rules.DEATH_AFTER_HUNGRY_MINUTES,
     lifespanMinutes: rules.LIFESPAN_MINUTES,
+    fusedLifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
     feedWeightGain: rules.FEED_WEIGHT_GAIN,
     vitaminWeightGain: rules.VITAMIN_WEIGHT_GAIN,
     trainWeightLoss: rules.TRAIN_WEIGHT_LOSS,
@@ -75,20 +91,37 @@ export const buildWiki = () => ({
     graceMinutes: rules.ONLINE_GRACE_MINUTES,
     evolutionMultiplier: rules.ONLINE_EVOLUTION_MULTIPLIER,
   },
-  stamina: {
-    max: rules.MAX_STAMINA,
-    recoveryPerMinute: rules.STAMINA_RECOVERY_PER_MINUTE,
-    recoveryOnlineMultiplier: rules.STAMINA_RECOVERY_ONLINE_MULTIPLIER,
-    battleCost: rules.BATTLE_STAMINA_COST,
-    noStaminaStatMultiplier: rules.NO_STAMINA_STAT_MULTIPLIER,
-    minigameRounds: rules.MINIGAME_ROUNDS,
-    minigameRewards: rules.MINIGAME_STAMINA_REWARDS,
-    minigameCooldownMinutes: rules.MINIGAME_COOLDOWN_MS / 60_000,
-    refillGemPrice: rules.STAMINA_REFILL_GEM_PRICE,
-  },
   evolution: {
     stageDurationMinutes: rules.STAGE_DURATION_MINUTES,
     species: SPECIES,
+  },
+  rareEgg: { lines: RARE_EGG_LINES, raidTokenPrice: rules.RARE_EGG_RAID_TOKEN_PRICE },
+  merge: {
+    coinCost: rules.MERGE_COIN_COST,
+    gemCost: rules.MERGE_GEM_COST,
+    powerMultiplier: rules.MERGE_POWER_MULTIPLIER,
+    spiritualLines: SPIRITUAL_LINES,
+    lifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
+    forms: FUSED_FORMS.map(([a, b]) => {
+      const species = getSpecies(fusedSpeciesId(a, b))
+      return {
+        id: species.id,
+        lines: [a, b],
+        name: species.name,
+        emoji: species.emoji,
+        stats: species.stats,
+      }
+    }),
+  },
+  potential: {
+    statSpread: potential.POTENTIAL_STAT_SPREAD,
+    critRateBonusMax: potential.POTENTIAL_CRIT_RATE_MAX_BONUS,
+    critDamageBonusMax: potential.POTENTIAL_CRIT_DAMAGE_MAX_BONUS,
+    evasionMax: potential.POTENTIAL_EVASION_MAX,
+    critRateCap: potential.CRIT_RATE_CAP,
+    critDamageCap: potential.CRIT_DAMAGE_CAP,
+    evasionCap: potential.EVASION_CAP,
+    grades: potential.POTENTIAL_GRADES.map(([grade, minAverage]) => ({ grade, minAverage })),
   },
   battle: {
     atkBonusPerStrengthHeart: ATK_BONUS_PER_STRENGTH_HEART,
@@ -126,7 +159,6 @@ export const buildWiki = () => ({
         .map(stage => ({ name: stage.enemy.name, coins: calcAutoBattleReward(stage) })),
     })),
     autoBattleCooldownSeconds: rules.AUTO_BATTLE_COOLDOWN_MS / 1000,
-    autoBattleStaminaCost: rules.AUTO_BATTLE_STAMINA_COST,
     autoBattleDailyCoinCap: rules.AUTO_BATTLE_DAILY_COIN_CAP,
   },
   equipment: {
@@ -152,8 +184,16 @@ export const buildWiki = () => ({
       steps: ENHANCE_STEPS,
     },
   },
+  passive: {
+    maxPoints: PASSIVE_MAX_POINTS,
+    freeRefunds: PASSIVE_FREE_REFUNDS,
+    respecGemPrice: PASSIVE_RESPEC_GEM_PRICE,
+    economyCap: PASSIVE_ECONOMY_CAP,
+    pvpSeasonPoints: PVP_SEASON_POINTS,
+  },
   worldBoss: {
-    dailyHits: rules.WORLD_BOSS_DAILY_HITS,
+    hits: rules.WORLD_BOSS_HITS,
+    resetHours: rules.WORLD_BOSS_RESET_HOURS,
     rounds: rules.WORLD_BOSS_ROUNDS,
     bosses: WORLD_BOSS_ROTATION,
     perHit: WORLD_BOSS_PARTICIPATION_PER_HIT,
@@ -197,7 +237,8 @@ export const buildWiki = () => ({
     })),
   },
   raid: {
-    dailyAttempts: rules.RAID_DAILY_ATTEMPTS,
+    attempts: rules.RAID_ATTEMPTS,
+    resetHours: rules.RAID_RESET_HOURS,
     bossTokensPerWin: rules.RAID_BOSS_TOKENS_PER_WIN,
     firstClearMultiplier: RAID_FIRST_CLEAR_MULTIPLIER,
     exchangeCost: RAID_EXCHANGE_COST,

@@ -2,8 +2,9 @@ import { Body, Controller, Get, Post } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { HatchMonsterBodyDto } from './dto/hatch-monster.dto'
-import { MinigameBodyDto } from './dto/minigame.dto'
+import { MergeMonstersBodyDto } from './dto/merge-monsters.dto'
 import { MonsterActionBodyDto } from './dto/monster-action.dto'
+import { SelectMonsterBodyDto } from './dto/select-monster.dto'
 import { MonsterService } from './monster.service'
 import { buildWiki } from './wiki'
 
@@ -24,21 +25,21 @@ export class MonsterController {
   }
 
   @AuthUser()
+  @Post('select')
+  async select(@Body() body: SelectMonsterBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.select(user['user-id'], body.monsterId)
+  }
+
+  @AuthUser()
+  @Post('merge')
+  async merge(@Body() body: MergeMonstersBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.merge(user['user-id'], body.firstId, body.secondId, body.baseId)
+  }
+
+  @AuthUser()
   @Post('action')
   async act(@Body() body: MonsterActionBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.monsterService.act(user['user-id'], body.type)
-  }
-
-  @AuthUser()
-  @Post('minigame')
-  async playMinigame(@Body() body: MinigameBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.monsterService.playMinigame(user['user-id'], body.hits)
-  }
-
-  @AuthUser()
-  @Post('stamina/refill')
-  async refillStamina(@ReqUser() user: IAppJwtPayload) {
-    return this.monsterService.refillStamina(user['user-id'])
+    return this.monsterService.act(user['user-id'], body.type, body.monsterId)
   }
 
   @AuthUser()

@@ -7,7 +7,6 @@ import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
   applyBattleOutcome,
-  applyMinigame,
   applyPvpOutcome,
   applyShopItem,
   assertAutoBattleReady,
@@ -18,20 +17,15 @@ import {
   getEvolutionProgress,
   IMonsterState,
   MonsterRuleError,
-  refillStamina,
   startExpedition,
   tick,
 } from './monster-engine'
 import {
   AUTO_BATTLE_COOLDOWN_MS,
-  AUTO_BATTLE_STAMINA_COST,
   EXPEDITION_DRAIN_MULTIPLIER,
   EXPEDITION_MAX_MINUTES,
   LIFESPAN_MINUTES,
-  MINIGAME_COOLDOWN_MS,
   STAGE_DURATION_MINUTES,
-  STAMINA_RECOVERY_ONLINE_MULTIPLIER,
-  STAMINA_RECOVERY_PER_MINUTE,
 } from './monster-rules'
 import { EnumShopItemId } from './shop-data'
 
@@ -56,9 +50,8 @@ const egg = (line = EnumMonsterLine.TIDE) => ({ ...createEgg(line, NOW), lastSee
 const eventTypes = (events: { type: EnumMonsterLogType }[]) => events.map(event => event.type)
 
 describe('createEgg', () => {
-  it('starts with full stamina and marks the owner online', () => {
+  it('marks the owner online', () => {
     const fresh = createEgg(EnumMonsterLine.LEAF, NOW)
-    expect(fresh.stamina).toBe(100)
     expect(fresh.lastSeenAt).toEqual(NOW)
   })
 })
@@ -142,30 +135,6 @@ describe('tick', () => {
       expect(state.ageMinutes).toBe(2)
       expect(state.fullness).toBeCloseTo(4 - 2 / 60)
     })
-
-    it('recovers stamina on its own, twice as fast while online', () => {
-      // online counts for ONLINE_GRACE_MINUTES (2) after the last request
-      const offline = tick(monster({ stamina: 10 }), minutesAfter(NOW, 2)).state.stamina
-      const online = tick(monster({ stamina: 10, lastSeenAt: NOW }), minutesAfter(NOW, 2)).state
-        .stamina
-      expect(offline - 10).toBeCloseTo(2 * STAMINA_RECOVERY_PER_MINUTE)
-      expect(online - 10).toBeCloseTo(
-        2 * STAMINA_RECOVERY_PER_MINUTE * STAMINA_RECOVERY_ONLINE_MULTIPLIER
-      )
-    })
-
-    it('recovers from empty to full in 200 offline minutes and stops at 100', () => {
-      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 199)).state.stamina).toBeLessThan(100)
-      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 200)).state.stamina).toBe(100)
-      expect(tick(monster({ stamina: 0 }), minutesAfter(NOW, 600)).state.stamina).toBe(100)
-    })
-
-    it('keeps recovering while out on an expedition', () => {
-      const out = startExpedition(monster({ stamina: 0 }), 'meadow', 100, NOW).state
-      expect(tick(out, minutesAfter(NOW, 20)).state.stamina).toBeCloseTo(
-        20 * STAMINA_RECOVERY_PER_MINUTE
-      )
-    })
   })
 
   describe('evolution', () => {
@@ -176,6 +145,30 @@ describe('tick', () => {
         minutesAfter(NOW, 1)
       )
     }
+
+    it('branches into the alternate forms for heavily trained or veteran monsters', () => {
+      const baby = { speciesId: 'flame_baby2', stage: EnumMonsterStage.BABY_2, careMistakes: 3 }
+      expect(atStageEnd({ ...baby, trainCount: 8 }).state.speciesId).toBe('flame_adultAlt')
+      expect(atStageEnd({ ...baby, trainCount: 7 }).state.speciesId).toBe('flame_adultGood')
+
+      const adult = {
+        speciesId: 'tide_adultAlt',
+        stage: EnumMonsterStage.ADULT,
+        careMistakes: 2,
+        trainCount: 6,
+      }
+      expect(atStageEnd({ ...adult, wins: 8 }).state.speciesId).toBe('tide_perfectAlt')
+      expect(atStageEnd({ ...adult, wins: 7 }).state.speciesId).toBe('tide_perfectGood')
+
+      const perfect = {
+        speciesId: 'leaf_perfectAlt',
+        stage: EnumMonsterStage.PERFECT,
+        careMistakes: 1,
+        trainCount: 10,
+      }
+      expect(atStageEnd({ ...perfect, wins: 12 }).state.speciesId).toBe('leaf_ultimateAlt')
+      expect(atStageEnd({ ...perfect, wins: 5 }).state.speciesId).toBe('leaf_ultimate')
+    })
 
     it('evolves a well-cared baby into the good adult and resets stage counters', () => {
       const { state, events } = atStageEnd({
@@ -271,6 +264,7 @@ describe('getEvolutionProgress', () => {
     expect(progress.onlineMultiplier).toBe(2)
     expect(progress.nextSpeciesId).toBe('flame_adultGood')
     expect(progress.rules.map(rule => [rule.to, rule.met])).toEqual([
+      ['flame_adultAlt', false],
       ['flame_adultGood', true],
       ['flame_adultPoor', true],
     ])
@@ -374,8 +368,8 @@ describe('applyAction', () => {
 })
 
 describe('assertCanBattle', () => {
-  it('allows a healthy monster even with no stamina or strength left', () => {
-    expect(() => assertCanBattle(monster({ stamina: 0, strength: 0 }))).not.toThrow()
+  it('allows a healthy monster even with no strength left', () => {
+    expect(() => assertCanBattle(monster({ strength: 0 }))).not.toThrow()
   })
 
   it.each([
@@ -387,14 +381,13 @@ describe('assertCanBattle', () => {
 })
 
 describe('applyBattleOutcome', () => {
-  it('costs stamina and a little weight, and records the win', () => {
+  it('costs a little weight, and records the win', () => {
     const { state, events } = applyBattleOutcome(
-      monster({ stamina: 55, weight: 25 }),
+      monster({ weight: 25 }),
       true,
       { stageId: 'meadow_1' },
       NOW
     )
-    expect(state.stamina).toBe(45)
     expect(state.strength).toBe(4)
     expect(state.weight).toBe(24)
     expect(state.wins).toBe(1)
@@ -407,43 +400,10 @@ describe('applyBattleOutcome', () => {
     ])
   })
 
-  it('records a loss and never drops below zero stamina or the form minimum weight', () => {
-    const { state } = applyBattleOutcome(monster({ stamina: 4, weight: 20 }), false, {}, NOW)
-    expect(state.stamina).toBe(0)
+  it('records a loss and never drops below the form minimum weight', () => {
+    const { state } = applyBattleOutcome(monster({ weight: 20 }), false, {}, NOW)
     expect(state.weight).toBe(20)
     expect(state.losses).toBe(1)
-  })
-})
-
-describe('applyMinigame', () => {
-  it('pays stamina by hits, capped at the maximum', () => {
-    expect(applyMinigame(monster({ stamina: 0 }), 0, NOW).state.stamina).toBe(10)
-    expect(applyMinigame(monster({ stamina: 0 }), 3, NOW).state.stamina).toBe(30)
-    expect(applyMinigame(monster({ stamina: 90 }), 3, NOW).state.stamina).toBe(100)
-  })
-
-  it('enforces the cooldown', () => {
-    const played = monster({ lastMinigameAt: NOW })
-    expect(() =>
-      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS - 1))
-    ).toThrow('Mini-game is not ready yet')
-    expect(() =>
-      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS))
-    ).not.toThrow()
-  })
-
-  it('rejects an impossible score', () => {
-    expect(() => applyMinigame(monster(), 4, NOW)).toThrow('Invalid mini-game score')
-  })
-})
-
-describe('refillStamina', () => {
-  it('fills stamina to the maximum', () => {
-    expect(refillStamina(monster({ stamina: 12.5 }), NOW).state.stamina).toBe(100)
-  })
-
-  it('refuses when already full', () => {
-    expect(() => refillStamina(monster({ stamina: 100 }), NOW)).toThrow('Stamina is already full')
   })
 })
 
@@ -525,9 +485,8 @@ describe('expedition', () => {
 })
 
 describe('auto-battle', () => {
-  it('costs less stamina and is rate-limited', () => {
+  it('is rate-limited', () => {
     const { state } = applyBattleOutcome(monster(), true, {}, NOW, true)
-    expect(state.stamina).toBe(100 - AUTO_BATTLE_STAMINA_COST)
     expect(() => assertAutoBattleReady(state, minutesAfter(NOW, 0))).toThrow('not ready')
     expect(() =>
       assertAutoBattleReady(state, new Date(NOW.getTime() + AUTO_BATTLE_COOLDOWN_MS))
@@ -536,14 +495,13 @@ describe('auto-battle', () => {
 })
 
 describe('applyPvpOutcome', () => {
-  it('costs stamina and weight but leaves wins and losses alone', () => {
+  it('costs weight but leaves wins and losses alone', () => {
     const { state, events } = applyPvpOutcome(
       monster({ weight: 30 }),
       true,
       { opponentId: 'x' },
       NOW
     )
-    expect(state.stamina).toBe(90)
     expect(state.weight).toBe(29)
     expect(state.wins).toBe(0)
     expect(state.losses).toBe(0)

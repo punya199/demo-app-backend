@@ -19,6 +19,7 @@ const STAGE_ORDER = [
   EnumMonsterStage.ADULT,
   EnumMonsterStage.PERFECT,
   EnumMonsterStage.ULTIMATE,
+  EnumMonsterStage.FUSED,
 ]
 
 export const isStageAtLeast = (stage: EnumMonsterStage, minimum: EnumMonsterStage) =>
@@ -103,6 +104,30 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.LEAF,
     setId: 'deep_root',
     skillName: 'รากพันธนาการ',
+  },
+  {
+    id: 'radiant_seraph',
+    name: 'เซราฟรัศมี',
+    emoji: '✨',
+    element: EnumMonsterLine.HOLY,
+    setId: 'radiant',
+    skillName: 'แสงพิพากษา',
+  },
+  {
+    id: 'void_sovereign',
+    name: 'จ้าวมืดมิด',
+    emoji: '🌑',
+    element: EnumMonsterLine.DARK,
+    setId: 'nightfall',
+    skillName: 'ราตรีกลืนกิน',
+  },
+  {
+    id: 'nameless_phantom',
+    name: 'ราชันย์เงานิรนาม',
+    emoji: '🌫️',
+    element: EnumMonsterLine.SHADOW,
+    setId: 'shadow_veil',
+    skillName: 'คมเงาเงียบ',
   },
 ]
 

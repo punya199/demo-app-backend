@@ -2,10 +2,17 @@ import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { simulateBattle } from './battle-engine'
-import { IFighter, toFighter } from './battle-stats'
+import {
+  ATK_BONUS_PER_STRENGTH_HEART,
+  IFighter,
+  OVERWEIGHT_RATIO,
+  OVERWEIGHT_SPD_MULTIPLIER,
+  toFighter,
+} from './battle-stats'
 import { createEgg } from './monster-engine'
 import { PVP_NPCS } from './pvp-data'
 import { ADVENTURE_AREAS } from './adventure-data'
+import { getSpecies } from './species-data'
 
 // Replays of past fights (PvP history) are re-simulated from a stored seed and the two stored
 // fighters, so the battle engine must keep producing the exact same events for a fighter that has
@@ -38,6 +45,25 @@ const monsterFighter = (
     ...over,
   })
 
+// The recorded enemies were out of stamina, which halved every stat before rounding (the rule is
+// gone, the stored fighters are not): rebuild them from the unrounded stats the same way.
+const exhaustedEnemy = (line: EnumMonsterLine, stage: EnumMonsterStage, suffix: string) => {
+  const fighter = monsterFighter(line, stage, suffix, { strength: 1 })
+  const { stats } = getSpecies(`${line}_${suffix}`)
+  const isOverweight = 40 > getSpecies(`${line}_${suffix}`).minWeight * OVERWEIGHT_RATIO
+  return {
+    ...fighter,
+    stats: {
+      hp: Math.round(stats.hp * 0.5),
+      atk: Math.round(stats.atk * (1 + ATK_BONUS_PER_STRENGTH_HEART) * 0.5),
+      def: Math.round(stats.def * 0.5),
+      spd: Math.round(stats.spd * (isOverweight ? OVERWEIGHT_SPD_MULTIPLIER : 1) * 0.5),
+    },
+  }
+}
+
+const RECORDED_AREAS = ['meadow', 'coast', 'volcano']
+
 const buildCases = () => {
   const cases: { key: string; player: IFighter; enemy: IFighter; seed: number }[] = []
   const seeds = [1, 2, 3, 7, 42, 99, 12345, 2 ** 30]
@@ -45,7 +71,7 @@ const buildCases = () => {
     for (const line of LINES) {
       for (const enemyLine of LINES) {
         const player = monsterFighter(line, stage, suffix)
-        const enemy = monsterFighter(enemyLine, stage, suffix, { strength: 1, stamina: 0 })
+        const enemy = exhaustedEnemy(enemyLine, stage, suffix)
         seeds.forEach(seed =>
           cases.push({ key: `${stage}:${line}-${enemyLine}:${seed}`, player, enemy, seed })
         )
@@ -58,7 +84,8 @@ const buildCases = () => {
       .slice(0, 4)
       .forEach(seed => cases.push({ key: `${npc.id}:${seed}`, player, enemy: npc.fighter, seed }))
   }
-  for (const area of ADVENTURE_AREAS) {
+  // Only the areas that existed when the results were recorded; later areas are not pinned.
+  for (const area of ADVENTURE_AREAS.filter(entry => RECORDED_AREAS.includes(entry.id))) {
     const player = monsterFighter(EnumMonsterLine.FLAME, EnumMonsterStage.PERFECT, 'perfectGood')
     for (const stage of area.stages) {
       seeds

@@ -5,7 +5,6 @@ export enum EnumQuestId {
   FEED = 'feed',
   TRAIN = 'train',
   CLEAN = 'clean',
-  MINIGAME = 'minigame',
   BATTLE_WIN = 'battle_win',
   EXPEDITION = 'expedition',
 }
@@ -22,7 +21,6 @@ export const DAILY_QUESTS: IDailyQuest[] = [
   { id: EnumQuestId.FEED, name: 'ให้อาหาร 3 ครั้ง', emoji: '🍖', target: 3, coinReward: 10 },
   { id: EnumQuestId.TRAIN, name: 'ฝึก 3 ครั้ง', emoji: '💪', target: 3, coinReward: 15 },
   { id: EnumQuestId.CLEAN, name: 'เก็บอึ 1 ครั้ง', emoji: '🧹', target: 1, coinReward: 5 },
-  { id: EnumQuestId.MINIGAME, name: 'เล่นมินิเกม 1 ครั้ง', emoji: '🎯', target: 1, coinReward: 10 },
   {
     id: EnumQuestId.EXPEDITION,
     name: 'ส่งมอนออกสำรวจ 1 ครั้ง',
@@ -59,7 +57,7 @@ export const getQuestResetAt = (now: Date) => {
   return new Date(Math.floor(shifted / dayMs) * dayMs + dayMs - BANGKOK_OFFSET_MS)
 }
 
-// Which quests a batch of monster events moves forward. Every action, battle and mini-game is
+// Which quests a batch of monster events moves forward. Every action and battle is
 // already logged as an event, so quest progress is derived here instead of in each service.
 export const countQuestProgress = (events: IMonsterEvent[]) => {
   const counts = new Map<EnumQuestId, number>()
@@ -81,9 +79,6 @@ export const countQuestProgress = (events: IMonsterEvent[]) => {
         break
       case 'clean':
         add(EnumQuestId.CLEAN)
-        break
-      case 'minigame':
-        add(EnumQuestId.MINIGAME)
         break
       case 'expedition_start':
         add(EnumQuestId.EXPEDITION)

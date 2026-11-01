@@ -9,6 +9,7 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { toFighter } from './battle-stats'
+import { combatTotals } from './monster-potential'
 import {
   BOX_GRADE_RATES,
   calcEquipmentBonus,
@@ -27,8 +28,10 @@ import {
   SLOT_MAIN_STAT,
 } from './equipment-data'
 import { InventoryService } from './inventory.service'
+import { mergeCombatBonus } from './passive-data'
 import { EQUIPMENT_BOX_PRICE, EQUIPMENT_CAPACITY } from './monster-rules'
 import { MonsterService } from './monster.service'
+import { loadPassiveBonus } from './passive.service'
 
 const MATERIAL_CURRENCY = {
   coin: EnumWalletCurrency.COIN,
@@ -72,7 +75,11 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
 // The monster stats bonus from everything the user currently wears.
 export const loadEquipmentBonus = async (userId: string, etm: EntityManager) => {
   const worn = await etm.find(EquipmentItemEntity, { where: { userId, equipped: true } })
-  return calcEquipmentBonus(worn.map(toEquipmentCore))
+  // Trainer passives ride along with the gear, so every fight and snapshot includes them.
+  return mergeCombatBonus(
+    calcEquipmentBonus(worn.map(toEquipmentCore)),
+    (await loadPassiveBonus(userId, etm)).combat
+  )
 }
 
 export const isEquipmentBagFull = async (userId: string, etm: EntityManager) =>
@@ -123,6 +130,12 @@ export class EquipmentService {
     })
     const worn = rows.filter(row => row.equipped).map(toEquipmentCore)
     const monster = await this.monsterService.getLatestAlive(userId, etm)
+    const fighter = monster
+      ? toFighter(
+          monster,
+          mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
+        )
+      : null
     return {
       capacity: EQUIPMENT_CAPACITY,
       items: rows.map(toEquipmentView),
@@ -130,8 +143,10 @@ export class EquipmentService {
       // Special battle effects the worn sets give (burn, shield, regen, double strike).
       activeEffects: calcEquipmentBonus(worn).effects,
       bonus: calcEquipmentBonus(worn),
-      // The living monster's battle stats with the worn gear; null without a hatched monster.
-      stats: monster ? toFighter(monster, calcEquipmentBonus(worn)).stats : null,
+      // The living monster's battle stats with the worn gear and passives, and its crit rate, crit
+      // damage and evasion; null without a hatched monster.
+      stats: fighter?.stats ?? null,
+      combat: fighter ? combatTotals(fighter.effects) : null,
     }
   }
 

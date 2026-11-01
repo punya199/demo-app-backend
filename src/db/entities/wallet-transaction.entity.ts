@@ -25,6 +25,9 @@ export enum EnumWalletTransactionReason {
   WORLD_BOSS_REWARD = 'world_boss_reward',
   RENTAL_FEE = 'rental_fee',
   RENTAL_INCOME = 'rental_income',
+  PASSIVE_RESPEC = 'passive_respec',
+  MONSTER_MERGE = 'monster_merge',
+  RARE_EGG = 'rare_egg',
 }
 
 @Entity({
