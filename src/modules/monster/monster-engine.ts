@@ -239,7 +239,13 @@ const returnFromExpedition = (
 }
 
 // Advances the state by one game minute ending at `at`.
-const step = (state: IMonsterState, at: Date, events: IMonsterEvent[], fullnessDrain: number) => {
+const step = (
+  state: IMonsterState,
+  at: Date,
+  events: IMonsterEvent[],
+  fullnessDrain: number,
+  poopRate: number
+) => {
   const isOnline = isOnlineAt(state, at)
   const duration = STAGE_DURATION_MINUTES[state.stage]
   const previousStageMinutes = state.stageMinutes
@@ -271,7 +277,7 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[], fullnessD
   if (!isExploring(state)) {
     state.poopMinutes += 1
   }
-  if (state.poopMinutes >= rates.poopEveryMinutes) {
+  if (state.poopMinutes >= Math.ceil(rates.poopEveryMinutes / poopRate)) {
     state.poopMinutes = 0
     if (state.poops < MAX_POOPS) {
       state.poops += 1
@@ -341,8 +347,14 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[], fullnessD
 
 // Replays every whole minute between lastTickAt and now. Leftover seconds stay pending for the
 // next tick, so calling this often never loses or double-counts time.
-// `fullnessDrain` scales how fast fullness drops (trainer passives lower it).
-export const tick = (current: IMonsterState, now: Date, fullnessDrain = 1): IMonsterStepResult => {
+// `fullnessDrain` scales how fast fullness drops (trainer passives and gear lower it); `poopRate`
+// scales how often it poops (gear can lower it).
+export const tick = (
+  current: IMonsterState,
+  now: Date,
+  fullnessDrain = 1,
+  poopRate = 1
+): IMonsterStepResult => {
   const state = { ...current }
   const events: IMonsterEvent[] = []
   if (state.diedAt) {
@@ -357,7 +369,7 @@ export const tick = (current: IMonsterState, now: Date, fullnessDrain = 1): IMon
   const start = state.lastTickAt.getTime()
   const simulated = Math.min(elapsedMinutes, MAX_TICK_MINUTES)
   for (let minute = 1; minute <= simulated && !state.diedAt; minute++) {
-    step(state, new Date(start + minute * MINUTE_MS), events, fullnessDrain)
+    step(state, new Date(start + minute * MINUTE_MS), events, fullnessDrain, poopRate)
   }
   state.lastTickAt = new Date(start + elapsedMinutes * MINUTE_MS)
   return { state, events }
@@ -467,9 +479,9 @@ export const assertCanBattle = (state: IMonsterState) => {
 }
 
 // Adventure fights (manual and auto) need one fight's worth of stamina; other modes don't use it.
-export const assertCanAdventure = (state: IMonsterState) => {
+export const assertCanAdventure = (state: IMonsterState, cost = ADVENTURE_STAMINA_COST) => {
   assertCanBattle(state)
-  if (state.stamina < ADVENTURE_STAMINA_COST) {
+  if (state.stamina < cost) {
     throw new MonsterRuleError('Not enough stamina')
   }
 }
@@ -481,15 +493,16 @@ export const applyBattleOutcome = (
   won: boolean,
   payload: Record<string, unknown>,
   now: Date,
-  isAuto = false
+  isAuto = false,
+  staminaCost = ADVENTURE_STAMINA_COST
 ): IMonsterStepResult => {
-  assertCanAdventure(current)
+  assertCanAdventure(current, staminaCost)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
   if (isAuto) {
     state.lastAutoBattleAt = now
   }
-  state.stamina = Math.max(0, state.stamina - ADVENTURE_STAMINA_COST)
+  state.stamina = Math.max(0, state.stamina - staminaCost)
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   if (won) {
     state.wins += 1

@@ -4,6 +4,9 @@ import {
   calcEquipmentBonus,
   calcSetBonuses,
   calcSetProgress,
+  calcSpecialBonuses,
+  SPECIAL_DEFINITIONS,
+  SUB_STAT_COUNT_BY_GRADE,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   enhanceMultiplier,
@@ -246,5 +249,70 @@ describe('boss sets', () => {
     expect(bonus.pct.atk).toBeCloseTo(0.15)
     expect(bonus.pct.hp).toBeCloseTo(0.2)
     expect(bonus.effects).toEqual({})
+  })
+})
+
+describe('grade rolls: sub stats and special options', () => {
+  const grades = Object.values(EnumEquipmentGrade)
+  const roll = (grade: EnumEquipmentGrade, seed: number) => rollEquipment(grade, createRng(seed))
+
+  it('rolls the sub-stat count of the grade, never the main stat twice', () => {
+    for (const grade of grades) {
+      const { min, max } = SUB_STAT_COUNT_BY_GRADE[grade]
+      for (let seed = 1; seed <= 200; seed++) {
+        const count = Object.keys(roll(grade, seed).subStats).length
+        expect(count).toBeGreaterThanOrEqual(min)
+        expect(count).toBeLessThanOrEqual(max)
+      }
+    }
+  })
+
+  it('common never has a special option, legendary always does', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      expect(roll(EnumEquipmentGrade.COMMON, seed).specialOptions).toEqual([])
+      expect(
+        roll(EnumEquipmentGrade.LEGENDARY, seed).specialOptions!.length
+      ).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('special odds match the grade table and values stay in range, no duplicates', () => {
+    const n = 5000
+    const has = { rare: 0, epic: 0, second: 0 }
+    for (let seed = 1; seed <= n; seed++) {
+      const rare = roll(EnumEquipmentGrade.RARE, seed).specialOptions!
+      const epic = roll(EnumEquipmentGrade.EPIC, seed + 100_000).specialOptions!
+      const legendary = roll(EnumEquipmentGrade.LEGENDARY, seed + 200_000).specialOptions!
+      has.rare += rare.length > 0 ? 1 : 0
+      has.epic += epic.length > 0 ? 1 : 0
+      has.second += legendary.length === 2 ? 1 : 0
+      expect(new Set(legendary.map(o => o.key)).size).toBe(legendary.length)
+      for (const { key, value } of [...rare, ...epic, ...legendary]) {
+        expect(value).toBeGreaterThanOrEqual(SPECIAL_DEFINITIONS[key].min)
+        expect(value).toBeLessThanOrEqual(SPECIAL_DEFINITIONS[key].max)
+      }
+    }
+    expect(has.rare / n).toBeCloseTo(0.15, 1)
+    expect(has.epic / n).toBeCloseTo(0.5, 1)
+    expect(has.second / n).toBeCloseTo(0.25, 1)
+  })
+})
+
+describe('calcSpecialBonuses', () => {
+  it('is neutral without pieces or options', () => {
+    expect(calcSpecialBonuses([{}])).toEqual({
+      hungerDrainMultiplier: 1,
+      staminaCostMultiplier: 1,
+      poopRateMultiplier: 1,
+      dropMultiplier: 1,
+    })
+  })
+
+  it('adds up across pieces and caps each option at 2x its base max', () => {
+    const piece = (value: number) => ({ specialOptions: [{ key: 'slowHunger' as const, value }] })
+    expect(calcSpecialBonuses([piece(10), piece(5)]).hungerDrainMultiplier).toBeCloseTo(0.85)
+    expect(calcSpecialBonuses([piece(15), piece(15), piece(15)]).hungerDrainMultiplier).toBeCloseTo(
+      0.7
+    )
   })
 })

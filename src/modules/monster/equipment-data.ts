@@ -45,10 +45,99 @@ export const GRADE_MULTIPLIER: Record<EnumEquipmentGrade, number> = {
   [EnumEquipmentGrade.LEGENDARY]: 3,
 }
 
-// Secondary stats roll 1-3 distinct stats at 50%-100% of base x grade multiplier.
+// Secondary stats roll distinct stats at 50%-100% of base x grade multiplier; higher grades roll more.
 export const SUB_STAT_BASE: Record<StatKey, number> = { hp: 6, atk: 2, def: 1.5, spd: 1 }
-export const SUB_STAT_COUNT = { min: 1, max: 3 }
+export const SUB_STAT_COUNT_BY_GRADE: Record<EnumEquipmentGrade, { min: number; max: number }> = {
+  [EnumEquipmentGrade.COMMON]: { min: 0, max: 1 },
+  [EnumEquipmentGrade.RARE]: { min: 1, max: 2 },
+  [EnumEquipmentGrade.EPIC]: { min: 2, max: 3 },
+  [EnumEquipmentGrade.LEGENDARY]: { min: 3, max: 4 },
+}
 export const SUB_STAT_ROLL = { min: 0.5, max: 1 }
+
+// Special options: care perks for the pet wearing the piece (not battle stats). Plain pieces only.
+export type SpecialKey = 'slowHunger' | 'staminaSaver' | 'treasureNose' | 'tidyPet'
+export interface ISpecialOption {
+  key: SpecialKey
+  // Percent, e.g. 10 = 10%.
+  value: number
+}
+// `min`-`max` is the base range; a grade rolls `lo`-`hi` of the way along it.
+export const SPECIAL_DEFINITIONS: Record<SpecialKey, { min: number; max: number }> = {
+  slowHunger: { min: 5, max: 15 },
+  staminaSaver: { min: 5, max: 15 },
+  treasureNose: { min: 5, max: 15 },
+  tidyPet: { min: 10, max: 25 },
+}
+export const SPECIAL_KEYS = Object.keys(SPECIAL_DEFINITIONS) as SpecialKey[]
+export const SPECIAL_BY_GRADE: Record<
+  EnumEquipmentGrade,
+  { chance: number; secondChance: number; lo: number; hi: number }
+> = {
+  [EnumEquipmentGrade.COMMON]: { chance: 0, secondChance: 0, lo: 0, hi: 0 },
+  [EnumEquipmentGrade.RARE]: { chance: 0.15, secondChance: 0, lo: 0.5, hi: 0.7 },
+  [EnumEquipmentGrade.EPIC]: { chance: 0.5, secondChance: 0, lo: 0.7, hi: 0.9 },
+  [EnumEquipmentGrade.LEGENDARY]: { chance: 1, secondChance: 0.25, lo: 0.9, hi: 1 },
+}
+// Worn pieces add up, but one option never passes this many times its base maximum.
+export const SPECIAL_TOTAL_CAP_MULTIPLIER = 2
+
+export const rollSpecialOptions = (
+  grade: EnumEquipmentGrade,
+  rand: () => number
+): ISpecialOption[] => {
+  const rule = SPECIAL_BY_GRADE[grade]
+  if (rand() >= rule.chance) {
+    return []
+  }
+  const count = rand() < rule.secondChance ? 2 : 1
+  const pool = [...SPECIAL_KEYS]
+  const options: ISpecialOption[] = []
+  for (let index = 0; index < count; index++) {
+    const key = pool.splice(Math.floor(rand() * pool.length), 1)[0]
+    const { min, max } = SPECIAL_DEFINITIONS[key]
+    options.push({
+      key,
+      value: Math.round(min + (max - min) * (rule.lo + rand() * (rule.hi - rule.lo))),
+    })
+  }
+  return options
+}
+
+export interface ISpecialBonus {
+  // Multipliers on the base rate (1 = unchanged).
+  hungerDrainMultiplier: number
+  staminaCostMultiplier: number
+  poopRateMultiplier: number
+  dropMultiplier: number
+}
+
+// Pure: what a pet's worn pieces give. Recomputed on every use, never stored.
+export const calcSpecialBonuses = (
+  items: { specialOptions?: ISpecialOption[] }[]
+): ISpecialBonus => {
+  const total: Record<SpecialKey, number> = {
+    slowHunger: 0,
+    staminaSaver: 0,
+    treasureNose: 0,
+    tidyPet: 0,
+  }
+  for (const item of items) {
+    for (const option of item.specialOptions ?? []) {
+      if (option.key in total) {
+        total[option.key] += option.value
+      }
+    }
+  }
+  const capped = (key: SpecialKey) =>
+    Math.min(total[key], SPECIAL_DEFINITIONS[key].max * SPECIAL_TOTAL_CAP_MULTIPLIER) / 100
+  return {
+    hungerDrainMultiplier: 1 - capped('slowHunger'),
+    staminaCostMultiplier: 1 - capped('staminaSaver'),
+    poopRateMultiplier: 1 - capped('tidyPet'),
+    dropMultiplier: 1 + capped('treasureNose'),
+  }
+}
 
 export interface IEquipmentTemplate {
   id: string
@@ -262,6 +351,7 @@ export interface IEquipmentItem {
   grade: EnumEquipmentGrade
   mainValue: number
   subStats: Partial<Record<StatKey, number>>
+  specialOptions?: ISpecialOption[]
   enhanceLevel: number
 }
 
@@ -438,8 +528,8 @@ export const rollEquipment = (
   const plain = templates.filter(template => template.setId === null)
   const template = plain[Math.floor(rand() * plain.length)]
   const multiplier = GRADE_MULTIPLIER[grade]
-  const subCount =
-    SUB_STAT_COUNT.min + Math.floor(rand() * (SUB_STAT_COUNT.max - SUB_STAT_COUNT.min + 1))
+  const count = SUB_STAT_COUNT_BY_GRADE[grade]
+  const subCount = count.min + Math.floor(rand() * (count.max - count.min + 1))
   const pool = [...STAT_KEYS]
   const subStats: Partial<Record<StatKey, number>> = {}
   for (let index = 0; index < subCount; index++) {
@@ -454,6 +544,7 @@ export const rollEquipment = (
     grade,
     mainValue: Math.round(SLOT_MAIN_STAT[template.slot].base * multiplier),
     subStats,
+    specialOptions: rollSpecialOptions(grade, rand),
     enhanceLevel: 0,
   }
 }

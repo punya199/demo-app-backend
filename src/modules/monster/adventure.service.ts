@@ -20,8 +20,13 @@ import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
 import { calcAutoBattleReward } from './idle-data'
 import { loadPassiveBonus } from './passive.service'
+import { loadSpecialBonus } from './special-bonus'
 import { applyBattleOutcome, assertAutoBattleReady, assertCanAdventure } from './monster-engine'
-import { AUTO_BATTLE_DAILY_COIN_CAP, EQUIPMENT_DROP_CHANCE_BP } from './monster-rules'
+import {
+  ADVENTURE_STAMINA_COST,
+  AUTO_BATTLE_DAILY_COIN_CAP,
+  EQUIPMENT_DROP_CHANCE_BP,
+} from './monster-rules'
 import { getQuestResetAt } from './quest-data'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 
@@ -82,7 +87,12 @@ export class AdventureService {
       if (!isStageUnlocked(stageId, cleared)) {
         throw new BadRequestException('Stage is locked')
       }
-      withRuleErrors(() => assertCanAdventure(monster))
+      const special = await loadSpecialBonus(monster.id, etm)
+      const staminaCost = Math.max(
+        1,
+        Math.round(ADVENTURE_STAMINA_COST * special.staminaCostMultiplier)
+      )
+      withRuleErrors(() => assertCanAdventure(monster, staminaCost))
 
       let autoCoinsLeft = 0
       if (isAuto) {
@@ -122,7 +132,8 @@ export class AdventureService {
           result.won,
           { stageId, seed, rounds: result.rounds, reward, gemReward },
           now,
-          isAuto
+          isAuto,
+          staminaCost
         )
       )
       const saved = await this.monsterService.saveState(monster, outcome.state, etm)
@@ -175,7 +186,9 @@ export class AdventureService {
         !isAuto &&
         rates &&
         randomInt(0, 10_000) <
-          EQUIPMENT_DROP_CHANCE_BP * (await loadPassiveBonus(userId, etm)).equipmentDropMultiplier
+          EQUIPMENT_DROP_CHANCE_BP *
+            (await loadPassiveBonus(userId, etm)).equipmentDropMultiplier *
+            special.dropMultiplier
       ) {
         const row = await grantEquipment(
           userId,

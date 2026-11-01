@@ -14,6 +14,7 @@ import { combatTotals } from './monster-potential'
 import {
   BOX_GRADE_RATES,
   calcEquipmentBonus,
+  ISpecialOption,
   calcSetBonuses,
   calcSetProgress,
   DISMANTLE_STONES,
@@ -56,6 +57,7 @@ export const toEquipmentCore = (row: EquipmentItemEntity): IEquipmentItem => ({
   grade: row.grade as EnumEquipmentGrade,
   mainValue: row.mainValue,
   subStats: row.subStats,
+  specialOptions: row.specialOptions as ISpecialOption[],
   enhanceLevel: row.enhanceLevel,
 })
 
@@ -73,6 +75,7 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
     mainStat: SLOT_MAIN_STAT[core.slot].stat,
     mainValue: mainValueAt(row.mainValue, row.enhanceLevel),
     subStats: row.subStats,
+    specialOptions: row.specialOptions,
     stats: getItemStats(core),
     enhanceLevel: row.enhanceLevel,
     pity: row.pity,

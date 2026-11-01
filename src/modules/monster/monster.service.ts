@@ -44,6 +44,7 @@ import {
 } from './monster-rules'
 import { createFused } from './monster-merge'
 import { loadPassiveBonus } from './passive.service'
+import { loadSpecialBonus } from './special-bonus'
 import { normalizeNickname, RENAME_COOLDOWN_MS } from './monster-name'
 import { recordQuestProgress } from './quest.service'
 import { getSpecies, RARE_EGG_LINES, SPECIES } from './species-data'
@@ -421,7 +422,13 @@ export class MonsterService {
     const living: MonsterEntity[] = []
     const { hungerDrainMultiplier } = await loadPassiveBonus(userId, etm)
     for (const row of rows) {
-      const { state, events } = tick(row, now, hungerDrainMultiplier)
+      const special = await loadSpecialBonus(row.id, etm)
+      const { state, events } = tick(
+        row,
+        now,
+        hungerDrainMultiplier * special.hungerDrainMultiplier,
+        special.poopRateMultiplier
+      )
       const saved = await this.saveState(row, { ...state, lastSeenAt: now }, etm)
       await this.saveEvents(saved, events, etm)
       if (!saved.diedAt) {

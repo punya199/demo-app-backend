@@ -30,6 +30,7 @@ import {
   LIFESPAN_MINUTES,
   MINIGAME_COOLDOWN_MS,
   STAGE_DURATION_MINUTES,
+  STAGE_RATES,
 } from './monster-rules'
 import { EnumShopItemId } from './shop-data'
 
@@ -78,6 +79,14 @@ describe('tick', () => {
     const { state } = tick(monster(), new Date(NOW.getTime() + 90_000))
     expect(state.lastTickAt).toEqual(minutesAfter(NOW, 1))
     expect(state.ageMinutes).toBe(1)
+  })
+
+  it('poops less often with a lower poop rate', () => {
+    const every = STAGE_RATES[EnumMonsterStage.ADULT].poopEveryMinutes
+    const full = { fullness: 4, strength: 4 }
+    expect(tick(monster(full), minutesAfter(NOW, every)).state.poops).toBe(1)
+    expect(tick(monster(full), minutesAfter(NOW, every), 1, 0.5).state.poops).toBe(0)
+    expect(tick(monster(full), minutesAfter(NOW, every * 2), 1, 0.5).state.poops).toBe(1)
   })
 
   it('is a no-op for a dead monster', () => {
@@ -381,6 +390,15 @@ describe('assertCanBattle', () => {
     ['an egg', egg(), 'The egg has not hatched yet'],
   ])('rejects a monster that is %s', (_label, state, message) => {
     expect(() => assertCanBattle(state)).toThrow(message)
+  })
+})
+
+describe('adventure stamina cost', () => {
+  it('uses a custom cost for the check and the charge', () => {
+    expect(() => assertCanAdventure(monster({ stamina: 7 }), 7)).not.toThrow()
+    expect(() => assertCanAdventure(monster({ stamina: 6 }), 7)).toThrow('Not enough stamina')
+    const { state } = applyBattleOutcome(monster({ stamina: 50 }), true, {}, NOW, false, 7)
+    expect(state.stamina).toBe(43)
   })
 })
 

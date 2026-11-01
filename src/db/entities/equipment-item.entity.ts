@@ -40,6 +40,10 @@ export class EquipmentItemEntity extends BaseModelEntity {
   @Column({ name: 'sub_stats', type: 'jsonb', default: {} })
   subStats: Record<string, number>
 
+  // Care perks for the wearer: [{ key, value }]. See SPECIAL_DEFINITIONS.
+  @Column({ name: 'special_options', type: 'jsonb', default: [] })
+  specialOptions: { key: string; value: number }[]
+
   @Column({ name: 'enhance_level', type: 'integer', default: 0 })
   enhanceLevel: number
 

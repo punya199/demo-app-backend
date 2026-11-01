@@ -36,7 +36,10 @@ import {
   MATERIALS,
   SET_DEFINITIONS,
   SLOT_MAIN_STAT,
-  SUB_STAT_COUNT,
+  SPECIAL_BY_GRADE,
+  SPECIAL_DEFINITIONS,
+  SPECIAL_TOTAL_CAP_MULTIPLIER,
+  SUB_STAT_COUNT_BY_GRADE,
 } from './equipment-data'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
 import {
@@ -176,7 +179,12 @@ export const buildWiki = () => ({
     capacity: rules.EQUIPMENT_CAPACITY,
     slots: SLOT_MAIN_STAT,
     gradeMultiplier: GRADE_MULTIPLIER,
-    subStatCount: SUB_STAT_COUNT,
+    subStatCount: SUB_STAT_COUNT_BY_GRADE,
+    special: {
+      options: SPECIAL_DEFINITIONS,
+      byGrade: SPECIAL_BY_GRADE,
+      totalCapMultiplier: SPECIAL_TOTAL_CAP_MULTIPLIER,
+    },
     boxPrice: rules.EQUIPMENT_BOX_PRICE,
     boxGradeRates: BOX_GRADE_RATES,
     dropChancePercent: rules.EQUIPMENT_DROP_CHANCE_BP / 100,
