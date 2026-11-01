@@ -27,8 +27,10 @@ import {
   SLOT_MAIN_STAT,
 } from './equipment-data'
 import { InventoryService } from './inventory.service'
+import { mergeCombatBonus } from './passive-data'
 import { EQUIPMENT_BOX_PRICE, EQUIPMENT_CAPACITY } from './monster-rules'
 import { MonsterService } from './monster.service'
+import { loadPassiveBonus } from './passive.service'
 
 const MATERIAL_CURRENCY = {
   coin: EnumWalletCurrency.COIN,
@@ -72,7 +74,11 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
 // The monster stats bonus from everything the user currently wears.
 export const loadEquipmentBonus = async (userId: string, etm: EntityManager) => {
   const worn = await etm.find(EquipmentItemEntity, { where: { userId, equipped: true } })
-  return calcEquipmentBonus(worn.map(toEquipmentCore))
+  // Trainer passives ride along with the gear, so every fight and snapshot includes them.
+  return mergeCombatBonus(
+    calcEquipmentBonus(worn.map(toEquipmentCore)),
+    (await loadPassiveBonus(userId, etm)).combat
+  )
 }
 
 export const isEquipmentBagFull = async (userId: string, etm: EntityManager) =>
@@ -131,7 +137,13 @@ export class EquipmentService {
       activeEffects: calcEquipmentBonus(worn).effects,
       bonus: calcEquipmentBonus(worn),
       // The living monster's battle stats with the worn gear; null without a hatched monster.
-      stats: monster ? toFighter(monster, calcEquipmentBonus(worn)).stats : null,
+      // Trainer passives count too.
+      stats: monster
+        ? toFighter(
+            monster,
+            mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
+          ).stats
+        : null,
     }
   }
 

@@ -106,14 +106,19 @@ export const rollHit = (
   const effectiveness = ignoreElements
     ? 'normal'
     : getEffectiveness(attacker.element, defender.element)
-  const isCritical = rng() < CRITICAL_CHANCE
+  const isCritical = rng() < CRITICAL_CHANCE + (attacker.effects?.critChance ?? 0)
   const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
   const raw =
     attacker.stats.atk *
       (isSkill ? attacker.skill.power : 1) *
       effectivenessMultiplier[effectiveness] -
     defender.stats.def * DEFENSE_FACTOR
-  const damage = Math.max(1, Math.round(raw * variance * (isCritical ? CRITICAL_MULTIPLIER : 1)))
+  const damage = Math.max(
+    1,
+    Math.round(
+      raw * variance * (isCritical ? CRITICAL_MULTIPLIER + (attacker.effects?.critDamage ?? 0) : 1)
+    )
+  )
   return { damage, isCritical, effectiveness }
 }
 

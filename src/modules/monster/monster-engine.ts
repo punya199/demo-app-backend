@@ -14,7 +14,7 @@ import {
   FEED_WEIGHT_GAIN,
   HATCH_FULLNESS,
   HATCH_STRENGTH,
-  LIFESPAN_MINUTES,
+  getLifespanMinutes,
   MAX_HEARTS,
   MAX_POOPS,
   MAX_TICK_MINUTES,
@@ -218,7 +218,7 @@ const returnFromExpedition = (
 }
 
 // Advances the state by one game minute ending at `at`.
-const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
+const step = (state: IMonsterState, at: Date, events: IMonsterEvent[], fullnessDrain: number) => {
   const isOnline = isOnlineAt(state, at)
   const duration = STAGE_DURATION_MINUTES[state.stage]
   const previousStageMinutes = state.stageMinutes
@@ -238,7 +238,7 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
 
   const rates = STAGE_RATES[state.stage]
   const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
-  state.fullness = Math.max(0, state.fullness - careDrain / rates.fullnessMinutes)
+  state.fullness = Math.max(0, state.fullness - (careDrain * fullnessDrain) / rates.fullnessMinutes)
   state.strength = Math.max(0, state.strength - careDrain / rates.strengthMinutes)
 
   // Nothing piles up at home while the monster is away.
@@ -288,7 +288,7 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
     }
   }
 
-  if (state.ageMinutes >= LIFESPAN_MINUTES) {
+  if (state.ageMinutes >= getLifespanMinutes(state.stage)) {
     die(state, EnumMonsterDeathCause.OLD_AGE, at, events)
     return
   }
@@ -315,7 +315,8 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
 
 // Replays every whole minute between lastTickAt and now. Leftover seconds stay pending for the
 // next tick, so calling this often never loses or double-counts time.
-export const tick = (current: IMonsterState, now: Date): IMonsterStepResult => {
+// `fullnessDrain` scales how fast fullness drops (trainer passives lower it).
+export const tick = (current: IMonsterState, now: Date, fullnessDrain = 1): IMonsterStepResult => {
   const state = { ...current }
   const events: IMonsterEvent[] = []
   if (state.diedAt) {
@@ -330,7 +331,7 @@ export const tick = (current: IMonsterState, now: Date): IMonsterStepResult => {
   const start = state.lastTickAt.getTime()
   const simulated = Math.min(elapsedMinutes, MAX_TICK_MINUTES)
   for (let minute = 1; minute <= simulated && !state.diedAt; minute++) {
-    step(state, new Date(start + minute * MINUTE_MS), events)
+    step(state, new Date(start + minute * MINUTE_MS), events, fullnessDrain)
   }
   state.lastTickAt = new Date(start + elapsedMinutes * MINUTE_MS)
   return { state, events }
@@ -360,7 +361,7 @@ export const getEvolutionProgress = (state: IMonsterState): IEvolutionProgress =
     onlineMultiplier: ONLINE_EVOLUTION_MULTIPLIER,
     nextSpeciesId: isWaiting ? (pickEvolution(species, state)?.id ?? null) : null,
     rules: species.evolutions.map(rule => ({ ...rule, met: isEvolutionRuleMet(rule, state) })),
-    lifespanRemainingMinutes: Math.max(0, LIFESPAN_MINUTES - state.ageMinutes),
+    lifespanRemainingMinutes: Math.max(0, getLifespanMinutes(state.stage) - state.ageMinutes),
   }
 }
 

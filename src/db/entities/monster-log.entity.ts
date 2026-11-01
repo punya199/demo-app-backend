@@ -11,6 +11,7 @@ export enum EnumMonsterLogType {
   DEATH = 'death',
   BATTLE = 'battle',
   SHOP = 'shop',
+  FUSE = 'fuse',
 }
 
 @Entity({

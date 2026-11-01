@@ -1,5 +1,5 @@
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
-import { BURN_DAMAGE_ATK_RATIO, IBattleEvent, simulateBattle } from './battle-engine'
+import { BURN_DAMAGE_ATK_RATIO, IBattleEvent, rollHit, simulateBattle } from './battle-engine'
 import { IFighter, IFighterEffects } from './battle-stats'
 import { IBattleStats } from './species-data'
 
@@ -132,5 +132,21 @@ describe('set effects in the battle engine', () => {
       expect(doubles).toBeGreaterThan(0)
       expect(doubles).toBeLessThan(20)
     })
+  })
+})
+
+describe('trainer passive crit effects', () => {
+  it('adds crit chance and crit damage only when present', () => {
+    const rng = () => 0.3 // above the base 15% chance, below 15% + 25%
+    const plain = rollHit(fighter(), fighter(), false, rng)
+    const lucky = rollHit(
+      fighter({ effects: { critChance: 0.25, critDamage: 0.5 } }),
+      fighter(),
+      false,
+      rng
+    )
+    expect(plain.isCritical).toBe(false)
+    expect(lucky.isCritical).toBe(true)
+    expect(lucky.damage).toBeGreaterThan(plain.damage * 1.9)
   })
 })

@@ -19,6 +19,7 @@ export const STAGE_DURATION_MINUTES: Record<EnumMonsterStage, number | null> = {
   [EnumMonsterStage.ADULT]: 6 * 60,
   [EnumMonsterStage.PERFECT]: 12 * 60,
   [EnumMonsterStage.ULTIMATE]: null,
+  [EnumMonsterStage.FUSED]: null,
 }
 
 export interface IStageRates {
@@ -34,6 +35,7 @@ export const STAGE_RATES: Record<Exclude<EnumMonsterStage, EnumMonsterStage.EGG>
   [EnumMonsterStage.ADULT]: { fullnessMinutes: 60, strengthMinutes: 75, poopEveryMinutes: 120 },
   [EnumMonsterStage.PERFECT]: { fullnessMinutes: 75, strengthMinutes: 90, poopEveryMinutes: 120 },
   [EnumMonsterStage.ULTIMATE]: { fullnessMinutes: 90, strengthMinutes: 100, poopEveryMinutes: 120 },
+  [EnumMonsterStage.FUSED]: { fullnessMinutes: 90, strengthMinutes: 100, poopEveryMinutes: 120 },
 }
 
 // Hearts a freshly hatched monster starts with.
@@ -50,6 +52,16 @@ export const DEATH_AFTER_SICK_MINUTES = 12 * 60
 export const DEATH_AFTER_HUNGRY_MINUTES = 24 * 60
 // Counted from hatching, so an egg never ages.
 export const LIFESPAN_MINUTES = 5 * 24 * 60
+// A merged monster starts a fresh life (age resets) that lasts longer.
+export const FUSED_LIFESPAN_MINUTES = 7 * 24 * 60
+export const getLifespanMinutes = (stage: EnumMonsterStage) =>
+  stage === EnumMonsterStage.FUSED ? FUSED_LIFESPAN_MINUTES : LIFESPAN_MINUTES
+
+// Ultimate Merge: two of the player's own Ultimates become one Fused monster.
+export const MERGE_COIN_COST = 2000
+export const MERGE_GEM_COST = 20
+// Fused base stats are the Ultimate base stats times this (then the parents' line lean).
+export const MERGE_POWER_MULTIPLIER = 1.3
 
 // A minute counts as "online" when it falls within this long after the player's last request.
 // The page polls every minute while it is open and visible, so an open page stays online.

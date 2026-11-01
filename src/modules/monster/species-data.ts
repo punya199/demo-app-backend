@@ -34,6 +34,8 @@ export interface ISpecies {
   // Checked in order; the first rule whose conditions all pass wins. A rule with no conditions is
   // the fallback. No matching rule = the monster stays in this stage.
   evolutions: IEvolutionRule[]
+  // Fused forms only: the skill follows the line of the parent the player chose as the base.
+  skillByLine?: Record<EnumMonsterLine, ISkill>
 }
 
 export const STAGE_BASE_STATS: Record<EnumMonsterStage, IBattleStats> = {
@@ -43,6 +45,8 @@ export const STAGE_BASE_STATS: Record<EnumMonsterStage, IBattleStats> = {
   [EnumMonsterStage.ADULT]: { hp: 70, atk: 14, def: 9, spd: 11 },
   [EnumMonsterStage.PERFECT]: { hp: 105, atk: 21, def: 14, spd: 15 },
   [EnumMonsterStage.ULTIMATE]: { hp: 150, atk: 30, def: 20, spd: 20 },
+  // Ultimate x MERGE_POWER_MULTIPLIER (pinned by a test).
+  [EnumMonsterStage.FUSED]: { hp: 195, atk: 39, def: 26, spd: 26 },
 }
 
 // Each line leans toward one stat: flame hits hard, tide is tanky, leaf is fast.
@@ -199,6 +203,53 @@ export const SPECIES: ISpecies[] = [
     ultimateAlt: ['เอนท์พิทักษ์', '🌲', 'พิทักษ์พนา'],
   }),
 ]
+
+// Ultimate Merge forms: three awakened (one line twice) and three hybrids (two lines). The parents'
+// order does not matter, so a form is found by the sorted pair of lines. Stats are the Fused base
+// (Ultimate x 1.3) with the average line lean of the two parents.
+export const FUSED_FORMS: [EnumMonsterLine, EnumMonsterLine, string, string][] = [
+  [EnumMonsterLine.FLAME, EnumMonsterLine.FLAME, 'อวตารสุริยะ', '☄️'],
+  [EnumMonsterLine.TIDE, EnumMonsterLine.TIDE, 'สมุทรผู้ตื่น', '🌊'],
+  [EnumMonsterLine.LEAF, EnumMonsterLine.LEAF, 'พนาผู้ตื่น', '🌴'],
+  [EnumMonsterLine.FLAME, EnumMonsterLine.TIDE, 'ยักษ์ไอน้ำ', '♨️'],
+  [EnumMonsterLine.LEAF, EnumMonsterLine.TIDE, 'บึงโบราณ', '🐊'],
+  [EnumMonsterLine.FLAME, EnumMonsterLine.LEAF, 'จ้าวไฟป่า', '🦁'],
+]
+
+const FUSED_SKILLS: Record<EnumMonsterLine, ISkill> = {
+  [EnumMonsterLine.FLAME]: { name: 'สุริยะแผดเผา', power: ULTIMATE_SKILL_POWER },
+  [EnumMonsterLine.TIDE]: { name: 'ตรีศูลสมุทร', power: ULTIMATE_SKILL_POWER },
+  [EnumMonsterLine.LEAF]: { name: 'พนาพิโรธ', power: ULTIMATE_SKILL_POWER },
+}
+
+const fusedKey = (a: EnumMonsterLine, b: EnumMonsterLine) => [a, b].sort().join('+')
+
+export const fusedSpeciesId = (a: EnumMonsterLine, b: EnumMonsterLine) =>
+  `fused_${fusedKey(a, b).replace('+', '_')}`
+
+const fusedSpecies = (): ISpecies[] =>
+  FUSED_FORMS.map(([a, b, name, emoji]) => {
+    const lean = (key: keyof IBattleStats) => (LINE_BIAS[a][key] + LINE_BIAS[b][key]) / 2
+    return {
+      id: fusedSpeciesId(a, b),
+      line: a,
+      stage: EnumMonsterStage.FUSED,
+      name,
+      emoji,
+      minWeight: 40,
+      stats: scaleStats(STAGE_BASE_STATS[EnumMonsterStage.FUSED], {
+        hp: lean('hp'),
+        atk: lean('atk'),
+        def: lean('def'),
+        spd: lean('spd'),
+      }),
+      skill: FUSED_SKILLS[a],
+      skillByLine: FUSED_SKILLS,
+      evolutions: [],
+    }
+  })
+
+SPECIES.push(...fusedSpecies())
 
 const speciesById = new Map(SPECIES.map(species => [species.id, species]))
 

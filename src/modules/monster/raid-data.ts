@@ -19,6 +19,7 @@ const STAGE_ORDER = [
   EnumMonsterStage.ADULT,
   EnumMonsterStage.PERFECT,
   EnumMonsterStage.ULTIMATE,
+  EnumMonsterStage.FUSED,
 ]
 
 export const isStageAtLeast = (stage: EnumMonsterStage, minimum: EnumMonsterStage) =>

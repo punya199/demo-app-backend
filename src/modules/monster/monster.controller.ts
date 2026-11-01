@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { HatchMonsterBodyDto } from './dto/hatch-monster.dto'
+import { MergeMonstersBodyDto } from './dto/merge-monsters.dto'
 import { MonsterActionBodyDto } from './dto/monster-action.dto'
 import { SelectMonsterBodyDto } from './dto/select-monster.dto'
 import { MonsterService } from './monster.service'
@@ -27,6 +28,12 @@ export class MonsterController {
   @Post('select')
   async select(@Body() body: SelectMonsterBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.monsterService.select(user['user-id'], body.monsterId)
+  }
+
+  @AuthUser()
+  @Post('merge')
+  async merge(@Body() body: MergeMonstersBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.merge(user['user-id'], body.firstId, body.secondId, body.baseId)
   }
 
   @AuthUser()

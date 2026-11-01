@@ -16,6 +16,13 @@ import {
   OVERWEIGHT_RATIO,
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
+import {
+  PASSIVE_ECONOMY_CAP,
+  PASSIVE_FREE_REFUNDS,
+  PASSIVE_MAX_POINTS,
+  PASSIVE_RESPEC_GEM_PRICE,
+  PVP_SEASON_POINTS,
+} from './passive-data'
 import * as rules from './monster-rules'
 import {
   BOX_GRADE_RATES,
@@ -49,7 +56,7 @@ import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
-import { SPECIES } from './species-data'
+import { FUSED_FORMS, fusedSpeciesId, getSpecies, SPECIES } from './species-data'
 
 // Everything the in-game guide explains, read straight from the rule constants and game data so
 // the guide can never drift from how the game actually behaves.
@@ -66,6 +73,7 @@ export const buildWiki = () => ({
     deathAfterSickMinutes: rules.DEATH_AFTER_SICK_MINUTES,
     deathAfterHungryMinutes: rules.DEATH_AFTER_HUNGRY_MINUTES,
     lifespanMinutes: rules.LIFESPAN_MINUTES,
+    fusedLifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
     feedWeightGain: rules.FEED_WEIGHT_GAIN,
     vitaminWeightGain: rules.VITAMIN_WEIGHT_GAIN,
     trainWeightLoss: rules.TRAIN_WEIGHT_LOSS,
@@ -78,6 +86,22 @@ export const buildWiki = () => ({
   evolution: {
     stageDurationMinutes: rules.STAGE_DURATION_MINUTES,
     species: SPECIES,
+  },
+  merge: {
+    coinCost: rules.MERGE_COIN_COST,
+    gemCost: rules.MERGE_GEM_COST,
+    powerMultiplier: rules.MERGE_POWER_MULTIPLIER,
+    lifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
+    forms: FUSED_FORMS.map(([a, b]) => {
+      const species = getSpecies(fusedSpeciesId(a, b))
+      return {
+        id: species.id,
+        lines: [a, b],
+        name: species.name,
+        emoji: species.emoji,
+        stats: species.stats,
+      }
+    }),
   },
   battle: {
     atkBonusPerStrengthHeart: ATK_BONUS_PER_STRENGTH_HEART,
@@ -139,6 +163,13 @@ export const buildWiki = () => ({
       pityMax: PITY_MAX,
       steps: ENHANCE_STEPS,
     },
+  },
+  passive: {
+    maxPoints: PASSIVE_MAX_POINTS,
+    freeRefunds: PASSIVE_FREE_REFUNDS,
+    respecGemPrice: PASSIVE_RESPEC_GEM_PRICE,
+    economyCap: PASSIVE_ECONOMY_CAP,
+    pvpSeasonPoints: PVP_SEASON_POINTS,
   },
   worldBoss: {
     hits: rules.WORLD_BOSS_HITS,

@@ -15,12 +15,16 @@ export enum EnumMonsterStage {
   ADULT = 'adult',
   PERFECT = 'perfect',
   ULTIMATE = 'ultimate',
+  // Two merged Ultimates: the final form, never evolves or merges again.
+  FUSED = 'fused',
 }
 
 export enum EnumMonsterDeathCause {
   OLD_AGE = 'old_age',
   SICKNESS = 'sickness',
   STARVATION = 'starvation',
+  // Consumed as a parent of a merge (not a real death).
+  MERGED = 'merged',
 }
 
 // Game rules for every column here live in src/modules/monster/monster-engine.ts - this entity is

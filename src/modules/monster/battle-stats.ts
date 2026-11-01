@@ -22,6 +22,9 @@ export interface IFighterEffects {
   regenPct?: number
   // Chance to strike again right after attacking (never chains).
   doubleStrikeChance?: number
+  // Trainer passives: added to the base crit chance, and to the crit damage multiplier.
+  critChance?: number
+  critDamage?: number
 }
 
 export interface IFighter {
@@ -61,14 +64,15 @@ export const toFighter = (
   return {
     name: species.name,
     emoji: species.emoji,
-    element: species.line,
+    // A fused monster fights with the element of the parent chosen as its base (`state.line`).
+    element: species.stage === EnumMonsterStage.FUSED ? state.line : species.line,
     stats: {
       hp: Math.round(withEquipment(species.stats.hp, 'hp', equipment)),
       atk: Math.round(withEquipment(atk, 'atk', equipment)),
       def: Math.round(withEquipment(species.stats.def, 'def', equipment)),
       spd: Math.round(withEquipment(spd, 'spd', equipment)),
     },
-    skill: species.skill,
+    skill: species.skillByLine?.[state.line] ?? species.skill,
     // Left out entirely without set effects, so stored fighters look exactly as before.
     ...(hasEffects && { effects: equipment.effects }),
   }

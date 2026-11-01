@@ -9,6 +9,7 @@ import { AdventureProgressEntity } from '../db/entities/adventure-progress.entit
 import { FriendInteractionEntity } from '../db/entities/friend-interaction.entity'
 import { FriendshipEntity } from '../db/entities/friendship.entity'
 import { PlayerProfileEntity } from '../db/entities/player-profile.entity'
+import { PassiveAllocationEntity } from '../db/entities/passive-allocation.entity'
 import { RentalEntity } from '../db/entities/rental.entity'
 import { SupportUnitEntity } from '../db/entities/support-unit.entity'
 import { WorldBossDamageEntity } from '../db/entities/world-boss-damage.entity'
@@ -73,6 +74,7 @@ export const entities = [
   FriendInteractionEntity,
   SupportUnitEntity,
   RentalEntity,
+  PassiveAllocationEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

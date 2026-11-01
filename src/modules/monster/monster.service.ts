@@ -1,7 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm'
-import { EnumMonsterLine, EnumMonsterStage, MonsterEntity } from '../../db/entities/monster.entity'
+import {
+  EnumMonsterDeathCause,
+  EnumMonsterLine,
+  EnumMonsterStage,
+  MonsterEntity,
+} from '../../db/entities/monster.entity'
 import { MonsterDexEntity } from '../../db/entities/monster-dex.entity'
 import { EnumMonsterLogType, MonsterLogEntity } from '../../db/entities/monster-log.entity'
 import {
@@ -25,8 +30,12 @@ import {
   AUTO_BATTLE_COOLDOWN_MS,
   DEX_DISCOVERY_GEM_REWARD,
   MAX_LIVING_MONSTERS,
+  MERGE_COIN_COST,
+  MERGE_GEM_COST,
   TRAIN_COOLDOWN_MS,
 } from './monster-rules'
+import { createFused } from './monster-merge'
+import { loadPassiveBonus } from './passive.service'
 import { recordQuestProgress } from './quest.service'
 import { getSpecies, SPECIES } from './species-data'
 
@@ -138,6 +147,75 @@ export class MonsterService {
     })
   }
 
+  // Ultimate Merge: consumes two of the player's Ultimates (they leave the slots as "merged") and
+  // hatches one Fused monster, all in one transaction so a failed charge keeps both parents.
+  async merge(userId: string, firstId: string, secondId: string, baseId: string) {
+    if (firstId === secondId) {
+      throw new BadRequestException('Pick two different monsters')
+    }
+    if (baseId !== firstId && baseId !== secondId) {
+      throw new BadRequestException('The base must be one of the two monsters')
+    }
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      const first = living.find(row => row.id === firstId)
+      const second = living.find(row => row.id === secondId)
+      if (!first || !second) {
+        throw new NotFoundException('Monster not found')
+      }
+      const state = withRuleErrors(() =>
+        createFused(first, second, baseId === firstId ? first : second, now)
+      )
+
+      await this.walletService.change(
+        userId,
+        EnumWalletCurrency.COIN,
+        -MERGE_COIN_COST,
+        EnumWalletTransactionReason.MONSTER_MERGE,
+        null,
+        etm
+      )
+      const wallet = await this.walletService.change(
+        userId,
+        EnumWalletCurrency.GEM,
+        -MERGE_GEM_COST,
+        EnumWalletTransactionReason.MONSTER_MERGE,
+        null,
+        etm
+      )
+
+      const created = await etm.save(MonsterEntity, { ownerId: userId, ...state, selectedAt: now })
+      for (const parent of [first, second]) {
+        await etm.save(
+          MonsterEntity,
+          Object.assign(parent, {
+            diedAt: now,
+            deathCause: EnumMonsterDeathCause.MERGED,
+            selectedAt: null,
+          })
+        )
+        await etm.save(MonsterLogEntity, {
+          monsterId: parent.id,
+          type: EnumMonsterLogType.DEATH,
+          payload: { cause: EnumMonsterDeathCause.MERGED, into: created.id, at: now.toISOString() },
+        })
+      }
+      await this.saveEvents(
+        created,
+        [
+          {
+            type: EnumMonsterLogType.FUSE,
+            at: now,
+            payload: { from: [firstId, secondId], baseId, to: state.speciesId },
+          },
+        ],
+        etm
+      )
+      return { monster: toMonsterView(created), wallet }
+    })
+  }
+
   async act(userId: string, action: EnumMonsterAction, monsterId?: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
@@ -203,8 +281,9 @@ export class MonsterService {
       lock: { mode: 'pessimistic_write' },
     })
     const living: MonsterEntity[] = []
+    const { hungerDrainMultiplier } = await loadPassiveBonus(userId, etm)
     for (const row of rows) {
-      const { state, events } = tick(row, now)
+      const { state, events } = tick(row, now, hungerDrainMultiplier)
       const saved = await this.saveState(row, { ...state, lastSeenAt: now }, etm)
       await this.saveEvents(saved, events, etm)
       if (!saved.diedAt) {
@@ -244,7 +323,9 @@ export class MonsterService {
     await recordQuestProgress(monster.ownerId, new Date(), events, etm)
 
     const evolvedTo = events
-      .filter(event => event.type === EnumMonsterLogType.EVOLVE)
+      .filter(
+        event => event.type === EnumMonsterLogType.EVOLVE || event.type === EnumMonsterLogType.FUSE
+      )
       .map(event => ({ speciesId: event.payload.to as string, at: event.at }))
     if (evolvedTo.length) {
       const inserted = await etm
