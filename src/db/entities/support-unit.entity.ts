@@ -2,8 +2,8 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-// The monster a player offers friends to rent: a frozen copy of its fight stats (gear included,
-// stamina full), like an arena defense but kept separate. Never usable in PvP.
+// The monster a player offers friends to rent: a frozen copy of its fight stats (gear included),
+// like an arena defense but kept separate. Never usable in PvP.
 @Entity({
   name: 'support_units',
 })

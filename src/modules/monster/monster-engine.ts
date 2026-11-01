@@ -5,8 +5,6 @@ import {
 } from '../../db/entities/monster.entity'
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
-  AUTO_BATTLE_STAMINA_COST,
-  BATTLE_STAMINA_COST,
   BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
   DEATH_AFTER_SICK_MINUTES,
@@ -19,10 +17,7 @@ import {
   LIFESPAN_MINUTES,
   MAX_HEARTS,
   MAX_POOPS,
-  MAX_STAMINA,
   MAX_TICK_MINUTES,
-  MINIGAME_COOLDOWN_MS,
-  MINIGAME_STAMINA_REWARDS,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
   AUTO_BATTLE_COOLDOWN_MS,
@@ -35,8 +30,6 @@ import {
   SICK_AFTER_HUNGRY_MINUTES,
   STAGE_DURATION_MINUTES,
   STAGE_RATES,
-  STAMINA_RECOVERY_ONLINE_MULTIPLIER,
-  STAMINA_RECOVERY_PER_MINUTE,
   TRAIN_COOLDOWN_MS,
   TRAIN_WEIGHT_LOSS,
   VITAMIN_WEIGHT_GAIN,
@@ -61,7 +54,6 @@ export interface IMonsterState {
   stage: EnumMonsterStage
   fullness: number
   strength: number
-  stamina: number
   weight: number
   poops: number
   isSick: boolean
@@ -81,7 +73,6 @@ export interface IMonsterState {
   // Last request from the owner; minutes shortly after it count as online.
   lastSeenAt: Date | null
   lastTrainedAt: Date | null
-  lastMinigameAt: Date | null
   lastAutoBattleAt: Date | null
   expeditionAreaId: string | null
   expeditionMinutes: number
@@ -115,7 +106,6 @@ export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
     stage: egg.stage,
     fullness: 0,
     strength: 0,
-    stamina: MAX_STAMINA,
     weight: egg.minWeight,
     poops: 0,
     isSick: false,
@@ -133,7 +123,6 @@ export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
     lastTickAt: now,
     lastSeenAt: now,
     lastTrainedAt: null,
-    lastMinigameAt: null,
     lastAutoBattleAt: null,
     expeditionAreaId: null,
     expeditionMinutes: 0,
@@ -251,12 +240,6 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[]) => {
   const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
   state.fullness = Math.max(0, state.fullness - careDrain / rates.fullnessMinutes)
   state.strength = Math.max(0, state.strength - careDrain / rates.strengthMinutes)
-  // Also while exploring: the monster rests between fights wherever it is.
-  state.stamina = Math.min(
-    MAX_STAMINA,
-    state.stamina +
-      STAMINA_RECOVERY_PER_MINUTE * (isOnline ? STAMINA_RECOVERY_ONLINE_MULTIPLIER : 1)
-  )
 
   // Nothing piles up at home while the monster is away.
   if (!isExploring(state)) {
@@ -446,7 +429,6 @@ export const applyAction = (
 }
 
 // Throws when the monster can't fight right now. Expects a state already ticked up to `now`.
-// Running out of stamina doesn't stop a fight - it halves the monster's stats (battle-stats.ts).
 export const assertCanBattle = (state: IMonsterState) => {
   assertHatchedAndAlive(state)
   if (state.isSick) {
@@ -467,10 +449,6 @@ export const applyBattleOutcome = (
   assertCanBattle(current)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
-  state.stamina = Math.max(
-    0,
-    state.stamina - (isAuto ? AUTO_BATTLE_STAMINA_COST : BATTLE_STAMINA_COST)
-  )
   if (isAuto) {
     state.lastAutoBattleAt = now
   }
@@ -492,34 +470,6 @@ export const applyBattleOutcome = (
   }
 }
 
-// The mini-game's score is reported by the client, so the reward is capped and rate-limited.
-export const applyMinigame = (
-  current: IMonsterState,
-  hits: number,
-  now: Date
-): IMonsterStepResult => {
-  const state = { ...current }
-  assertHatchedAndAlive(state)
-  if (
-    state.lastMinigameAt &&
-    now.getTime() - state.lastMinigameAt.getTime() < MINIGAME_COOLDOWN_MS
-  ) {
-    throw new MonsterRuleError('Mini-game is not ready yet')
-  }
-  const reward = MINIGAME_STAMINA_REWARDS[hits]
-  if (reward === undefined) {
-    throw new MonsterRuleError('Invalid mini-game score')
-  }
-  state.stamina = Math.min(MAX_STAMINA, state.stamina + reward)
-  state.lastMinigameAt = now
-  return {
-    state,
-    events: [
-      { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'minigame', hits, reward } },
-    ],
-  }
-}
-
 // An arena or Boss Raid fight costs what a normal one does but does not touch `wins`/`losses`:
 // those feed the evolution rules, which are meant to be earned in the adventure. Ratings and raid
 // progress are tracked apart.
@@ -533,7 +483,6 @@ export const applyPvpOutcome = (
   assertCanBattle(current)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
-  state.stamina = Math.max(0, state.stamina - BATTLE_STAMINA_COST)
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   return {
     state,
@@ -599,19 +548,6 @@ export const claimExpedition = (
   state.expeditionRate = 0
   state.expeditionReturned = false
   return { state, events: [{ type: EnumMonsterLogType.ACTION, at: now, payload }] }
-}
-
-export const refillStamina = (current: IMonsterState, now: Date): IMonsterStepResult => {
-  const state = { ...current }
-  assertHatchedAndAlive(state)
-  if (state.stamina >= MAX_STAMINA) {
-    throw new MonsterRuleError('Stamina is already full')
-  }
-  state.stamina = MAX_STAMINA
-  return {
-    state,
-    events: [{ type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'stamina_refill' } }],
-  }
 }
 
 // Shop items are eaten/used on purchase.

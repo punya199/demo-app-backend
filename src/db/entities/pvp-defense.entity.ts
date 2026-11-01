@@ -2,8 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-// A user's arena defense: a frozen copy of their monster's fight stats (gear included, stamina
-// full). The name other players see is the player's profile name - never the username (PDPA).
+// A user's arena defense: a frozen copy of their monster's fight stats (gear included). The name other players see is the player's profile name - never the username (PDPA).
 @Entity({
   name: 'pvp_defenses',
 })

@@ -9,30 +9,33 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
+import { toFighter } from './battle-stats'
 import { calcExpeditionCoins, calcExpeditionDrops } from './idle-data'
 import {
   applyAction,
-  applyMinigame,
   createEgg,
   EnumMonsterAction,
   getEvolutionProgress,
   IMonsterEvent,
   IMonsterState,
   MonsterRuleError,
-  refillStamina,
   tick,
 } from './monster-engine'
 import {
   AUTO_BATTLE_COOLDOWN_MS,
   DEX_DISCOVERY_GEM_REWARD,
-  MINIGAME_COOLDOWN_MS,
-  STAMINA_REFILL_GEM_PRICE,
+  MAX_LIVING_MONSTERS,
   TRAIN_COOLDOWN_MS,
 } from './monster-rules'
 import { recordQuestProgress } from './quest.service'
 import { getSpecies, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
+
+const SELECTED_ORDER = {
+  selectedAt: { direction: 'DESC', nulls: 'LAST' },
+  bornAt: 'DESC',
+} as const
 
 // Runs a monster-engine rule, turning a broken rule into a 400 with the rule's message.
 export const withRuleErrors = <T>(rule: () => T): T => {
@@ -61,8 +64,9 @@ export const toMonsterView = (monster: MonsterEntity) => {
     ...monster,
     name: species.name,
     emoji: species.emoji,
+    // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
+    battleStats: species.stage === EnumMonsterStage.EGG ? null : toFighter(monster).stats,
     trainReadyAt: readyAt(monster.lastTrainedAt, TRAIN_COOLDOWN_MS),
-    minigameReadyAt: readyAt(monster.lastMinigameAt, MINIGAME_COOLDOWN_MS),
     // What collecting the expedition would pay right now (0 when not out).
     expeditionPendingCoins: calcExpeditionCoins(monster.expeditionMinutes, monster.expeditionRate),
     expeditionPendingDrops: calcExpeditionDrops(monster.expeditionMinutes),
@@ -84,11 +88,17 @@ export class MonsterService {
     private readonly walletService: WalletService
   ) {}
 
+  // The selected monster (`monster`, what every other screen plays with) plus every living one.
   async getMyMonster(userId: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
-      const monster = await this.lockAndTickLatest(userId, now, etm)
-      return { monster: monster ? toMonsterView(monster) : null }
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      const selected = await this.lockAndTickLatest(userId, now, etm)
+      return {
+        monster: selected ? toMonsterView(selected) : null,
+        monsters: living.map(toMonsterView),
+        maxMonsters: MAX_LIVING_MONSTERS,
+      }
     })
   }
 
@@ -96,12 +106,16 @@ export class MonsterService {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
       // Tick first: a monster still marked alive in the DB may have died since it was last read.
-      const latest = await this.lockAndTickLatest(userId, now, etm)
-      if (latest && !latest.diedAt) {
-        throw new BadRequestException('You already have a living monster')
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      if (living.length >= MAX_LIVING_MONSTERS) {
+        throw new BadRequestException(`You can raise at most ${MAX_LIVING_MONSTERS} monsters`)
       }
 
-      const monster = await etm.save(MonsterEntity, { ownerId: userId, ...createEgg(line, now) })
+      const monster = await etm.save(MonsterEntity, {
+        ownerId: userId,
+        ...createEgg(line, now),
+        selectedAt: now,
+      })
       await this.saveEvents(
         monster,
         [{ type: EnumMonsterLogType.HATCH, at: now, payload: { line } }],
@@ -111,10 +125,25 @@ export class MonsterService {
     })
   }
 
-  async act(userId: string, action: EnumMonsterAction) {
+  async select(userId: string, monsterId: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
-      const monster = await this.lockAndTickLatest(userId, now, etm)
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      const monster = living.find(row => row.id === monsterId)
+      if (!monster) {
+        throw new NotFoundException('Monster not found')
+      }
+      const saved = await etm.save(MonsterEntity, Object.assign(monster, { selectedAt: now }))
+      return { monster: toMonsterView(saved) }
+    })
+  }
+
+  async act(userId: string, action: EnumMonsterAction, monsterId?: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = monsterId
+        ? (await this.lockAndTickLiving(userId, now, etm)).find(row => row.id === monsterId)
+        : await this.lockAndTickLatest(userId, now, etm)
       if (!monster) {
         throw new NotFoundException('You do not have a monster yet')
       }
@@ -133,43 +162,6 @@ export class MonsterService {
       take: HISTORY_LIMIT,
     })
     return { monsters: monsters.map(monster => toMonsterView(monster)) }
-  }
-
-  async playMinigame(userId: string, hits: number) {
-    const now = new Date()
-    return this.dataSource.transaction(async etm => {
-      const monster = await this.lockAndTickLatest(userId, now, etm)
-      if (!monster) {
-        throw new NotFoundException('You do not have a monster yet')
-      }
-      const result = withRuleErrors(() => applyMinigame(monster, hits, now))
-      const saved = await this.saveState(monster, result.state, etm)
-      await this.saveEvents(saved, result.events, etm)
-      return { monster: toMonsterView(saved), reward: result.events[0].payload.reward as number }
-    })
-  }
-
-  async refillStamina(userId: string) {
-    const now = new Date()
-    return this.dataSource.transaction(async etm => {
-      const monster = await this.lockAndTickLatest(userId, now, etm)
-      if (!monster) {
-        throw new NotFoundException('You do not have a monster yet')
-      }
-      // Check the refill is allowed before charging for it.
-      const result = withRuleErrors(() => refillStamina(monster, now))
-      const wallet = await this.walletService.change(
-        userId,
-        EnumWalletCurrency.GEM,
-        -STAMINA_REFILL_GEM_PRICE,
-        EnumWalletTransactionReason.STAMINA_REFILL,
-        monster.id,
-        etm
-      )
-      const saved = await this.saveState(monster, result.state, etm)
-      await this.saveEvents(saved, result.events, etm)
-      return { monster: toMonsterView(saved), wallet }
-    })
   }
 
   async getDex(userId: string) {
@@ -191,34 +183,45 @@ export class MonsterService {
     }
   }
 
-  // The owner's latest monster if it is hatched and alive, without locking or ticking: for
+  // The owner's selected monster if it is hatched and alive, without locking or ticking: for
   // read-only displays such as the equipment screen's stat totals.
   async getLatestAlive(userId: string, etm: EntityManager) {
     const monster = await etm.findOne(MonsterEntity, {
-      where: { ownerId: userId },
-      order: { bornAt: 'DESC' },
+      where: { ownerId: userId, diedAt: IsNull() },
+      order: SELECTED_ORDER,
     })
-    return monster && !monster.diedAt && monster.stage !== EnumMonsterStage.EGG ? monster : null
+    return monster && monster.stage !== EnumMonsterStage.EGG ? monster : null
   }
 
-  // Loads the owner's most recent monster with a row lock and catches it up to `now`, so every
-  // caller in the same transaction sees (and can act on) the current state.
-  async lockAndTickLatest(userId: string, now: Date, etm: EntityManager) {
-    const monster = await etm.findOne(MonsterEntity, {
-      where: { ownerId: userId },
-      order: { bornAt: 'DESC' },
+  // Loads every living monster of the owner with a row lock, caught up to `now`. A request marks
+  // the owner online, and tick() uses the previous mark to decide which elapsed minutes were online.
+  // Monsters that died while away are left out (tick() already saved their death).
+  async lockAndTickLiving(userId: string, now: Date, etm: EntityManager) {
+    const rows = await etm.find(MonsterEntity, {
+      where: { ownerId: userId, diedAt: IsNull() },
+      order: SELECTED_ORDER,
       lock: { mode: 'pessimistic_write' },
     })
-    if (!monster || monster.diedAt) {
-      return monster
+    const living: MonsterEntity[] = []
+    for (const row of rows) {
+      const { state, events } = tick(row, now)
+      const saved = await this.saveState(row, { ...state, lastSeenAt: now }, etm)
+      await this.saveEvents(saved, events, etm)
+      if (!saved.diedAt) {
+        living.push(saved)
+      }
     }
+    return living
+  }
 
-    // Every request from the owner marks them online; tick() uses the previous mark to decide
-    // which of the elapsed minutes were online.
-    const { state, events } = tick(monster, now)
-    const saved = await this.saveState(monster, { ...state, lastSeenAt: now }, etm)
-    await this.saveEvents(saved, events, etm)
-    return saved
+  // The selected monster, ticked and locked: the living one picked most recently, else the most
+  // recently born (dead) one so callers can still say "your monster died".
+  async lockAndTickLatest(userId: string, now: Date, etm: EntityManager) {
+    const living = await this.lockAndTickLiving(userId, now, etm)
+    if (living.length) {
+      return living[0]
+    }
+    return etm.findOne(MonsterEntity, { where: { ownerId: userId }, order: { bornAt: 'DESC' } })
   }
 
   async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {

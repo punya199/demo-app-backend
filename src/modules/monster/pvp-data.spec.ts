@@ -59,7 +59,7 @@ describe('PvP balance', () => {
     }
   })
 
-  it('never lets a monster that is out of stamina and untrained beat the middle rival', () => {
+  it('never lets an underfed, untrained monster beat the middle rival', () => {
     for (const stage of PVP_STAGES) {
       const tired = toFighter({
         ...createEgg(EnumMonsterLine.FLAME, NOW),
@@ -67,7 +67,6 @@ describe('PvP balance', () => {
         stage,
         fullness: 0,
         strength: 0,
-        stamina: 0,
         weight: 40,
       })
       const middle = PVP_NPCS.find(npc => npc.stage === stage && npc.rating === 1000)!

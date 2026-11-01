@@ -13,7 +13,7 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { IFighter, toFighter } from './battle-stats'
-import { countFightsToday } from './daily-fights'
+import { countFightsInWindow, getWindow } from './daily-fights'
 import { defaultDisplayName } from './display-name'
 import {
   buildSetPiece,
@@ -33,7 +33,8 @@ import {
   FRIEND_POINTS_RENTAL,
   RENTAL_FEE,
   RENTAL_OWNER_DAILY_CAP,
-  WORLD_BOSS_DAILY_HITS,
+  WORLD_BOSS_HITS,
+  WORLD_BOSS_RESET_HOURS,
   WORLD_BOSS_ROUNDS,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
@@ -123,7 +124,7 @@ export class WorldBossService {
     const [mine, participants, fights] = await Promise.all([
       etm.findOne(WorldBossDamageEntity, { where: { worldBossId: boss.id, userId } }),
       etm.count(WorldBossDamageEntity, { where: { worldBossId: boss.id } }),
-      countFightsToday(userId, 'world_boss', now, etm),
+      countFightsInWindow(userId, 'world_boss', WORLD_BOSS_RESET_HOURS, now, etm),
     ])
 
     // Weeks that have ended (or whose boss fell) with a reward still waiting for this player.
@@ -164,7 +165,8 @@ export class WorldBossService {
         maxHp: boss.maxHp,
         isDefeated: !!boss.defeatedAt,
       },
-      hitsLeft: Math.max(0, WORLD_BOSS_DAILY_HITS - fights),
+      hitsLeft: Math.max(0, WORLD_BOSS_HITS - fights),
+      resetsAt: getWindow(now, WORLD_BOSS_RESET_HOURS).resetsAt,
       participants,
       myDamage: mine?.damage ?? 0,
       myHits: mine?.hits ?? 0,
@@ -185,8 +187,11 @@ export class WorldBossService {
       if (!isStageAtLeast(monster.stage, MIN_STAGE)) {
         throw new BadRequestException('Your monster is too young for the world boss')
       }
-      if ((await countFightsToday(userId, 'world_boss', now, etm)) >= WORLD_BOSS_DAILY_HITS) {
-        throw new BadRequestException('Daily world boss limit reached')
+      if (
+        (await countFightsInWindow(userId, 'world_boss', WORLD_BOSS_RESET_HOURS, now, etm)) >=
+        WORLD_BOSS_HITS
+      ) {
+        throw new BadRequestException('World boss hits used up until the next reset')
       }
 
       await this.ensureCurrent(now, etm)
@@ -248,7 +253,7 @@ export class WorldBossService {
       const saved = await this.monsterService.saveState(monster, outcome.state, etm)
       await this.monsterService.saveEvents(saved, outcome.events, etm)
 
-      const used = await countFightsToday(userId, 'world_boss', now, etm)
+      const used = await countFightsInWindow(userId, 'world_boss', WORLD_BOSS_RESET_HOURS, now, etm)
       return {
         monster: toMonsterView(saved),
         battle: {
@@ -273,7 +278,8 @@ export class WorldBossService {
         bossHp: boss.hp,
         maxHp: boss.maxHp,
         isKillingBlow: result.bossDefeated,
-        hitsLeft: Math.max(0, WORLD_BOSS_DAILY_HITS - used),
+        hitsLeft: Math.max(0, WORLD_BOSS_HITS - used),
+        resetsAt: getWindow(now, WORLD_BOSS_RESET_HOURS).resetsAt,
       }
     })
   }

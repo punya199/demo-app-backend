@@ -94,9 +94,9 @@ describe('boss raid', () => {
     expect(monster.wins + monster.losses).toBe(0)
   })
 
-  it('allows exactly three raid fights a day however many arrive at once', async () => {
+  it('allows exactly three raid fights per window however many arrive at once', async () => {
     await newDay()
-    await sql(`UPDATE monsters SET stamina=100, fullness=4 WHERE owner_id=$1`, [userId])
+    await sql(`UPDATE monsters SET fullness=4 WHERE owner_id=$1`, [userId])
     const burst = await Promise.allSettled(
       Array.from({ length: 8 }, () => raid.battle(userId, 'lava_king', EnumRaidDifficulty.NORMAL))
     )

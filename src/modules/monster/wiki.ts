@@ -75,17 +75,6 @@ export const buildWiki = () => ({
     graceMinutes: rules.ONLINE_GRACE_MINUTES,
     evolutionMultiplier: rules.ONLINE_EVOLUTION_MULTIPLIER,
   },
-  stamina: {
-    max: rules.MAX_STAMINA,
-    recoveryPerMinute: rules.STAMINA_RECOVERY_PER_MINUTE,
-    recoveryOnlineMultiplier: rules.STAMINA_RECOVERY_ONLINE_MULTIPLIER,
-    battleCost: rules.BATTLE_STAMINA_COST,
-    noStaminaStatMultiplier: rules.NO_STAMINA_STAT_MULTIPLIER,
-    minigameRounds: rules.MINIGAME_ROUNDS,
-    minigameRewards: rules.MINIGAME_STAMINA_REWARDS,
-    minigameCooldownMinutes: rules.MINIGAME_COOLDOWN_MS / 60_000,
-    refillGemPrice: rules.STAMINA_REFILL_GEM_PRICE,
-  },
   evolution: {
     stageDurationMinutes: rules.STAGE_DURATION_MINUTES,
     species: SPECIES,
@@ -126,7 +115,6 @@ export const buildWiki = () => ({
         .map(stage => ({ name: stage.enemy.name, coins: calcAutoBattleReward(stage) })),
     })),
     autoBattleCooldownSeconds: rules.AUTO_BATTLE_COOLDOWN_MS / 1000,
-    autoBattleStaminaCost: rules.AUTO_BATTLE_STAMINA_COST,
     autoBattleDailyCoinCap: rules.AUTO_BATTLE_DAILY_COIN_CAP,
   },
   equipment: {
@@ -153,7 +141,8 @@ export const buildWiki = () => ({
     },
   },
   worldBoss: {
-    dailyHits: rules.WORLD_BOSS_DAILY_HITS,
+    hits: rules.WORLD_BOSS_HITS,
+    resetHours: rules.WORLD_BOSS_RESET_HOURS,
     rounds: rules.WORLD_BOSS_ROUNDS,
     bosses: WORLD_BOSS_ROTATION,
     perHit: WORLD_BOSS_PARTICIPATION_PER_HIT,
@@ -197,7 +186,8 @@ export const buildWiki = () => ({
     })),
   },
   raid: {
-    dailyAttempts: rules.RAID_DAILY_ATTEMPTS,
+    attempts: rules.RAID_ATTEMPTS,
+    resetHours: rules.RAID_RESET_HOURS,
     bossTokensPerWin: rules.RAID_BOSS_TOKENS_PER_WIN,
     firstClearMultiplier: RAID_FIRST_CLEAR_MULTIPLIER,
     exchangeCost: RAID_EXCHANGE_COST,

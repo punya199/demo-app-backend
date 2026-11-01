@@ -1,7 +1,7 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from './equipment-data'
 import { IMonsterState } from './monster-engine'
-import { MAX_HEARTS, NO_STAMINA_STAT_MULTIPLIER } from './monster-rules'
+import { MAX_HEARTS } from './monster-rules'
 import { getSpecies, IBattleStats, ISkill } from './species-data'
 
 // How a monster's care state turns its species' base stats into the stats it fights with.
@@ -57,19 +57,16 @@ export const toFighter = (
     spd *= OVERWEIGHT_SPD_MULTIPLIER
   }
 
-  // Out of stamina: every stat is halved.
-  const exhausted = state.stamina <= 0 ? NO_STAMINA_STAT_MULTIPLIER : 1
-
   const hasEffects = Object.keys(equipment.effects).length > 0
   return {
     name: species.name,
     emoji: species.emoji,
     element: species.line,
     stats: {
-      hp: Math.round(withEquipment(species.stats.hp, 'hp', equipment) * exhausted),
-      atk: Math.round(withEquipment(atk, 'atk', equipment) * exhausted),
-      def: Math.round(withEquipment(species.stats.def, 'def', equipment) * exhausted),
-      spd: Math.round(withEquipment(spd, 'spd', equipment) * exhausted),
+      hp: Math.round(withEquipment(species.stats.hp, 'hp', equipment)),
+      atk: Math.round(withEquipment(atk, 'atk', equipment)),
+      def: Math.round(withEquipment(species.stats.def, 'def', equipment)),
+      spd: Math.round(withEquipment(spd, 'spd', equipment)),
     },
     skill: species.skill,
     // Left out entirely without set effects, so stored fighters look exactly as before.

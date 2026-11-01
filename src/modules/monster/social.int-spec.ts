@@ -283,11 +283,6 @@ describe('profiles, friends and rental', () => {
       await expect(worldBoss.attack(broke.id, units[0].supportId)).rejects.toThrow(
         /Not enough coins/
       )
-      const [state] = await sql<{ stamina: number }[]>(
-        `SELECT stamina FROM monsters WHERE owner_id=$1`,
-        [broke.id]
-      )
-      expect(state.stamina).toBe(100)
       expect((await worldBoss.getStatus(broke.id)).hitsLeft).toBe(3)
     })
 

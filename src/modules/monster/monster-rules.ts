@@ -6,6 +6,8 @@ import { EnumMonsterStage } from '../../db/entities/monster.entity'
 
 export const MAX_HEARTS = 4
 export const MAX_POOPS = 4
+// How many living monsters one player can raise at the same time.
+export const MAX_LIVING_MONSTERS = 4
 
 // How long a monster stays in each stage before trying to evolve, in stage-progress minutes
 // (an online minute counts ONLINE_EVOLUTION_MULTIPLIER times). null = never evolves further.
@@ -54,23 +56,6 @@ export const LIFESPAN_MINUTES = 5 * 24 * 60
 export const ONLINE_GRACE_MINUTES = 2
 export const ONLINE_EVOLUTION_MULTIPLIER = 2
 
-// Stamina: 0-100, recovers over time (twice as fast online). At 0 every battle stat is halved.
-export const MAX_STAMINA = 100
-// Stamina recovers by itself every minute (no passive drain): 0.5/min with the game closed (full in
-// 3h20), x2 while it is open. A battle costs 10, so one fight is back in 20 offline minutes, and
-// auto-battle (1 stamina per minute) can run indefinitely online.
-export const STAMINA_RECOVERY_PER_MINUTE = 0.5
-export const STAMINA_RECOVERY_ONLINE_MULTIPLIER = 2
-export const BATTLE_STAMINA_COST = 10
-export const NO_STAMINA_STAT_MULTIPLIER = 0.5
-
-// Stamina mini-game: stop the moving bar in the target zone MINIGAME_ROUNDS times.
-export const MINIGAME_ROUNDS = 3
-// Stamina gained by number of hits (index = hits).
-export const MINIGAME_STAMINA_REWARDS = [10, 15, 20, 30]
-export const MINIGAME_COOLDOWN_MS = 5 * 60 * 1000
-
-export const STAMINA_REFILL_GEM_PRICE = 5
 export const DEX_DISCOVERY_GEM_REWARD = 1
 
 export const TRAIN_COOLDOWN_MS = 60 * 1000
@@ -81,7 +66,7 @@ export const VITAMIN_WEIGHT_GAIN = 2
 // Safety cap for one tick - a living monster dies of starvation or old age long before this.
 export const MAX_TICK_MINUTES = 30 * 24 * 60
 
-// Fighting burns a little weight on top of its stamina cost.
+// Fighting burns a little weight on every fight.
 export const BATTLE_WEIGHT_LOSS = 1
 
 export const PREMIUM_MEAT_FULLNESS = 2
@@ -102,9 +87,8 @@ export const EXPEDITION_POWER_MULTIPLIER_MIN = 0.5
 export const EXPEDITION_POWER_MULTIPLIER_MAX = 1.5
 
 // Idle mode, online: auto-battle repeats an already-cleared normal stage. Each fight is cheap in
-// stamina and pays a fraction of the stage reward, with a per-day coin cap against scripts.
+// time and pays a fraction of the stage reward, with a per-day coin cap against scripts.
 export const AUTO_BATTLE_COOLDOWN_MS = 60 * 1000
-export const AUTO_BATTLE_STAMINA_COST = 1
 export const AUTO_BATTLE_REWARD_RATIO = 0.2
 export const AUTO_BATTLE_DAILY_COIN_CAP = 1500
 
@@ -143,12 +127,16 @@ export const SET_ENHANCE_MULTIPLIER = 1.5
 export const SET_PIECE_MAIN_MULTIPLIER = 1.2
 
 // Boss Raid (phase 5). Difficulty tables and token prices are data in raid-data.ts.
-export const RAID_DAILY_ATTEMPTS = 3
+// Attempts refill every RAID_RESET_HOURS (see daily-fights.ts).
+export const RAID_ATTEMPTS = 3
+export const RAID_RESET_HOURS = 1
 // Boss tokens a win pays (the boss's own token, spent to exchange for a piece of its set).
 export const RAID_BOSS_TOKENS_PER_WIN = 1
 
 // World Boss (phase 5b). The boss, rotation and reward tables are data in world-boss-data.ts.
-export const WORLD_BOSS_DAILY_HITS = 3
+// Hits refill every WORLD_BOSS_RESET_HOURS (see daily-fights.ts).
+export const WORLD_BOSS_HITS = 3
+export const WORLD_BOSS_RESET_HOURS = 3
 // A hit lasts this many rounds (or until the team is wiped out).
 export const WORLD_BOSS_ROUNDS = 10
 

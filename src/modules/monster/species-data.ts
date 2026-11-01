@@ -52,6 +52,14 @@ const LINE_BIAS: Record<EnumMonsterLine, IBattleStats> = {
   [EnumMonsterLine.LEAF]: { hp: 1.05, atk: 1, def: 1, spd: 1.15 },
 }
 
+// Alternate branches lean a different way from their line: flame turns agile, tide turns fierce,
+// leaf turns sturdy.
+const ALT_BIAS: Record<EnumMonsterLine, IBattleStats> = {
+  [EnumMonsterLine.FLAME]: { hp: 1, atk: 1, def: 1, spd: 1.2 },
+  [EnumMonsterLine.TIDE]: { hp: 0.95, atk: 1.2, def: 1, spd: 1 },
+  [EnumMonsterLine.LEAF]: { hp: 1.1, atk: 1, def: 1.2, spd: 0.95 },
+}
+
 type EnumFormQuality = 'normal' | 'good' | 'poor'
 
 const QUALITY_MULTIPLIER: Record<EnumFormQuality, number> = {
@@ -77,9 +85,12 @@ type FormKey =
   | 'baby2'
   | 'adultGood'
   | 'adultPoor'
+  | 'adultAlt'
   | 'perfectGood'
   | 'perfectPoor'
+  | 'perfectAlt'
   | 'ultimate'
+  | 'ultimateAlt'
 
 // [name, emoji, skill name]
 type FormNames = Record<FormKey, [string, string, string]>
@@ -103,7 +114,10 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
     emoji: names[key][1],
     minWeight,
     stats: scaleStats(
-      scaleStats(STAGE_BASE_STATS[stage], LINE_BIAS[line]),
+      scaleStats(
+        scaleStats(STAGE_BASE_STATS[stage], LINE_BIAS[line]),
+        key.endsWith('Alt') ? ALT_BIAS[line] : 1
+      ),
       QUALITY_MULTIPLIER[quality]
     ),
     skill: {
@@ -113,7 +127,9 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
     evolutions,
   })
 
+  // The alternate perfect form is the veteran branch: a proven fighter that was also well cared for.
   const toPerfect = (maxCareMistakes: number, minTrainCount: number): IEvolutionRule[] => [
+    { to: id('perfectAlt'), maxCareMistakes, minTrainCount, minWins: 8 },
     { to: id('perfectGood'), maxCareMistakes, minTrainCount },
     { to: id('perfectPoor') },
   ]
@@ -122,16 +138,23 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
     species('egg', EnumMonsterStage.EGG, 'normal', 1, [{ to: id('baby1') }]),
     species('baby1', EnumMonsterStage.BABY_1, 'normal', 5, [{ to: id('baby2') }]),
     species('baby2', EnumMonsterStage.BABY_2, 'normal', 10, [
+      { to: id('adultAlt'), maxCareMistakes: 3, minTrainCount: 8 },
       { to: id('adultGood'), maxCareMistakes: 3 },
       { to: id('adultPoor') },
     ]),
     species('adultGood', EnumMonsterStage.ADULT, 'good', 20, toPerfect(2, 6)),
+    species('adultAlt', EnumMonsterStage.ADULT, 'good', 20, toPerfect(2, 6)),
     species('adultPoor', EnumMonsterStage.ADULT, 'poor', 20, toPerfect(1, 10)),
     species('perfectGood', EnumMonsterStage.PERFECT, 'good', 30, [
       { to: id('ultimate'), maxCareMistakes: 1, minTrainCount: 10, minWins: 5 },
     ]),
     species('perfectPoor', EnumMonsterStage.PERFECT, 'poor', 30, []),
+    species('perfectAlt', EnumMonsterStage.PERFECT, 'good', 30, [
+      { to: id('ultimateAlt'), maxCareMistakes: 1, minTrainCount: 10, minWins: 12 },
+      { to: id('ultimate'), maxCareMistakes: 1, minTrainCount: 10, minWins: 5 },
+    ]),
     species('ultimate', EnumMonsterStage.ULTIMATE, 'good', 40, []),
+    species('ultimateAlt', EnumMonsterStage.ULTIMATE, 'good', 40, []),
   ]
 }
 
@@ -142,9 +165,12 @@ export const SPECIES: ISpecies[] = [
     baby2: ['ถ่านน้อย', '🔥', 'ถ่านลุก'],
     adultGood: ['เพลิงจอมซน', '🦎', 'หางเพลิง'],
     adultPoor: ['ควันกรุ่น', '💨', 'ควันพิษ'],
+    adultAlt: ['เพลิงนักรบ', '🦖', 'ฟันเพลิง'],
     perfectGood: ['อัคนีพยัคฆ์', '🐯', 'กรงเล็บอัคคี'],
     perfectPoor: ['ลาวาอ้วน', '🌋', 'ลาวาทับ'],
+    perfectAlt: ['มังกรเพลิงรบ', '🐲', 'ลมหายใจมังกร'],
     ultimate: ['ราชาสุริยะ', '☀️', 'สุริยะแผดเผา'],
+    ultimateAlt: ['ฟีนิกซ์อมตะ', '🦅', 'ปีกอัคนี'],
   }),
   ...lineSpecies(EnumMonsterLine.TIDE, {
     egg: ['ไข่วารี', '🥚', '-'],
@@ -152,9 +178,12 @@ export const SPECIES: ISpecies[] = [
     baby2: ['ฟองจิ๋ว', '🫧', 'ฟองสบู่'],
     adultGood: ['ปลาดาบน้อย', '🐟', 'ดาบน้ำ'],
     adultPoor: ['แมงกะพรุนขี้เซา', '🪼', 'หนวดช็อต'],
+    adultAlt: ['ฉลามหนาม', '🦈', 'เขี้ยวคลื่น'],
     perfectGood: ['วาฬเกราะ', '🐋', 'คลื่นเกราะ'],
     perfectPoor: ['หมึกขี้เกียจ', '🐙', 'หมึกพ่น'],
+    perfectAlt: ['มังกรทะเลลึก', '🐉', 'น้ำวนมังกร'],
     ultimate: ['เจ้าสมุทร', '🔱', 'ตรีศูลสมุทร'],
+    ultimateAlt: ['เทพีสายน้ำ', '🧜', 'สายน้ำนิรันดร์'],
   }),
   ...lineSpecies(EnumMonsterLine.LEAF, {
     egg: ['ไข่พฤกษ์', '🥚', '-'],
@@ -162,9 +191,12 @@ export const SPECIES: ISpecies[] = [
     baby2: ['ต้นอ่อน', '🌱', 'ใบมีด'],
     adultGood: ['กวางใบไม้', '🦌', 'เขาพฤกษา'],
     adultPoor: ['เห็ดง่วง', '🍄', 'สปอร์หลับ'],
+    adultAlt: ['หมาป่าไพร', '🐺', 'เขี้ยวไพร'],
     perfectGood: ['พยัคฆ์ไพร', '🐅', 'กรงเล็บไพร'],
     perfectPoor: ['ตอไม้แก่', '🪵', 'รากฟาด'],
+    perfectAlt: ['ช้างพฤกษา', '🐘', 'งวงพฤกษา'],
     ultimate: ['เทพพนาลัย', '🌳', 'พนาพิโรธ'],
+    ultimateAlt: ['เอนท์พิทักษ์', '🌲', 'พิทักษ์พนา'],
   }),
 ]
 

@@ -53,7 +53,7 @@ export const buildCore = () => {
   return { wallet, monsters }
 }
 
-// A user with a hatched monster forced into a given form (fed, trained, full stamina).
+// A user with a hatched monster forced into a given form (fed, trained).
 export const createUserWithMonster = async (
   monsters: MonsterService,
   stage = 'adult',
@@ -63,7 +63,7 @@ export const createUserWithMonster = async (
   const userId = await createUser(prefix)
   await monsters.hatch(userId, EnumMonsterLine.FLAME)
   await sql(
-    `UPDATE monsters SET stage=$2, species_id=$3, fullness=4, strength=4, weight=30, stamina=100 WHERE owner_id=$1`,
+    `UPDATE monsters SET stage=$2, species_id=$3, fullness=4, strength=4, weight=30 WHERE owner_id=$1`,
     [userId, stage, speciesId]
   )
   return userId

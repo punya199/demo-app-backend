@@ -18,7 +18,6 @@ import { calcElo, START_RATING } from './elo'
 import { loadEquipmentBonus } from './equipment.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
 import {
-  MAX_STAMINA,
   PVP_DAILY_ATTEMPTS,
   PVP_DEFENSE_COOLDOWN_MS,
   PVP_LOSS_COIN,
@@ -178,11 +177,7 @@ export class PvpService {
         throw new BadRequestException('Defense team was changed recently')
       }
 
-      // Stamina counts as full: a defender is never weaker for having been away.
-      const fighter = toFighter(
-        { ...monster, stamina: MAX_STAMINA },
-        await loadEquipmentBonus(userId, etm)
-      )
+      const fighter = toFighter(monster, await loadEquipmentBonus(userId, etm))
       // The arena name is the player's profile name, shared with friends and the boss ranking.
       if (displayName?.trim()) {
         await this.profileService.setDisplayName(userId, displayName, etm)

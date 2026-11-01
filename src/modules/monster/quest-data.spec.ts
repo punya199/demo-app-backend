@@ -9,13 +9,12 @@ const event = (type: EnumMonsterLogType, payload: Record<string, unknown>): IMon
 })
 
 describe('countQuestProgress', () => {
-  it('counts actions, mini-games and won battles only', () => {
+  it('counts actions and won battles only', () => {
     const counts = countQuestProgress([
       event(EnumMonsterLogType.ACTION, { action: 'feed' }),
       event(EnumMonsterLogType.ACTION, { action: 'feed' }),
       event(EnumMonsterLogType.ACTION, { action: 'train' }),
       event(EnumMonsterLogType.ACTION, { action: 'clean' }),
-      event(EnumMonsterLogType.ACTION, { action: 'minigame', hits: 3 }),
       event(EnumMonsterLogType.ACTION, { action: 'expedition_start' }),
       event(EnumMonsterLogType.ACTION, { action: 'expedition_claim' }),
       event(EnumMonsterLogType.ACTION, { action: 'medicine' }),
@@ -27,7 +26,6 @@ describe('countQuestProgress', () => {
       [EnumQuestId.FEED]: 2,
       [EnumQuestId.TRAIN]: 1,
       [EnumQuestId.CLEAN]: 1,
-      [EnumQuestId.MINIGAME]: 1,
       [EnumQuestId.EXPEDITION]: 1,
       [EnumQuestId.BATTLE_WIN]: 1,
     })
