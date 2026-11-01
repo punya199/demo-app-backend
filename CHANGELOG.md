@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/punya199/demo-app-backend/compare/v1.21.1...v1.22.0) (2026-11-01)
+
+
+### New
+
+* add adventure stamina, evolution path and one-pet-per-piece gear ([d94fed5](https://github.com/punya199/demo-app-backend/commit/d94fed5f66e36a108854738633c23807724ab9f6))
+
 ## [1.21.1](https://github.com/punya199/demo-app-backend/compare/v1.21.0...v1.21.1) (2026-11-01)
 
 
