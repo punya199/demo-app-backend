@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm'
 import { EnumFriendshipStatus, FriendshipEntity } from '../../db/entities/friendship.entity'
 import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
 import { IFighter, toFighter } from './battle-stats'
+import { loadPublicCostumes } from './costume.service'
 import { loadEquipmentBonus } from './equipment.service'
 import { RENTAL_FEE, SUPPORT_COOLDOWN_MS } from './monster-rules'
 import { MonsterService } from './monster.service'
@@ -83,9 +84,17 @@ export class SupportService {
         .getMany(),
       this.profileService.getNames(friendIds, etm),
     ])
+    const costumes = await loadPublicCostumes(
+      units.map(unit => unit.userId),
+      etm
+    )
     return {
       fee: RENTAL_FEE,
-      units: units.map(unit => ({ ...toUnitView(unit), ownerName: names.get(unit.userId)! })),
+      units: units.map(unit => ({
+        ...toUnitView(unit),
+        ownerName: names.get(unit.userId)!,
+        costume: costumes.get(unit.userId) ?? null,
+      })),
     }
   }
 }

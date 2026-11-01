@@ -148,6 +148,10 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'last_renamed_at', type: 'timestamp with time zone', nullable: true })
   lastRenamedAt: Date | null
 
+  // What the pet wears: slot -> costume id (see src/modules/monster/costume-data.ts).
+  @Column({ name: 'costume', type: 'jsonb', default: () => `'{}'` })
+  costume: Record<string, string>
+
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null
 

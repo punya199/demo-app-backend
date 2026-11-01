@@ -9,6 +9,7 @@ import { PlayerProfileEntity } from '../../db/entities/player-profile.entity'
 import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
 import { toFighter } from './battle-stats'
 import { getSpecies } from './species-data'
+import { loadPublicCostumes } from './costume.service'
 import { loadEquipmentBonus } from './equipment.service'
 import { InventoryService } from './inventory.service'
 import {
@@ -107,6 +108,10 @@ export class FriendService {
     ])
     const hasUnit = new Set(units.map(unit => unit.userId))
     const greetedRelations = new Set(greeted.map(entry => entry.friendshipId))
+    const costumes = await loadPublicCostumes(
+      accepted.map(row => this.otherOf(row, userId)),
+      etm
+    )
     const monsters = new Map(
       await Promise.all(
         accepted.map(async row => {
@@ -114,7 +119,13 @@ export class FriendService {
           const monster = await this.monsterService.getLatestAlive(friendId, etm)
           return [
             row.id,
-            monster ? { emoji: getEmoji(monster.speciesId), stage: monster.stage } : null,
+            monster
+              ? {
+                  emoji: getEmoji(monster.speciesId),
+                  stage: monster.stage,
+                  costume: costumes.get(friendId) ?? null,
+                }
+              : null,
           ] as const
         })
       )
@@ -253,9 +264,10 @@ export class FriendService {
     const etm = this.dataSource.manager
     const row = await this.findAccepted(userId, relationId, etm)
     const friendId = this.otherOf(row, userId)
-    const [names, monster] = await Promise.all([
+    const [names, monster, costumes] = await Promise.all([
       this.profileService.getNames([friendId], etm),
       this.monsterService.getLatestAlive(friendId, etm),
+      loadPublicCostumes([friendId], etm),
     ])
     return {
       displayName: names.get(friendId)!,
@@ -265,6 +277,7 @@ export class FriendService {
             emoji: getEmoji(monster.speciesId),
             name: getName(monster.speciesId),
             nickname: monster.nickname,
+            costume: costumes.get(friendId) ?? null,
             stage: monster.stage,
             ageMinutes: monster.ageMinutes,
             isSick: monster.isSick,

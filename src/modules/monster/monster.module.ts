@@ -5,6 +5,8 @@ import { MonsterLogEntity } from '../../db/entities/monster-log.entity'
 import { WalletModule } from '../wallet/wallet.module'
 import { AdventureController } from './adventure.controller'
 import { AdventureService } from './adventure.service'
+import { CostumeController } from './costume.controller'
+import { CostumeService } from './costume.service'
 import { EnhanceService } from './enhance.service'
 import { EquipmentController } from './equipment.controller'
 import { EquipmentService } from './equipment.service'
@@ -50,6 +52,7 @@ import { ShopService } from './shop.service'
     FriendController,
     SupportController,
     PassiveController,
+    CostumeController,
   ],
   providers: [
     MonsterService,
@@ -67,6 +70,7 @@ import { ShopService } from './shop.service'
     FriendService,
     SupportService,
     PassiveService,
+    CostumeService,
   ],
 })
 export class MonsterModule {}

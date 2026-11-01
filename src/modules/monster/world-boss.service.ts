@@ -27,6 +27,7 @@ import {
   loadEquipmentBonus,
   toEquipmentView,
 } from './equipment.service'
+import { loadPublicCostumes } from './costume.service'
 import { InventoryService } from './inventory.service'
 import { applyPvpOutcome, assertCanBattle } from './monster-engine'
 import {
@@ -360,9 +361,14 @@ export class WorldBossService {
        LIMIT ${RANKING_LIMIT}`,
       [week]
     )
+    const costumes = await loadPublicCostumes(
+      rows.map(row => row.user_id),
+      this.dataSource.manager
+    )
     return {
       week,
       entries: rows.map(row => ({
+        costume: costumes.get(row.user_id) ?? null,
         rank: row.rank,
         displayName: row.display_name ?? defaultDisplayName(row.user_id),
         emoji: row.emoji,

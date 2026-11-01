@@ -8,6 +8,7 @@ import { HouseRentMemberEntity } from '../db/entities/house-rent-member.entity'
 import { AdventureProgressEntity } from '../db/entities/adventure-progress.entity'
 import { FriendInteractionEntity } from '../db/entities/friend-interaction.entity'
 import { FriendshipEntity } from '../db/entities/friendship.entity'
+import { PlayerCostumeEntity } from '../db/entities/player-costume.entity'
 import { PlayerProfileEntity } from '../db/entities/player-profile.entity'
 import { PassiveAllocationEntity } from '../db/entities/passive-allocation.entity'
 import { RentalEntity } from '../db/entities/rental.entity'
@@ -70,6 +71,7 @@ export const entities = [
   WorldBossEntity,
   WorldBossDamageEntity,
   PlayerProfileEntity,
+  PlayerCostumeEntity,
   FriendshipEntity,
   FriendInteractionEntity,
   SupportUnitEntity,
