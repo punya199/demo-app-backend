@@ -1,3 +1,13 @@
+# [1.21.0](https://github.com/punya199/demo-app-backend/compare/v1.20.0...v1.21.0) (2026-11-01)
+
+
+### New
+
+* add costume shop ([0841be8](https://github.com/punya199/demo-app-backend/commit/0841be85b3c2c9597fec55069b3b547d0009de65))
+* equip gear per pet ([8a6143a](https://github.com/punya199/demo-app-backend/commit/8a6143a7459658878344dc11b8add32f0be5998e))
+* rename pets ([e7ca379](https://github.com/punya199/demo-app-backend/commit/e7ca379b26dee1ac47e50c3b19ff5d9def65e06e))
+* show set piece counts and set bonus details on gear ([170bfe7](https://github.com/punya199/demo-app-backend/commit/170bfe727d340b47547db0bc289fd4b5af3100e3))
+
 # [1.20.0](https://github.com/punya199/demo-app-backend/compare/v1.19.0...v1.20.0) (2026-11-01)
 
 
