@@ -201,6 +201,106 @@ export const ADVENTURE_AREAS: IAdventureArea[] = [
       ),
     ],
   },
+  {
+    id: 'cavern',
+    name: 'ถ้ำผลึกลึก',
+    emoji: '⛏️',
+    recommendedStage: EnumMonsterStage.ULTIMATE,
+    stages: [
+      enemy(
+        'cavern_1',
+        'ด้วงหินแร่',
+        '🪲',
+        EnumMonsterLine.EARTH,
+        EnumMonsterStage.ULTIMATE,
+        0.75,
+        'ขวิดแร่',
+        70
+      ),
+      enemy(
+        'cavern_2',
+        'ค้างคาวถ้ำฟ้า',
+        '🦇',
+        EnumMonsterLine.LIGHTNING,
+        EnumMonsterStage.ULTIMATE,
+        0.8,
+        'ปีกช็อต',
+        75
+      ),
+      enemy(
+        'cavern_3',
+        'มดยักษ์ใต้ดิน',
+        '🐜',
+        EnumMonsterLine.EARTH,
+        EnumMonsterStage.ULTIMATE,
+        0.85,
+        'กัดบดแร่',
+        80
+      ),
+      enemy(
+        'cavern_boss',
+        'โกเลมผลึก',
+        '💎',
+        EnumMonsterLine.EARTH,
+        EnumMonsterStage.ULTIMATE,
+        1.05,
+        'ผลึกระเบิด',
+        240,
+        true,
+        25
+      ),
+    ],
+  },
+  {
+    id: 'storm_peak',
+    name: 'ยอดผาพายุ',
+    emoji: '⛈️',
+    recommendedStage: EnumMonsterStage.ULTIMATE,
+    stages: [
+      enemy(
+        'storm_1',
+        'กระรอกฟ้าผ่า',
+        '🐿️',
+        EnumMonsterLine.LIGHTNING,
+        EnumMonsterStage.ULTIMATE,
+        0.8,
+        'หางสปาร์ก',
+        85
+      ),
+      enemy(
+        'storm_2',
+        'แพะภูผา',
+        '🐐',
+        EnumMonsterLine.EARTH,
+        EnumMonsterStage.ULTIMATE,
+        0.85,
+        'ขวิดผา',
+        90
+      ),
+      enemy(
+        'storm_3',
+        'เหยี่ยวอสนี',
+        '🦅',
+        EnumMonsterLine.LIGHTNING,
+        EnumMonsterStage.ULTIMATE,
+        0.9,
+        'โฉบอสนี',
+        95
+      ),
+      enemy(
+        'storm_boss',
+        'นกยูงอสนี',
+        '🦚',
+        EnumMonsterLine.LIGHTNING,
+        EnumMonsterStage.ULTIMATE,
+        1.1,
+        'ขนไฟฟ้าสาด',
+        280,
+        true,
+        30
+      ),
+    ],
+  },
 ]
 
 const STAGE_ORDER = ADVENTURE_AREAS.flatMap(area => area.stages.map(stage => ({ area, stage })))

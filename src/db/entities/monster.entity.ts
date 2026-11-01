@@ -7,6 +7,8 @@ export enum EnumMonsterLine {
   FLAME = 'flame',
   TIDE = 'tide',
   LEAF = 'leaf',
+  EARTH = 'earth',
+  LIGHTNING = 'lightning',
 }
 
 export enum EnumMonsterStage {

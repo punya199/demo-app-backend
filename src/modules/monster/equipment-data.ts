@@ -141,6 +141,8 @@ export const DROP_GRADE_RATES_BY_AREA: Record<
   meadow: { [EnumEquipmentGrade.COMMON]: 100 },
   coast: { [EnumEquipmentGrade.COMMON]: 80, [EnumEquipmentGrade.RARE]: 20 },
   volcano: { [EnumEquipmentGrade.RARE]: 80, [EnumEquipmentGrade.EPIC]: 20 },
+  cavern: { [EnumEquipmentGrade.RARE]: 50, [EnumEquipmentGrade.EPIC]: 50 },
+  storm_peak: { [EnumEquipmentGrade.EPIC]: 100 },
 }
 
 // Stones for dismantling a piece, by grade; each two enhance levels add one more.

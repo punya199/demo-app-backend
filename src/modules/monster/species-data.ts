@@ -54,6 +54,8 @@ const LINE_BIAS: Record<EnumMonsterLine, IBattleStats> = {
   [EnumMonsterLine.FLAME]: { hp: 1, atk: 1.15, def: 1, spd: 1 },
   [EnumMonsterLine.TIDE]: { hp: 1.15, atk: 1, def: 1.1, spd: 1 },
   [EnumMonsterLine.LEAF]: { hp: 1.05, atk: 1, def: 1, spd: 1.15 },
+  [EnumMonsterLine.EARTH]: { hp: 1.1, atk: 1, def: 1.15, spd: 0.95 },
+  [EnumMonsterLine.LIGHTNING]: { hp: 1, atk: 1.1, def: 0.95, spd: 1.15 },
 }
 
 // Alternate branches lean a different way from their line: flame turns agile, tide turns fierce,
@@ -62,6 +64,8 @@ const ALT_BIAS: Record<EnumMonsterLine, IBattleStats> = {
   [EnumMonsterLine.FLAME]: { hp: 1, atk: 1, def: 1, spd: 1.2 },
   [EnumMonsterLine.TIDE]: { hp: 0.95, atk: 1.2, def: 1, spd: 1 },
   [EnumMonsterLine.LEAF]: { hp: 1.1, atk: 1, def: 1.2, spd: 0.95 },
+  [EnumMonsterLine.EARTH]: { hp: 0.95, atk: 1.2, def: 1, spd: 1 },
+  [EnumMonsterLine.LIGHTNING]: { hp: 1.1, atk: 1, def: 1.2, spd: 0.95 },
 }
 
 type EnumFormQuality = 'normal' | 'good' | 'poor'
@@ -202,9 +206,44 @@ export const SPECIES: ISpecies[] = [
     ultimate: ['เทพพนาลัย', '🌳', 'พนาพิโรธ'],
     ultimateAlt: ['เอนท์พิทักษ์', '🌲', 'พิทักษ์พนา'],
   }),
+  ...lineSpecies(EnumMonsterLine.EARTH, {
+    egg: ['ไข่ศิลา', '🥚', '-'],
+    baby1: ['ก้อนกรวด', '🪨', 'กรวดกระเด็น'],
+    baby2: ['ก้อนดินเหนียว', '🧱', 'ปั้นทับ'],
+    adultGood: ['เต่าศิลา', '🐢', 'กระดองศิลา'],
+    adultPoor: ['หนอนดินเกียจคร้าน', '🪱', 'เลื้อยทับ'],
+    adultAlt: ['แรดผา', '🦏', 'งาผา'],
+    perfectGood: ['หมีหินผา', '🐻', 'อุ้งตีนผา'],
+    perfectPoor: ['ก้อนหินขี้เกียจ', '🗿', 'ทับกด'],
+    perfectAlt: ['เม่นแร่เหล็ก', '🦔', 'ขนแร่'],
+    ultimate: ['เจ้าธรณี', '🏔️', 'ธรณีสั่น'],
+    ultimateAlt: ['ไททันคริสตัล', '💠', 'ผลึกพิโรธ'],
+  }),
+  ...lineSpecies(EnumMonsterLine.LIGHTNING, {
+    egg: ['ไข่อสนี', '🥚', '-'],
+    baby1: ['ประกายไฟฟ้า', '⚡', 'ช็อตจิ๋ว'],
+    baby2: ['ลูกเมฆฟ้า', '☁️', 'ฟ้าร้อง'],
+    adultGood: ['นกฟ้าผ่า', '🐦', 'ปีกฟ้าผ่า'],
+    adultPoor: ['แมวไฟสถิต', '🐱', 'ขนพองช็อต'],
+    adultAlt: ['เสือพายุ', '🐆', 'เล็บพายุ'],
+    perfectGood: ['ม้าอสนี', '🦄', 'กีบอสนี'],
+    perfectPoor: ['เมฆหม่นขี้เกียจ', '🌥️', 'ฟ้าคำราม'],
+    perfectAlt: ['จิ้งจอกอสนี', '🦊', 'หางอสนี'],
+    ultimate: ['ราชาอสนี', '🌪️', 'อสนีบาต'],
+    ultimateAlt: ['วัชรเทพ', '🌀', 'วัชระผ่าฟ้า'],
+  }),
 ]
 
-// Ultimate Merge forms: three awakened (one line twice) and three hybrids (two lines). The parents'
+// Element groups: lines only merge inside their own group.
+export const NATURAL_LINES = [
+  EnumMonsterLine.FLAME,
+  EnumMonsterLine.TIDE,
+  EnumMonsterLine.LEAF,
+  EnumMonsterLine.EARTH,
+  EnumMonsterLine.LIGHTNING,
+]
+
+// Ultimate Merge forms: one awakened form per line and one hybrid per pair in a group (one line twice) and three hybrids (two lines). The parents'
 // order does not matter, so a form is found by the sorted pair of lines. Stats are the Fused base
 // (Ultimate x 1.3) with the average line lean of the two parents.
 export const FUSED_FORMS: [EnumMonsterLine, EnumMonsterLine, string, string][] = [
@@ -214,12 +253,23 @@ export const FUSED_FORMS: [EnumMonsterLine, EnumMonsterLine, string, string][] =
   [EnumMonsterLine.FLAME, EnumMonsterLine.TIDE, 'ยักษ์ไอน้ำ', '♨️'],
   [EnumMonsterLine.LEAF, EnumMonsterLine.TIDE, 'บึงโบราณ', '🐊'],
   [EnumMonsterLine.FLAME, EnumMonsterLine.LEAF, 'จ้าวไฟป่า', '🦁'],
+  [EnumMonsterLine.EARTH, EnumMonsterLine.EARTH, 'ธรณีผู้ตื่น', '⛰️'],
+  [EnumMonsterLine.LIGHTNING, EnumMonsterLine.LIGHTNING, 'อสนีผู้ตื่น', '🌩️'],
+  [EnumMonsterLine.FLAME, EnumMonsterLine.EARTH, 'ภูเขาไฟคำราม', '🌋'],
+  [EnumMonsterLine.FLAME, EnumMonsterLine.LIGHTNING, 'พายุเพลิงสายฟ้า', '💥'],
+  [EnumMonsterLine.TIDE, EnumMonsterLine.EARTH, 'โคลนมหาสมุทร', '🦦'],
+  [EnumMonsterLine.TIDE, EnumMonsterLine.LIGHTNING, 'พายุทะเลหลวง', '🌀'],
+  [EnumMonsterLine.LEAF, EnumMonsterLine.EARTH, 'ป่าหินโบราณ', '🌵'],
+  [EnumMonsterLine.LEAF, EnumMonsterLine.LIGHTNING, 'ไพรอสนี', '🍃'],
+  [EnumMonsterLine.EARTH, EnumMonsterLine.LIGHTNING, 'ผาฟ้าผ่า', '🏞️'],
 ]
 
 const FUSED_SKILLS: Record<EnumMonsterLine, ISkill> = {
   [EnumMonsterLine.FLAME]: { name: 'สุริยะแผดเผา', power: ULTIMATE_SKILL_POWER },
   [EnumMonsterLine.TIDE]: { name: 'ตรีศูลสมุทร', power: ULTIMATE_SKILL_POWER },
   [EnumMonsterLine.LEAF]: { name: 'พนาพิโรธ', power: ULTIMATE_SKILL_POWER },
+  [EnumMonsterLine.EARTH]: { name: 'ธรณีสั่น', power: ULTIMATE_SKILL_POWER },
+  [EnumMonsterLine.LIGHTNING]: { name: 'อสนีบาต', power: ULTIMATE_SKILL_POWER },
 }
 
 const fusedKey = (a: EnumMonsterLine, b: EnumMonsterLine) => [a, b].sort().join('+')

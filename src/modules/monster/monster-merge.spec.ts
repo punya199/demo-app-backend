@@ -8,7 +8,14 @@ import {
   LIFESPAN_MINUTES,
   MERGE_POWER_MULTIPLIER,
 } from './monster-rules'
-import { fusedSpeciesId, getSpecies, scaleStats, SPECIES, STAGE_BASE_STATS } from './species-data'
+import {
+  fusedSpeciesId,
+  getSpecies,
+  NATURAL_LINES,
+  scaleStats,
+  SPECIES,
+  STAGE_BASE_STATS,
+} from './species-data'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
 
@@ -48,7 +55,7 @@ describe('assertCanMerge', () => {
 
 describe('fused forms', () => {
   it('has one form per line pair, found whatever the parent order', () => {
-    const lines = Object.values(EnumMonsterLine)
+    const lines = NATURAL_LINES
     const ids = new Set<string>()
     for (const x of lines) {
       for (const y of lines) {
@@ -56,9 +63,12 @@ describe('fused forms', () => {
         ids.add(fusedSpeciesId(x, y))
       }
     }
-    expect(ids.size).toBe(6)
+    // 5 awakened + 10 hybrids; the original six ids keep their names.
+    expect(ids.size).toBe(15)
+    expect(ids).toContain('fused_flame_tide')
+    expect(ids).toContain('fused_leaf_leaf')
     ids.forEach(id => expect(getSpecies(id).stage).toBe(EnumMonsterStage.FUSED))
-    expect(SPECIES.filter(s => s.stage === EnumMonsterStage.FUSED)).toHaveLength(6)
+    expect(SPECIES.filter(s => s.stage === EnumMonsterStage.FUSED)).toHaveLength(15)
   })
 
   it('never evolves', () => {

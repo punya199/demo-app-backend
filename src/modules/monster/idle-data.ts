@@ -16,6 +16,8 @@ const EXPEDITION_COINS_PER_HOUR: Record<string, number> = {
   meadow: 100,
   coast: 300,
   volcano: 550,
+  cavern: 750,
+  storm_peak: 900,
 }
 
 // Consumables an expedition can bring home, one random pick per drop.

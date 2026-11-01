@@ -280,6 +280,9 @@ export const PVP_SEASON_POINTS = [
   { maxRank: null, points: 1 },
 ]
 
+// Dex species pay 1 point each, up to this many (more species than this are collectible).
+export const PASSIVE_DEX_MAX_POINTS = 33
+
 export const calcPassivePoints = (progress: {
   dexSpecies: number
   raidFirstClears: number
@@ -293,7 +296,10 @@ export const calcPassivePoints = (progress: {
   )
   return Math.min(
     PASSIVE_MAX_POINTS,
-    progress.dexSpecies + progress.raidFirstClears + progress.worldBossDefeats + pvp
+    Math.min(progress.dexSpecies, PASSIVE_DEX_MAX_POINTS) +
+      progress.raidFirstClears +
+      progress.worldBossDefeats +
+      pvp
   )
 }
 

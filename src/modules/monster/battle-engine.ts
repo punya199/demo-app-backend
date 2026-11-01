@@ -47,21 +47,25 @@ export interface IBattleResult {
   events: IBattleEvent[]
 }
 
-// Each element beats the next one: flame burns leaf, leaf drinks tide, tide douses flame.
-export const BEATS: Record<EnumMonsterLine, EnumMonsterLine> = {
-  [EnumMonsterLine.FLAME]: EnumMonsterLine.LEAF,
-  [EnumMonsterLine.LEAF]: EnumMonsterLine.TIDE,
-  [EnumMonsterLine.TIDE]: EnumMonsterLine.FLAME,
+// What each element beats (x1.3 against them; they hit it for x0.8). The natural ring has every
+// element beat two and lose to two, and keeps the original triangle inside it: flame burns leaf,
+// leaf drinks tide, tide douses flame.
+export const BEATS: Record<EnumMonsterLine, EnumMonsterLine[]> = {
+  [EnumMonsterLine.FLAME]: [EnumMonsterLine.LEAF, EnumMonsterLine.EARTH],
+  [EnumMonsterLine.LEAF]: [EnumMonsterLine.TIDE, EnumMonsterLine.LIGHTNING],
+  [EnumMonsterLine.TIDE]: [EnumMonsterLine.FLAME, EnumMonsterLine.EARTH],
+  [EnumMonsterLine.EARTH]: [EnumMonsterLine.LEAF, EnumMonsterLine.LIGHTNING],
+  [EnumMonsterLine.LIGHTNING]: [EnumMonsterLine.TIDE, EnumMonsterLine.FLAME],
 }
 
 export const getEffectiveness = (
   attacker: EnumMonsterLine,
   defender: EnumMonsterLine
 ): Effectiveness => {
-  if (BEATS[attacker] === defender) {
+  if (BEATS[attacker].includes(defender)) {
     return 'strong'
   }
-  if (BEATS[defender] === attacker) {
+  if (BEATS[defender].includes(attacker)) {
     return 'weak'
   }
   return 'normal'
