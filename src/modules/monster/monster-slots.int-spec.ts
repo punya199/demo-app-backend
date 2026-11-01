@@ -22,7 +22,8 @@ describe('monster slots', () => {
     }
     const { monster, monsters: living } = await monsters.getMyMonster(userId)
     expect(living).toHaveLength(MAX_LIVING_MONSTERS)
-    expect(monster?.id).toBe(living[0].id)
+    // Slots are ordered by birth (oldest first), so the newest egg sits in the last slot.
+    expect(monster?.id).toBe(living[living.length - 1].id)
     await expect(monsters.hatch(userId, EnumMonsterLine.TIDE)).rejects.toThrow(/at most/)
   })
 

@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { HatchMonsterBodyDto } from './dto/hatch-monster.dto'
 import { MergeMonstersBodyDto } from './dto/merge-monsters.dto'
+import { MinigameBodyDto, StaminaRefillBodyDto } from './dto/minigame.dto'
 import { MonsterActionBodyDto } from './dto/monster-action.dto'
 import { RenameMonsterBodyDto } from './dto/rename-monster.dto'
 import { SelectMonsterBodyDto } from './dto/select-monster.dto'
@@ -47,6 +48,27 @@ export class MonsterController {
   @Post('action')
   async act(@Body() body: MonsterActionBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.monsterService.act(user['user-id'], body.type, body.monsterId)
+  }
+
+  @AuthUser()
+  @Post('minigame')
+  async playMinigame(@Body() body: MinigameBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.playMinigame(user['user-id'], body.hits, body.monsterId)
+  }
+
+  @AuthUser()
+  @Post('stamina/refill')
+  async refillStamina(@Body() body: StaminaRefillBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.refillStamina(user['user-id'], body.monsterId)
+  }
+
+  @AuthUser()
+  @Get(':monsterId/evolution-path')
+  async getEvolutionPath(
+    @Param('monsterId', ParseUUIDPipe) monsterId: string,
+    @ReqUser() user: IAppJwtPayload
+  ) {
+    return this.monsterService.getEvolutionPath(user['user-id'], monsterId)
   }
 
   @AuthUser()

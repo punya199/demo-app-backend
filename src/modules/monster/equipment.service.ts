@@ -190,8 +190,9 @@ export class EquipmentService {
   }
 
   // Gear can't change while a pet is away, or an expedition could be re-geared for rate: neither
-  // the pet getting a piece nor the pet losing one may be exploring.
-  async equip(userId: string, equipmentId: string, monsterId?: string) {
+  // the pet getting a piece nor the pet losing one may be exploring. A piece belongs to one pet at
+  // a time: taking it from another pet needs `move` (the screen's "move it here" after a confirm).
+  async equip(userId: string, equipmentId: string, monsterId?: string, move = false) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
       const living = await this.monsterService.lockAndTickLiving(userId, now, etm)
@@ -201,12 +202,14 @@ export class EquipmentService {
       }
       const item = await this.lockItem(userId, equipmentId, etm)
       const previous = living.find(row => row.id === item.monsterId)
+      if (item.equipped && previous && previous.id !== pet.id && !move) {
+        throw new BadRequestException('Equipment is worn by another monster')
+      }
       if ([pet, previous].some(row => row?.expeditionAreaId)) {
         throw new BadRequestException('Monster is on an expedition')
       }
       if (!(item.equipped && item.monsterId === pet.id)) {
-        // Free the slot first: the unique index allows one worn piece per pet and slot. A piece
-        // worn by another pet moves here (the screen asks first).
+        // Free the slot first: the unique index allows one worn piece per pet and slot.
         await etm.update(
           EquipmentItemEntity,
           { monsterId: pet.id, slot: item.slot, equipped: true },

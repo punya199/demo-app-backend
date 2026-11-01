@@ -85,6 +85,50 @@ describe('monster economy (inventory, quests, expedition)', () => {
     expect(sum).toBe(7)
   })
 
+  it('spends adventure stamina exactly once per fight under a race', async () => {
+    const owner = await createUserWithMonster(monsters, 'ultimate', 'flame_ultimate', 'econ')
+    await sql(`UPDATE monsters SET stamina=25 WHERE owner_id=$1`, [owner])
+    const fights = await Promise.allSettled(
+      Array.from({ length: 5 }, () => adventure.battle(owner, 'meadow_1'))
+    )
+    expect(succeeded(fights)).toBe(2)
+    const [row] = await sql<{ stamina: number }[]>(
+      `SELECT stamina FROM monsters WHERE owner_id=$1`,
+      [owner]
+    )
+    // 25 - 2 fights x 10, plus a sliver of regen if a minute ticked over during the run.
+    expect(row.stamina).toBeGreaterThanOrEqual(5)
+    expect(row.stamina).toBeLessThan(6)
+  })
+
+  it('charges gems only for a refill that happens', async () => {
+    const owner = await createUserWithMonster(monsters, 'adult', 'flame_adultGood', 'econ')
+    await expect(monsters.refillStamina(owner)).rejects.toThrow(/already full/)
+    await sql(`UPDATE monsters SET stamina=40 WHERE owner_id=$1`, [owner])
+    await expect(monsters.refillStamina(owner)).rejects.toThrow(/Not enough gems/)
+    await sql(`INSERT INTO wallets (user_id, coin, gem) VALUES ($1, 0, 7)`, [owner])
+    const refills = await Promise.allSettled(
+      Array.from({ length: 3 }, () => monsters.refillStamina(owner))
+    )
+    expect(succeeded(refills)).toBe(1)
+    expect((await wallet.getBalance(owner)).gem).toBe(2)
+  })
+
+  it('follows a monster evolution chain from its egg', async () => {
+    const owner = await createUser('econ')
+    await monsters.hatch(owner, 'leaf' as never)
+    // Catch up 5 hours at once: egg -> baby1 -> baby2 -> adult are logged in one transaction.
+    await sql(
+      `UPDATE monsters SET last_tick_at = last_tick_at - interval '5 hours', last_seen_at = NULL WHERE owner_id=$1`,
+      [owner]
+    )
+    const { monster } = await monsters.getMyMonster(owner)
+    const { path } = await monsters.getEvolutionPath(owner, monster!.id)
+    expect(path.slice(0, 3)).toEqual(['leaf_egg', 'leaf_baby1', 'leaf_baby2'])
+    expect(path[path.length - 1]).toBe(monster!.speciesId)
+    await expect(monsters.getEvolutionPath(userId, monster!.id)).rejects.toThrow(/not found/)
+  })
+
   it('pays an expedition once under a race and clears the trip', async () => {
     const owner = await createUserWithMonster(monsters, 'adult', 'flame_adultGood', 'econ')
     await expedition.start(owner, 'meadow')

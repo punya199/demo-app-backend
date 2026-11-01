@@ -77,8 +77,11 @@ describe('equipment and enhancing', () => {
     expect(forA.items.find(item => item.id === piece.id)?.monsterId).toBe(petA.id)
     expect(forA.items.find(item => item.id === other.id)?.monsterId).toBe(petB.id)
 
-    // Equipping a piece worn by another pet moves it.
-    await equipment.equip(userId, piece.id, petB.id)
+    // A piece worn by another pet is refused unless the player asks to move it.
+    await expect(equipment.equip(userId, piece.id, petB.id)).rejects.toThrow(
+      /worn by another monster/
+    )
+    await equipment.equip(userId, piece.id, petB.id, true)
     const rows = await sql<{ id: string; monster_id: string | null; equipped: boolean }[]>(
       `SELECT id, monster_id, equipped FROM equipment_items WHERE id = ANY($1)`,
       [[piece.id, other.id]]

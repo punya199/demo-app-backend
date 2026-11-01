@@ -7,9 +7,11 @@ import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
   applyBattleOutcome,
+  applyMinigame,
   applyPvpOutcome,
   applyShopItem,
   assertAutoBattleReady,
+  assertCanAdventure,
   assertCanBattle,
   claimExpedition,
   createEgg,
@@ -17,6 +19,7 @@ import {
   getEvolutionProgress,
   IMonsterState,
   MonsterRuleError,
+  refillStamina,
   startExpedition,
   tick,
 } from './monster-engine'
@@ -25,6 +28,7 @@ import {
   EXPEDITION_DRAIN_MULTIPLIER,
   EXPEDITION_MAX_MINUTES,
   LIFESPAN_MINUTES,
+  MINIGAME_COOLDOWN_MS,
   STAGE_DURATION_MINUTES,
 } from './monster-rules'
 import { EnumShopItemId } from './shop-data'
@@ -381,13 +385,14 @@ describe('assertCanBattle', () => {
 })
 
 describe('applyBattleOutcome', () => {
-  it('costs a little weight, and records the win', () => {
+  it('costs stamina and a little weight, and records the win', () => {
     const { state, events } = applyBattleOutcome(
-      monster({ weight: 25 }),
+      monster({ weight: 25, stamina: 55 }),
       true,
       { stageId: 'meadow_1' },
       NOW
     )
+    expect(state.stamina).toBe(45)
     expect(state.strength).toBe(4)
     expect(state.weight).toBe(24)
     expect(state.wins).toBe(1)
@@ -404,6 +409,55 @@ describe('applyBattleOutcome', () => {
     const { state } = applyBattleOutcome(monster({ weight: 20 }), false, {}, NOW)
     expect(state.weight).toBe(20)
     expect(state.losses).toBe(1)
+  })
+
+  it('refuses a fight without a full fight worth of stamina', () => {
+    expect(() => applyBattleOutcome(monster({ stamina: 9.9 }), true, {}, NOW)).toThrow(
+      'Not enough stamina'
+    )
+  })
+})
+
+describe('adventure stamina', () => {
+  it('starts full on a new egg', () => {
+    expect(egg().stamina).toBe(100)
+  })
+
+  it('regains 10 an hour offline and twice that online, capped at 100', () => {
+    expect(tick(monster({ stamina: 20 }), minutesAfter(NOW, 60)).state.stamina).toBeCloseTo(30)
+    // Online only for the 2 minutes after the last request, then offline.
+    const seen = tick(monster({ stamina: 20, lastSeenAt: NOW }), minutesAfter(NOW, 60)).state
+    expect(seen.stamina).toBeCloseTo(20 + (2 * 2 * 10) / 60 + (58 * 10) / 60)
+    expect(tick(monster({ stamina: 99 }), minutesAfter(NOW, 60)).state.stamina).toBe(100)
+  })
+
+  it('does not change while still an egg', () => {
+    expect(tick({ ...egg(), stamina: 50 }, minutesAfter(NOW, 1)).state.stamina).toBe(50)
+  })
+
+  it('gates adventure fights, but no other mode', () => {
+    expect(() => assertCanAdventure(monster({ stamina: 10 }))).not.toThrow()
+    expect(() => assertCanAdventure(monster({ stamina: 9 }))).toThrow('Not enough stamina')
+    expect(() => assertCanBattle(monster({ stamina: 0 }))).not.toThrow()
+  })
+
+  it('pays the mini-game by hits, capped, once per cooldown', () => {
+    expect(applyMinigame(monster({ stamina: 0 }), 0, NOW).state.stamina).toBe(10)
+    expect(applyMinigame(monster({ stamina: 0 }), 3, NOW).state.stamina).toBe(30)
+    expect(applyMinigame(monster({ stamina: 90 }), 3, NOW).state.stamina).toBe(100)
+    const played = monster({ lastMinigameAt: NOW })
+    expect(() =>
+      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS - 1))
+    ).toThrow('Mini-game is not ready yet')
+    expect(() =>
+      applyMinigame(played, 2, new Date(NOW.getTime() + MINIGAME_COOLDOWN_MS))
+    ).not.toThrow()
+    expect(() => applyMinigame(monster(), 4, NOW)).toThrow('Invalid mini-game score')
+  })
+
+  it('refills to full, refusing when already full', () => {
+    expect(refillStamina(monster({ stamina: 12.5 }), NOW).state.stamina).toBe(100)
+    expect(() => refillStamina(monster({ stamina: 100 }), NOW)).toThrow('Stamina is already full')
   })
 })
 

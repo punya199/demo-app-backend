@@ -6,6 +6,7 @@ import {
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import { IPotential } from './monster-potential'
 import {
+  ADVENTURE_STAMINA_COST,
   BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
   DEATH_AFTER_SICK_MINUTES,
@@ -18,12 +19,16 @@ import {
   getLifespanMinutes,
   MAX_HEARTS,
   MAX_POOPS,
+  MAX_STAMINA,
   MAX_TICK_MINUTES,
+  MINIGAME_COOLDOWN_MS,
+  MINIGAME_STAMINA_REWARDS,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
   AUTO_BATTLE_COOLDOWN_MS,
   ONLINE_EVOLUTION_MULTIPLIER,
   ONLINE_GRACE_MINUTES,
+  ONLINE_STAMINA_REGEN_MULTIPLIER,
   PREMIUM_MEAT_FULLNESS,
   PREMIUM_MEAT_WEIGHT_GAIN,
   PROTEIN_STRENGTH,
@@ -31,6 +36,7 @@ import {
   SICK_AFTER_HUNGRY_MINUTES,
   STAGE_DURATION_MINUTES,
   STAGE_RATES,
+  STAMINA_REGEN_PER_HOUR,
   TRAIN_COOLDOWN_MS,
   TRAIN_WEIGHT_LOSS,
   VITAMIN_WEIGHT_GAIN,
@@ -59,6 +65,8 @@ export interface IMonsterState {
   stage: EnumMonsterStage
   fullness: number
   strength: number
+  // Adventure stamina (0-MAX_STAMINA): regained over time, spent by adventure fights.
+  stamina: number
   weight: number
   poops: number
   isSick: boolean
@@ -79,6 +87,7 @@ export interface IMonsterState {
   lastSeenAt: Date | null
   lastTrainedAt: Date | null
   lastAutoBattleAt: Date | null
+  lastMinigameAt: Date | null
   expeditionAreaId: string | null
   expeditionMinutes: number
   expeditionRate: number
@@ -116,6 +125,7 @@ export const createEgg = (
     stage: egg.stage,
     fullness: 0,
     strength: 0,
+    stamina: MAX_STAMINA,
     weight: egg.minWeight,
     poops: 0,
     isSick: false,
@@ -134,6 +144,7 @@ export const createEgg = (
     lastSeenAt: now,
     lastTrainedAt: null,
     lastAutoBattleAt: null,
+    lastMinigameAt: null,
     expeditionAreaId: null,
     expeditionMinutes: 0,
     expeditionRate: 0,
@@ -245,6 +256,11 @@ const step = (state: IMonsterState, at: Date, events: IMonsterEvent[], fullnessD
   }
 
   state.ageMinutes += 1
+
+  state.stamina = Math.min(
+    MAX_STAMINA,
+    state.stamina + (STAMINA_REGEN_PER_HOUR / 60) * (isOnline ? ONLINE_STAMINA_REGEN_MULTIPLIER : 1)
+  )
 
   const rates = STAGE_RATES[state.stage]
   const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
@@ -450,6 +466,16 @@ export const assertCanBattle = (state: IMonsterState) => {
   }
 }
 
+// Adventure fights (manual and auto) need one fight's worth of stamina; other modes don't use it.
+export const assertCanAdventure = (state: IMonsterState) => {
+  assertCanBattle(state)
+  if (state.stamina < ADVENTURE_STAMINA_COST) {
+    throw new MonsterRuleError('Not enough stamina')
+  }
+}
+
+// The result of an adventure fight: it costs stamina and counts toward the lifetime wins/losses
+// that evolution rules read.
 export const applyBattleOutcome = (
   current: IMonsterState,
   won: boolean,
@@ -457,12 +483,13 @@ export const applyBattleOutcome = (
   now: Date,
   isAuto = false
 ): IMonsterStepResult => {
-  assertCanBattle(current)
+  assertCanAdventure(current)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
   if (isAuto) {
     state.lastAutoBattleAt = now
   }
+  state.stamina = Math.max(0, state.stamina - ADVENTURE_STAMINA_COST)
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   if (won) {
     state.wins += 1
@@ -593,5 +620,46 @@ export const applyShopItem = (
   return {
     state,
     events: [{ type: EnumMonsterLogType.SHOP, at: now, payload: { itemId } }],
+  }
+}
+
+// The mini-game's score is reported by the client, so the reward is capped and rate-limited.
+export const applyMinigame = (
+  current: IMonsterState,
+  hits: number,
+  now: Date
+): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (
+    state.lastMinigameAt &&
+    now.getTime() - state.lastMinigameAt.getTime() < MINIGAME_COOLDOWN_MS
+  ) {
+    throw new MonsterRuleError('Mini-game is not ready yet')
+  }
+  const reward = MINIGAME_STAMINA_REWARDS[hits]
+  if (reward === undefined) {
+    throw new MonsterRuleError('Invalid mini-game score')
+  }
+  state.stamina = Math.min(MAX_STAMINA, state.stamina + reward)
+  state.lastMinigameAt = now
+  return {
+    state,
+    events: [
+      { type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'minigame', hits, reward } },
+    ],
+  }
+}
+
+export const refillStamina = (current: IMonsterState, now: Date): IMonsterStepResult => {
+  const state = { ...current }
+  assertHatchedAndAlive(state)
+  if (state.stamina >= MAX_STAMINA) {
+    throw new MonsterRuleError('Stamina is already full')
+  }
+  state.stamina = MAX_STAMINA
+  return {
+    state,
+    events: [{ type: EnumMonsterLogType.ACTION, at: now, payload: { action: 'stamina_refill' } }],
   }
 }

@@ -12,6 +12,12 @@ export class EquipBodyDto extends EquipmentIdBodyDto {
   @IsOptional()
   @IsUUID()
   monsterId?: string
+
+  // Take the piece off the pet wearing it and put it on this one. Without it, a piece another
+  // pet wears is refused.
+  @IsOptional()
+  @IsBoolean()
+  move?: boolean
 }
 
 export class EnhanceBodyDto extends EquipmentIdBodyDto {

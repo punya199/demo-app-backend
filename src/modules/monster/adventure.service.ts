@@ -20,7 +20,7 @@ import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
 import { calcAutoBattleReward } from './idle-data'
 import { loadPassiveBonus } from './passive.service'
-import { applyBattleOutcome, assertAutoBattleReady, assertCanBattle } from './monster-engine'
+import { applyBattleOutcome, assertAutoBattleReady, assertCanAdventure } from './monster-engine'
 import { AUTO_BATTLE_DAILY_COIN_CAP, EQUIPMENT_DROP_CHANCE_BP } from './monster-rules'
 import { getQuestResetAt } from './quest-data'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
@@ -82,7 +82,7 @@ export class AdventureService {
       if (!isStageUnlocked(stageId, cleared)) {
         throw new BadRequestException('Stage is locked')
       }
-      withRuleErrors(() => assertCanBattle(monster))
+      withRuleErrors(() => assertCanAdventure(monster))
 
       let autoCoinsLeft = 0
       if (isAuto) {

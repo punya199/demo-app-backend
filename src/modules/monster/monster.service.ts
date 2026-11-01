@@ -21,12 +21,14 @@ import { buildPotentialView, rollPotential } from './monster-potential'
 import { calcExpeditionCoins, calcExpeditionDrops } from './idle-data'
 import {
   applyAction,
+  applyMinigame,
   createEgg,
   EnumMonsterAction,
   getEvolutionProgress,
   IMonsterEvent,
   IMonsterState,
   MonsterRuleError,
+  refillStamina,
   tick,
 } from './monster-engine'
 import {
@@ -36,6 +38,8 @@ import {
   RARE_EGG_RAID_TOKEN_PRICE,
   MERGE_COIN_COST,
   MERGE_GEM_COST,
+  MINIGAME_COOLDOWN_MS,
+  STAMINA_REFILL_GEM_PRICE,
   TRAIN_COOLDOWN_MS,
 } from './monster-rules'
 import { createFused } from './monster-merge'
@@ -99,6 +103,7 @@ export const toMonsterView = (monster: MonsterEntity) => {
     expeditionPendingCoins: calcExpeditionCoins(monster.expeditionMinutes, monster.expeditionRate),
     expeditionPendingDrops: calcExpeditionDrops(monster.expeditionMinutes),
     autoBattleReadyAt: readyAt(monster.lastAutoBattleAt, AUTO_BATTLE_COOLDOWN_MS),
+    minigameReadyAt: readyAt(monster.lastMinigameAt, MINIGAME_COOLDOWN_MS),
     evolution: {
       ...evolution,
       next: evolution.nextSpeciesId ? speciesSummary(evolution.nextSpeciesId) : null,
@@ -303,6 +308,61 @@ export class MonsterService {
     })
   }
 
+  async playMinigame(userId: string, hits: number, monsterId?: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = await this.lockAndTickTarget(userId, now, etm, monsterId)
+      const result = withRuleErrors(() => applyMinigame(monster, hits, now))
+      const saved = await this.saveState(monster, result.state, etm)
+      await this.saveEvents(saved, result.events, etm)
+      return { monster: toMonsterView(saved), reward: result.events[0].payload.reward as number }
+    })
+  }
+
+  async refillStamina(userId: string, monsterId?: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = await this.lockAndTickTarget(userId, now, etm, monsterId)
+      // Check the refill is allowed before charging for it.
+      const result = withRuleErrors(() => refillStamina(monster, now))
+      const wallet = await this.walletService.change(
+        userId,
+        EnumWalletCurrency.GEM,
+        -STAMINA_REFILL_GEM_PRICE,
+        EnumWalletTransactionReason.STAMINA_REFILL,
+        monster.id,
+        etm
+      )
+      const saved = await this.saveState(monster, result.state, etm)
+      await this.saveEvents(saved, result.events, etm)
+      return { monster: toMonsterView(saved), wallet }
+    })
+  }
+
+  // The forms one of the owner's monsters has been, egg first, read from its evolve logs.
+  async getEvolutionPath(userId: string, monsterId: string) {
+    const monster = await this.monsterRepository.findOne({
+      where: { id: monsterId, ownerId: userId },
+    })
+    if (!monster) {
+      throw new NotFoundException('Monster not found')
+    }
+    const logs = await this.dataSource.getRepository(MonsterLogEntity).find({
+      where: { monsterId, type: EnumMonsterLogType.EVOLVE },
+    })
+    // Several evolutions caught up in one tick share a timestamp, so follow the from -> to links
+    // instead of trusting the log order. A merged monster has no evolve logs: just its own form.
+    const next = new Map(logs.map(log => [log.payload.from as string, log.payload.to as string]))
+    const reached = new Set(next.values())
+    let current = [...next.keys()].find(from => !reached.has(from)) ?? monster.speciesId
+    const path = [current]
+    while (next.has(current) && path.length <= next.size) {
+      current = next.get(current)!
+      path.push(current)
+    }
+    return { monsterId, path }
+  }
+
   async getHistory(userId: string) {
     const monsters = await this.monsterRepository.find({
       where: { ownerId: userId, diedAt: Not(IsNull()) },
@@ -379,6 +439,22 @@ export class MonsterService {
       return living[0]
     }
     return etm.findOne(MonsterEntity, { where: { ownerId: userId }, order: { bornAt: 'DESC' } })
+  }
+
+  // The monster an action targets: the given living one, or the selected one.
+  private async lockAndTickTarget(
+    userId: string,
+    now: Date,
+    etm: EntityManager,
+    monsterId?: string
+  ) {
+    const monster = monsterId
+      ? (await this.lockAndTickLiving(userId, now, etm)).find(row => row.id === monsterId)
+      : await this.lockAndTickLatest(userId, now, etm)
+    if (!monster) {
+      throw new NotFoundException('You do not have a monster yet')
+    }
+    return monster
   }
 
   async saveState(monster: MonsterEntity, state: IMonsterState, etm: EntityManager) {

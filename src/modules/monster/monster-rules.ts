@@ -73,6 +73,22 @@ export const ONLINE_EVOLUTION_MULTIPLIER = 2
 
 export const DEX_DISCOVERY_GEM_REWARD = 1
 
+// Adventure stamina, per monster: 0-100, spent only by adventure fights (manual and auto), and
+// regained over time - ONLINE_STAMINA_REGEN_MULTIPLIER times as fast while the owner is online.
+// A monster with less than one fight's worth can't go on an adventure.
+export const MAX_STAMINA = 100
+export const ADVENTURE_STAMINA_COST = 10
+export const STAMINA_REGEN_PER_HOUR = 10
+export const ONLINE_STAMINA_REGEN_MULTIPLIER = 2
+
+// Stamina mini-game: stop the moving bar in the target zone MINIGAME_ROUNDS times.
+export const MINIGAME_ROUNDS = 3
+// Stamina gained by number of hits (index = hits).
+export const MINIGAME_STAMINA_REWARDS = [10, 15, 20, 30]
+export const MINIGAME_COOLDOWN_MS = 5 * 60 * 1000
+
+export const STAMINA_REFILL_GEM_PRICE = 5
+
 export const TRAIN_COOLDOWN_MS = 60 * 1000
 export const TRAIN_WEIGHT_LOSS = 2
 export const FEED_WEIGHT_GAIN = 1

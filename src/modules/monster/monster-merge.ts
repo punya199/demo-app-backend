@@ -1,6 +1,7 @@
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IMonsterState, MonsterRuleError } from './monster-engine'
 import { mergePotential } from './monster-potential'
+import { MAX_STAMINA } from './monster-rules'
 import { fusedSpeciesId, getSpecies, isSameGroup } from './species-data'
 
 // Ultimate Merge rules (pure). MonsterService.merge() locks both parents, calls these, charges the
@@ -47,6 +48,7 @@ export const createFused = (
     stage: species.stage,
     fullness: (first.fullness + second.fullness) / 2,
     strength: (first.strength + second.strength) / 2,
+    stamina: MAX_STAMINA,
     weight: Math.max(species.minWeight, Math.round((first.weight + second.weight) / 2)),
     poops: 0,
     isSick: false,
@@ -65,6 +67,7 @@ export const createFused = (
     lastSeenAt: now,
     lastTrainedAt: null,
     lastAutoBattleAt: null,
+    lastMinigameAt: null,
     expeditionAreaId: null,
     expeditionMinutes: 0,
     expeditionRate: 0,

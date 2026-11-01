@@ -68,6 +68,9 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'strength', type: 'real' })
   strength: number
 
+  @Column({ name: 'stamina', type: 'real', default: 100 })
+  stamina: number
+
   @Column({ name: 'weight', type: 'integer' })
   weight: number
 
@@ -135,6 +138,9 @@ export class MonsterEntity extends BaseModelEntity {
 
   @Column({ name: 'last_auto_battle_at', type: 'timestamp with time zone', nullable: true })
   lastAutoBattleAt: Date | null
+
+  @Column({ name: 'last_minigame_at', type: 'timestamp with time zone', nullable: true })
+  lastMinigameAt: Date | null
 
   // When the owner last picked this monster as the one they play with (battles, expeditions,
   // equipment...). The most recently selected living monster is the active one.

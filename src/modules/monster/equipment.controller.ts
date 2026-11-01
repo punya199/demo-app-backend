@@ -29,7 +29,12 @@ export class EquipmentController {
   @AuthUser()
   @Post('equip')
   async equip(@Body() body: EquipBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.equip(user['user-id'], body.equipmentId, body.monsterId)
+    return this.equipmentService.equip(
+      user['user-id'],
+      body.equipmentId,
+      body.monsterId,
+      body.move ?? false
+    )
   }
 
   @AuthUser()

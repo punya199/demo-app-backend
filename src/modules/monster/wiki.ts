@@ -90,6 +90,17 @@ export const buildWiki = () => ({
   online: {
     graceMinutes: rules.ONLINE_GRACE_MINUTES,
     evolutionMultiplier: rules.ONLINE_EVOLUTION_MULTIPLIER,
+    staminaRegenMultiplier: rules.ONLINE_STAMINA_REGEN_MULTIPLIER,
+  },
+  stamina: {
+    max: rules.MAX_STAMINA,
+    adventureCost: rules.ADVENTURE_STAMINA_COST,
+    regenPerHour: rules.STAMINA_REGEN_PER_HOUR,
+    onlineRegenMultiplier: rules.ONLINE_STAMINA_REGEN_MULTIPLIER,
+    minigameRounds: rules.MINIGAME_ROUNDS,
+    minigameRewards: rules.MINIGAME_STAMINA_REWARDS,
+    minigameCooldownMinutes: rules.MINIGAME_COOLDOWN_MS / 60_000,
+    refillGemPrice: rules.STAMINA_REFILL_GEM_PRICE,
   },
   evolution: {
     stageDurationMinutes: rules.STAGE_DURATION_MINUTES,
