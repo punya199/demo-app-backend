@@ -124,7 +124,10 @@ export class MonsterService {
       const selected = await this.lockAndTickLatest(userId, now, etm)
       return {
         monster: selected ? toMonsterView(selected) : null,
-        monsters: living.map(toMonsterView),
+        // Slot order is fixed by birth, so selecting a pet never reshuffles the slots.
+        monsters: [...living]
+          .sort((a, b) => a.bornAt.getTime() - b.bornAt.getTime())
+          .map(toMonsterView),
         maxMonsters: MAX_LIVING_MONSTERS,
       }
     })
