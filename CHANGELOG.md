@@ -1,3 +1,14 @@
+# [1.20.0](https://github.com/punya199/demo-app-backend/compare/v1.19.0...v1.20.0) (2026-11-01)
+
+
+### New
+
+* add Earth and Lightning elements with a five-element chart ([8f0b688](https://github.com/punya199/demo-app-backend/commit/8f0b688ef8b8f86d2a3d56966a3e1312f3ce8d73))
+* add Holy, Dark and Shadow elements with rare eggs, raid bosses and merge groups ([440a346](https://github.com/punya199/demo-app-backend/commit/440a3464aba023d9c1873cc819858af1d08fb32e))
+* add passive tree, ultimate merge and in-place enhance of worn gear ([c0e5244](https://github.com/punya199/demo-app-backend/commit/c0e524499465da7d97c1f3c8bfbc4b2a57e85874))
+* add random pet potential with min/max per stat, crit rate, crit damage and evasion ([424b5e6](https://github.com/punya199/demo-app-backend/commit/424b5e6f084d977cc6ad6f4b7b5178bd9f3aa0b3))
+* raise up to 4 monsters, remove stamina, add alt evolutions and boss reset windows ([e8d2cac](https://github.com/punya199/demo-app-backend/commit/e8d2cac7959ac9a0f9550797c3b670fb4c04289b))
+
 # [1.19.0](https://github.com/punya199/demo-app-backend/compare/v1.18.0...v1.19.0) (2026-10-31)
 
 
