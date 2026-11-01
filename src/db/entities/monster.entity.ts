@@ -1,4 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
+import type { IPotential } from '../../modules/monster/monster-potential'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
@@ -45,6 +46,10 @@ export class MonsterEntity extends BaseModelEntity {
 
   @Column({ name: 'line', type: 'varchar' })
   line: EnumMonsterLine
+
+  // Pet potential rolls (see monster-potential.ts); null for monsters from before it existed.
+  @Column({ name: 'potential', type: 'jsonb', nullable: true })
+  potential: IPotential | null
 
   @Column({ name: 'species_id', type: 'varchar' })
   speciesId: string

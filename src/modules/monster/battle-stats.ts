@@ -2,6 +2,7 @@ import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.ent
 import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from './equipment-data'
 import { IMonsterState } from './monster-engine'
 import { MAX_HEARTS } from './monster-rules'
+import { capEffects, LEGACY_POTENTIAL, potentialEffects, statMultiplier } from './monster-potential'
 import { getSpecies, IBattleStats, ISkill } from './species-data'
 
 // How a monster's care state turns its species' base stats into the stats it fights with.
@@ -25,6 +26,8 @@ export interface IFighterEffects {
   // Trainer passives: added to the base crit chance, and to the crit damage multiplier.
   critChance?: number
   critDamage?: number
+  // Chance to dodge an incoming hit completely (drawn only when above 0).
+  evasion?: number
 }
 
 export interface IFighter {
@@ -51,29 +54,42 @@ export const toFighter = (
     throw new Error('An egg cannot fight')
   }
 
-  let atk = species.stats.atk * (1 + ATK_BONUS_PER_STRENGTH_HEART * hearts(state.strength))
+  // The roll scales the form's own stat first; care and gear apply on top. A middle roll is x1.
+  const potential = state.potential ?? LEGACY_POTENTIAL
+  const rolled = (key: keyof IBattleStats) => species.stats[key] * statMultiplier(potential[key])
+
+  let atk = rolled('atk') * (1 + ATK_BONUS_PER_STRENGTH_HEART * hearts(state.strength))
   if (hearts(state.fullness) === 0) {
     atk *= HUNGRY_ATK_MULTIPLIER
   }
-  let spd = species.stats.spd
+  let spd = rolled('spd')
   if (state.weight > species.minWeight * OVERWEIGHT_RATIO) {
     spd *= OVERWEIGHT_SPD_MULTIPLIER
   }
 
-  const hasEffects = Object.keys(equipment.effects).length > 0
+  const effects = capEffects(
+    Object.entries(potentialEffects(potential)).reduce(
+      (sum, [key, value]) => ({
+        ...sum,
+        [key]: (sum[key as keyof IFighterEffects] ?? 0) + value,
+      }),
+      { ...equipment.effects }
+    )
+  )
+  const hasEffects = Object.keys(effects).length > 0
   return {
     name: species.name,
     emoji: species.emoji,
     // A fused monster fights with the element of the parent chosen as its base (`state.line`).
     element: species.stage === EnumMonsterStage.FUSED ? state.line : species.line,
     stats: {
-      hp: Math.round(withEquipment(species.stats.hp, 'hp', equipment)),
+      hp: Math.round(withEquipment(rolled('hp'), 'hp', equipment)),
       atk: Math.round(withEquipment(atk, 'atk', equipment)),
-      def: Math.round(withEquipment(species.stats.def, 'def', equipment)),
+      def: Math.round(withEquipment(rolled('def'), 'def', equipment)),
       spd: Math.round(withEquipment(spd, 'spd', equipment)),
     },
     skill: species.skillByLine?.[state.line] ?? species.skill,
     // Left out entirely without set effects, so stored fighters look exactly as before.
-    ...(hasEffects && { effects: equipment.effects }),
+    ...(hasEffects && { effects }),
   }
 }

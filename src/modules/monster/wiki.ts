@@ -24,6 +24,7 @@ import {
   PVP_SEASON_POINTS,
 } from './passive-data'
 import * as rules from './monster-rules'
+import * as potential from './monster-potential'
 import {
   BOX_GRADE_RATES,
   DISMANTLE_STONES,
@@ -102,6 +103,16 @@ export const buildWiki = () => ({
         stats: species.stats,
       }
     }),
+  },
+  potential: {
+    statSpread: potential.POTENTIAL_STAT_SPREAD,
+    critRateBonusMax: potential.POTENTIAL_CRIT_RATE_MAX_BONUS,
+    critDamageBonusMax: potential.POTENTIAL_CRIT_DAMAGE_MAX_BONUS,
+    evasionMax: potential.POTENTIAL_EVASION_MAX,
+    critRateCap: potential.CRIT_RATE_CAP,
+    critDamageCap: potential.CRIT_DAMAGE_CAP,
+    evasionCap: potential.EVASION_CAP,
+    grades: potential.POTENTIAL_GRADES.map(([grade, minAverage]) => ({ grade, minAverage })),
   },
   battle: {
     atkBonusPerStrengthHeart: ATK_BONUS_PER_STRENGTH_HEART,

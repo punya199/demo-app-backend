@@ -4,6 +4,7 @@ import {
   EnumMonsterStage,
 } from '../../db/entities/monster.entity'
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
+import { IPotential } from './monster-potential'
 import {
   BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
@@ -50,6 +51,8 @@ export enum EnumMonsterAction {
 
 export interface IMonsterState {
   line: EnumMonsterLine
+  // Rolled at hatch and kept for life; null = a monster from before potential existed.
+  potential: IPotential | null
   speciesId: string
   stage: EnumMonsterStage
   fullness: number
@@ -98,10 +101,15 @@ export class MonsterRuleError extends Error {}
 
 const MINUTE_MS = 60 * 1000
 
-export const createEgg = (line: EnumMonsterLine, now: Date): IMonsterState => {
+export const createEgg = (
+  line: EnumMonsterLine,
+  now: Date,
+  potential: IPotential | null = null
+): IMonsterState => {
   const egg = getSpecies(eggSpeciesId(line))
   return {
     line,
+    potential,
     speciesId: egg.id,
     stage: egg.stage,
     fullness: 0,

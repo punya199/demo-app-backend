@@ -15,6 +15,8 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { toFighter } from './battle-stats'
+import { randomInt } from 'crypto'
+import { buildPotentialView, rollPotential } from './monster-potential'
 import { calcExpeditionCoins, calcExpeditionDrops } from './idle-data'
 import {
   applyAction,
@@ -40,6 +42,8 @@ import { recordQuestProgress } from './quest.service'
 import { getSpecies, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
+
+const rand = () => randomInt(0, 1_000_000) / 1_000_000
 
 const SELECTED_ORDER = {
   selectedAt: { direction: 'DESC', nulls: 'LAST' },
@@ -74,6 +78,8 @@ export const toMonsterView = (monster: MonsterEntity) => {
     name: species.name,
     emoji: species.emoji,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
+    // Min / max / rolled value per stat for this form (see monster-potential.ts).
+    potentialView: buildPotentialView(species.stats, monster.potential),
     battleStats: species.stage === EnumMonsterStage.EGG ? null : toFighter(monster).stats,
     trainReadyAt: readyAt(monster.lastTrainedAt, TRAIN_COOLDOWN_MS),
     // What collecting the expedition would pay right now (0 when not out).
@@ -122,7 +128,7 @@ export class MonsterService {
 
       const monster = await etm.save(MonsterEntity, {
         ownerId: userId,
-        ...createEgg(line, now),
+        ...createEgg(line, now, rollPotential(rand)),
         selectedAt: now,
       })
       await this.saveEvents(

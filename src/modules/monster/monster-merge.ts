@@ -1,5 +1,6 @@
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IMonsterState, MonsterRuleError } from './monster-engine'
+import { mergePotential } from './monster-potential'
 import { fusedSpeciesId, getSpecies } from './species-data'
 
 // Ultimate Merge rules (pure). MonsterService.merge() locks both parents, calls these, charges the
@@ -36,6 +37,8 @@ export const createFused = (
   const species = getSpecies(fusedSpeciesId(first.line, second.line))
   return {
     line: base.line,
+    // Keeps the better roll of each stat, so merging good pets pays.
+    potential: mergePotential(first.potential, second.potential),
     speciesId: species.id,
     stage: species.stage,
     fullness: (first.fullness + second.fullness) / 2,

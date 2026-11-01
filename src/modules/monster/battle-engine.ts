@@ -37,6 +37,8 @@ export interface IBattleEvent {
   kind?: BattleEventKind
   // Damage the target's set shield soaked up (included in `damage`).
   absorbed?: number
+  // The target dodged the hit (damage is 0).
+  isDodged?: boolean
 }
 
 export interface IBattleResult {
@@ -92,6 +94,8 @@ export interface IHitRoll {
   damage: number
   isCritical: boolean
   effectiveness: Effectiveness
+  // The defender dodged: no damage, and no crit or variance roll was spent.
+  isDodged?: boolean
 }
 
 // One hit's damage: rolls (in this fixed order) crit then variance. Shared by the 1-vs-1 engine and
@@ -106,6 +110,10 @@ export const rollHit = (
   const effectiveness = ignoreElements
     ? 'normal'
     : getEffectiveness(attacker.element, defender.element)
+  // Evasion is drawn from the RNG only for a defender that has it, so old fights replay unchanged.
+  if (defender.effects?.evasion && rng() < defender.effects.evasion) {
+    return { damage: 0, isCritical: false, effectiveness, isDodged: true }
+  }
   const isCritical = rng() < CRITICAL_CHANCE + (attacker.effects?.critChance ?? 0)
   const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
   const raw =
@@ -155,7 +163,7 @@ export const simulateBattle = (
     const target = opposite(actor)
     const attacker = fighters[actor]
     const defender = fighters[target]
-    const { damage, isCritical, effectiveness } = rollHit(
+    const { damage, isCritical, effectiveness, isDodged } = rollHit(
       attacker,
       defender,
       isSkill,
@@ -177,6 +185,7 @@ export const simulateBattle = (
       targetHp: hp[target],
       ...(kind && { kind }),
       ...(absorbed > 0 && { absorbed }),
+      ...(isDodged && { isDodged }),
     })
   }
 
