@@ -15,6 +15,7 @@ const toUnitView = (unit: SupportUnitEntity) => {
     supportId: unit.id,
     emoji: fighter.emoji,
     name: fighter.name,
+    nickname: fighter.nickname ?? null,
     stage: unit.stage,
     stats: fighter.stats,
     effects: fighter.effects ?? null,

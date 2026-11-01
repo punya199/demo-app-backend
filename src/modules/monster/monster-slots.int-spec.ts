@@ -44,4 +44,20 @@ describe('monster slots', () => {
     )
     await expect(monsters.select(stranger, id)).rejects.toThrow(/not found/i)
   })
+
+  it('renames a pet with validation and a cooldown, and clears the name with an empty one', async () => {
+    const { monsters: living } = await monsters.getMyMonster(userId)
+    const pet = living[0]
+    await expect(monsters.rename(userId, pet.id, '<b>x</b>')).rejects.toThrow(/not allowed/)
+    const renamed = await monsters.rename(userId, pet.id, '  Mochi   Pie ')
+    expect(renamed.monster.nickname).toBe('Mochi Pie')
+    expect(renamed.monster.displayName).toBe('Mochi Pie')
+    await expect(monsters.rename(userId, pet.id, 'Again')).rejects.toThrow(/recently/)
+    await sql(`UPDATE monsters SET last_renamed_at = now() - interval '11 minutes' WHERE id=$1`, [
+      pet.id,
+    ])
+    expect((await monsters.rename(userId, pet.id, '')).monster.nickname).toBeNull()
+    const stranger = await createUser('slots_rename')
+    await expect(monsters.rename(stranger, pet.id, 'Mine')).rejects.toThrow(/not found/i)
+  })
 })

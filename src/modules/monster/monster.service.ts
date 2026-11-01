@@ -40,6 +40,7 @@ import {
 } from './monster-rules'
 import { createFused } from './monster-merge'
 import { loadPassiveBonus } from './passive.service'
+import { normalizeNickname, RENAME_COOLDOWN_MS } from './monster-name'
 import { recordQuestProgress } from './quest.service'
 import { getSpecies, RARE_EGG_LINES, SPECIES } from './species-data'
 
@@ -86,6 +87,8 @@ export const toMonsterView = (monster: MonsterEntity) => {
   return {
     ...monster,
     name: species.name,
+    // What the owner calls it, falling back to the species name.
+    displayName: monster.nickname ?? species.name,
     emoji: species.emoji,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
     // Min / max / rolled value per stat for this form (see monster-potential.ts).
@@ -162,6 +165,34 @@ export class MonsterService {
     })
   }
 
+  async rename(userId: string, monsterId: string, input: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const living = await this.lockAndTickLiving(userId, now, etm)
+      const monster = living.find(row => row.id === monsterId)
+      if (!monster) {
+        throw new NotFoundException('Monster not found')
+      }
+      let nickname: string | null
+      try {
+        nickname = normalizeNickname(input)
+      } catch (error) {
+        throw new BadRequestException((error as Error).message)
+      }
+      if (
+        monster.lastRenamedAt &&
+        now.getTime() - monster.lastRenamedAt.getTime() < RENAME_COOLDOWN_MS
+      ) {
+        throw new BadRequestException('Pet was renamed recently')
+      }
+      const saved = await etm.save(
+        MonsterEntity,
+        Object.assign(monster, { nickname, lastRenamedAt: now })
+      )
+      return { monster: toMonsterView(saved) }
+    })
+  }
+
   async select(userId: string, monsterId: string) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
@@ -213,7 +244,14 @@ export class MonsterService {
         etm
       )
 
-      const created = await etm.save(MonsterEntity, { ownerId: userId, ...state, selectedAt: now })
+      const baseMonster = baseId === firstId ? first : second
+      // The fused pet keeps the name of the parent it is based on.
+      const created = await etm.save(MonsterEntity, {
+        ownerId: userId,
+        ...state,
+        nickname: baseMonster.nickname,
+        selectedAt: now,
+      })
       for (const parent of [first, second]) {
         await etm.save(
           MonsterEntity,

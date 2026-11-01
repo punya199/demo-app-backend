@@ -46,6 +46,7 @@ const toOpponentView = (candidate: IPvpCandidateFull) => ({
   displayName: candidate.displayName,
   emoji: candidate.fighter.emoji,
   name: candidate.fighter.name,
+  nickname: candidate.fighter.nickname ?? null,
   element: candidate.fighter.element,
   stats: candidate.fighter.stats,
   rating: candidate.rating,
@@ -468,13 +469,14 @@ export class PvpService {
         display_name: string | null
         emoji: string | null
         name: string | null
+        nickname: string | null
         is_me: boolean
       }[]
     >(
       `SELECT * FROM (
          SELECT RANK() OVER (ORDER BY r."rating" DESC)::int AS "rank", r."rating", r."wins", r."losses",
                 r."user_id", pr."display_name", d."fighter"->>'emoji' AS "emoji",
-                d."fighter"->>'name' AS "name", (r."user_id" = $2) AS "is_me"
+                d."fighter"->>'name' AS "name", d."fighter"->>'nickname' AS "nickname", (r."user_id" = $2) AS "is_me"
          FROM "pvp_ratings" r
          LEFT JOIN "pvp_defenses" d ON d."user_id" = r."user_id" AND d."deleted_at" IS NULL
          LEFT JOIN "player_profiles" pr ON pr."user_id" = r."user_id" AND pr."deleted_at" IS NULL
@@ -492,6 +494,7 @@ export class PvpService {
         displayName: row.display_name ?? defaultDisplayName(row.user_id),
         emoji: row.emoji,
         name: row.name,
+        nickname: row.nickname,
         rating: row.rating,
         wins: row.wins,
         losses: row.losses,

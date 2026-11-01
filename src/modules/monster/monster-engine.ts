@@ -51,6 +51,8 @@ export enum EnumMonsterAction {
 
 export interface IMonsterState {
   line: EnumMonsterLine
+  // Set only on a stored monster; fighters and snapshots carry it for other players' cards.
+  nickname?: string | null
   // Rolled at hatch and kept for life; null = a monster from before potential existed.
   potential: IPotential | null
   speciesId: string

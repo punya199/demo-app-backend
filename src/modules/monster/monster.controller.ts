@@ -4,6 +4,7 @@ import { IAppJwtPayload } from '../auth/auth.interface'
 import { HatchMonsterBodyDto } from './dto/hatch-monster.dto'
 import { MergeMonstersBodyDto } from './dto/merge-monsters.dto'
 import { MonsterActionBodyDto } from './dto/monster-action.dto'
+import { RenameMonsterBodyDto } from './dto/rename-monster.dto'
 import { SelectMonsterBodyDto } from './dto/select-monster.dto'
 import { MonsterService } from './monster.service'
 import { buildWiki } from './wiki'
@@ -22,6 +23,12 @@ export class MonsterController {
   @Post('hatch')
   async hatch(@Body() body: HatchMonsterBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.monsterService.hatch(user['user-id'], body.line)
+  }
+
+  @AuthUser()
+  @Post('rename')
+  async rename(@Body() body: RenameMonsterBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.rename(user['user-id'], body.monsterId, body.name)
   }
 
   @AuthUser()

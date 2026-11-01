@@ -264,6 +264,7 @@ export class FriendService {
         ? {
             emoji: getEmoji(monster.speciesId),
             name: getName(monster.speciesId),
+            nickname: monster.nickname,
             stage: monster.stage,
             ageMinutes: monster.ageMinutes,
             isSick: monster.isSick,
