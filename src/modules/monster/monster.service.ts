@@ -32,6 +32,7 @@ import {
   AUTO_BATTLE_COOLDOWN_MS,
   DEX_DISCOVERY_GEM_REWARD,
   MAX_LIVING_MONSTERS,
+  RARE_EGG_RAID_TOKEN_PRICE,
   MERGE_COIN_COST,
   MERGE_GEM_COST,
   TRAIN_COOLDOWN_MS,
@@ -39,7 +40,7 @@ import {
 import { createFused } from './monster-merge'
 import { loadPassiveBonus } from './passive.service'
 import { recordQuestProgress } from './quest.service'
-import { getSpecies, SPECIES } from './species-data'
+import { getSpecies, RARE_EGG_LINES, SPECIES } from './species-data'
 
 const HISTORY_LIMIT = 50
 
@@ -124,6 +125,18 @@ export class MonsterService {
       const living = await this.lockAndTickLiving(userId, now, etm)
       if (living.length >= MAX_LIVING_MONSTERS) {
         throw new BadRequestException(`You can raise at most ${MAX_LIVING_MONSTERS} monsters`)
+      }
+
+      // Rare (spiritual) eggs are paid for in Raid Tokens, in the same transaction as the hatch.
+      if (RARE_EGG_LINES.includes(line)) {
+        await this.walletService.change(
+          userId,
+          EnumWalletCurrency.RAID_TOKEN,
+          -RARE_EGG_RAID_TOKEN_PRICE,
+          EnumWalletTransactionReason.RARE_EGG,
+          line,
+          etm
+        )
       }
 
       const monster = await etm.save(MonsterEntity, {

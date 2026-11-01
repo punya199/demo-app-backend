@@ -1,7 +1,7 @@
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IMonsterState, MonsterRuleError } from './monster-engine'
 import { mergePotential } from './monster-potential'
-import { fusedSpeciesId, getSpecies } from './species-data'
+import { fusedSpeciesId, getSpecies, isSameGroup } from './species-data'
 
 // Ultimate Merge rules (pure). MonsterService.merge() locks both parents, calls these, charges the
 // wallet and saves the result in one transaction.
@@ -21,6 +21,10 @@ export const assertCanMerge = (first: IMonsterState, second: IMonsterState) => {
     if (parent.expeditionAreaId) {
       throw new MonsterRuleError('Monster is on an expedition')
     }
+  }
+  // Natural and spiritual elements do not mix.
+  if (!isSameGroup(first.line, second.line)) {
+    throw new MonsterRuleError('Natural and spiritual elements cannot be merged')
   }
 }
 

@@ -56,6 +56,10 @@ export const BEATS: Record<EnumMonsterLine, EnumMonsterLine[]> = {
   [EnumMonsterLine.TIDE]: [EnumMonsterLine.FLAME, EnumMonsterLine.EARTH],
   [EnumMonsterLine.EARTH]: [EnumMonsterLine.LEAF, EnumMonsterLine.LIGHTNING],
   [EnumMonsterLine.LIGHTNING]: [EnumMonsterLine.TIDE, EnumMonsterLine.FLAME],
+  // The spiritual triangle. Across the two groups every hit is normal.
+  [EnumMonsterLine.HOLY]: [EnumMonsterLine.DARK],
+  [EnumMonsterLine.DARK]: [EnumMonsterLine.SHADOW],
+  [EnumMonsterLine.SHADOW]: [EnumMonsterLine.HOLY],
 }
 
 export const getEffectiveness = (

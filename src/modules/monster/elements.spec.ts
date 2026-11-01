@@ -1,7 +1,7 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { BEATS, getEffectiveness } from './battle-engine'
 import { createEgg, tick } from './monster-engine'
-import { NATURAL_LINES, SPECIES } from './species-data'
+import { NATURAL_LINES, RARE_EGG_LINES, SPECIES, SPIRITUAL_LINES } from './species-data'
 
 const L = EnumMonsterLine
 
@@ -36,24 +36,49 @@ describe('element chart', () => {
   })
 })
 
-describe('lines', () => {
-  it.each(NATURAL_LINES)('%s has the full 11-form tree, reachable from its egg', line => {
-    const forms = SPECIES.filter(
-      species => species.line === line && species.stage !== EnumMonsterStage.FUSED
-    )
-    expect(forms).toHaveLength(11)
-    const ids = new Set(forms.map(form => form.id))
-    const reached = new Set([`${line}_egg`])
-    for (const id of reached) {
-      forms
-        .find(form => form.id === id)!
-        .evolutions.forEach(rule => {
-          expect(ids.has(rule.to)).toBe(true)
-          reached.add(rule.to)
-        })
-    }
-    expect(reached.size).toBe(11)
+describe('spiritual chart', () => {
+  it('is a triangle: holy > dark > shadow > holy', () => {
+    expect(getEffectiveness(L.HOLY, L.DARK)).toBe('strong')
+    expect(getEffectiveness(L.DARK, L.SHADOW)).toBe('strong')
+    expect(getEffectiveness(L.SHADOW, L.HOLY)).toBe('strong')
+    expect(getEffectiveness(L.DARK, L.HOLY)).toBe('weak')
   })
+
+  it('is normal against every natural element, both ways', () => {
+    for (const spirit of SPIRITUAL_LINES) {
+      for (const natural of NATURAL_LINES) {
+        expect(getEffectiveness(spirit, natural)).toBe('normal')
+        expect(getEffectiveness(natural, spirit)).toBe('normal')
+      }
+    }
+  })
+
+  it('hatches from rare eggs only', () => {
+    expect(RARE_EGG_LINES).toEqual(SPIRITUAL_LINES)
+  })
+})
+
+describe('lines', () => {
+  it.each([...NATURAL_LINES, ...SPIRITUAL_LINES])(
+    '%s has the full 11-form tree, reachable from its egg',
+    line => {
+      const forms = SPECIES.filter(
+        species => species.line === line && species.stage !== EnumMonsterStage.FUSED
+      )
+      expect(forms).toHaveLength(11)
+      const ids = new Set(forms.map(form => form.id))
+      const reached = new Set([`${line}_egg`])
+      for (const id of reached) {
+        forms
+          .find(form => form.id === id)!
+          .evolutions.forEach(rule => {
+            expect(ids.has(rule.to)).toBe(true)
+            reached.add(rule.to)
+          })
+      }
+      expect(reached.size).toBe(11)
+    }
+  )
 
   it('hatches and grows an earth egg into a baby', () => {
     const egg = createEgg(L.EARTH, new Date('2026-01-01T00:00:00Z'))

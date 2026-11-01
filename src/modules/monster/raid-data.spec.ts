@@ -41,15 +41,15 @@ const winRate = (player: IFighter, boss: IFighter, fights = 300) => {
 }
 
 describe('raid data', () => {
-  it('has three bosses whose sets exist, with every slot as a piece', () => {
-    expect(RAID_BOSSES).toHaveLength(3)
+  it('has six bosses whose sets exist, with every slot as a piece', () => {
+    expect(RAID_BOSSES).toHaveLength(6)
     for (const boss of RAID_BOSSES) {
       expect(SET_DEFINITIONS[boss.setId]).toBeDefined()
       for (const slot of Object.values(EnumEquipmentSlot)) {
         expect(findSetPieceTemplate(boss.setId, slot)).toBeDefined()
       }
     }
-    expect(new Set(RAID_BOSSES.map(boss => boss.setId)).size).toBe(3)
+    expect(new Set(RAID_BOSSES.map(boss => boss.setId)).size).toBe(6)
   })
 
   it('pays more tokens, a higher grade and a higher price for each harder difficulty', () => {

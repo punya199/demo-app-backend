@@ -27,6 +27,7 @@ export enum EnumWalletTransactionReason {
   RENTAL_INCOME = 'rental_income',
   PASSIVE_RESPEC = 'passive_respec',
   MONSTER_MERGE = 'monster_merge',
+  RARE_EGG = 'rare_egg',
 }
 
 @Entity({

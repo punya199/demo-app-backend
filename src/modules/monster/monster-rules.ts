@@ -58,6 +58,9 @@ export const getLifespanMinutes = (stage: EnumMonsterStage) =>
   stage === EnumMonsterStage.FUSED ? FUSED_LIFESPAN_MINUTES : LIFESPAN_MINUTES
 
 // Ultimate Merge: two of the player's own Ultimates become one Fused monster.
+// Rare (spiritual) eggs cost Raid Tokens to hatch.
+export const RARE_EGG_RAID_TOKEN_PRICE = 30
+
 export const MERGE_COIN_COST = 2000
 export const MERGE_GEM_COST = 20
 // Fused base stats are the Ultimate base stats times this (then the parents' line lean).

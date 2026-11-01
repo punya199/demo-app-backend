@@ -122,6 +122,9 @@ export const EQUIPMENT_TEMPLATES: IEquipmentTemplate[] = [
   ...setPieces('tidal_guard', 'วารีพิทักษ์', '💧', SET_PIECE_NAMES),
   ...setPieces('deep_root', 'รากแก้ว', '🌿', SET_PIECE_NAMES),
   ...setPieces('swift_thunder', 'สายฟ้าเร็ว', '⚡', SET_PIECE_NAMES),
+  ...setPieces('radiant', 'รัศมีสวรรค์', '✨', SET_PIECE_NAMES),
+  ...setPieces('nightfall', 'ราตรีทมิฬ', '🌑', SET_PIECE_NAMES),
+  ...setPieces('shadow_veil', 'ม่านเงา', '🌫️', SET_PIECE_NAMES),
 ]
 
 export const findEquipmentTemplate = (templateId: string) =>
@@ -229,6 +232,27 @@ export const SET_DEFINITIONS: Record<string, ISetDefinition> = {
       { pieces: 4, effect: { doubleStrikeChance: 0.2 } },
     ],
   },
+  radiant: {
+    name: 'ชุดรัศมีสวรรค์',
+    bonuses: [
+      { pieces: 2, pct: { hp: 0.15 } },
+      { pieces: 4, effect: { shieldPct: 0.1, regenPct: 0.02 } },
+    ],
+  },
+  nightfall: {
+    name: 'ชุดราตรีทมิฬ',
+    bonuses: [
+      { pieces: 2, pct: { atk: 0.2 } },
+      { pieces: 4, effect: { critChance: 0.1, critDamage: 0.2 } },
+    ],
+  },
+  shadow_veil: {
+    name: 'ชุดม่านเงา',
+    bonuses: [
+      { pieces: 2, pct: { spd: 0.15 } },
+      { pieces: 4, effect: { evasion: 0.1 } },
+    ],
+  },
 }
 
 export interface IEquipmentItem {
@@ -326,6 +350,12 @@ const mergeEffects = (into: IFighterEffects, effect: IFighterEffects) => {
   }
   if (effect.regenPct) {
     into.regenPct = (into.regenPct ?? 0) + effect.regenPct
+  }
+  // Crit and evasion add up (capped later, where the fighter is built).
+  for (const key of ['critChance', 'critDamage', 'evasion'] as const) {
+    if (effect[key]) {
+      into[key] = (into[key] ?? 0) + effect[key]
+    }
   }
 }
 

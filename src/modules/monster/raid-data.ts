@@ -105,6 +105,30 @@ export const RAID_BOSSES: IRaidBoss[] = [
     setId: 'deep_root',
     skillName: 'รากพันธนาการ',
   },
+  {
+    id: 'radiant_seraph',
+    name: 'เซราฟรัศมี',
+    emoji: '✨',
+    element: EnumMonsterLine.HOLY,
+    setId: 'radiant',
+    skillName: 'แสงพิพากษา',
+  },
+  {
+    id: 'void_sovereign',
+    name: 'จ้าวมืดมิด',
+    emoji: '🌑',
+    element: EnumMonsterLine.DARK,
+    setId: 'nightfall',
+    skillName: 'ราตรีกลืนกิน',
+  },
+  {
+    id: 'nameless_phantom',
+    name: 'ราชันย์เงานิรนาม',
+    emoji: '🌫️',
+    element: EnumMonsterLine.SHADOW,
+    setId: 'shadow_veil',
+    skillName: 'คมเงาเงียบ',
+  },
 ]
 
 export const findRaidBoss = (bossId: string) => RAID_BOSSES.find(boss => boss.id === bossId)

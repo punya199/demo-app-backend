@@ -57,7 +57,14 @@ import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
-import { FUSED_FORMS, fusedSpeciesId, getSpecies, SPECIES } from './species-data'
+import {
+  FUSED_FORMS,
+  fusedSpeciesId,
+  getSpecies,
+  RARE_EGG_LINES,
+  SPECIES,
+  SPIRITUAL_LINES,
+} from './species-data'
 
 // Everything the in-game guide explains, read straight from the rule constants and game data so
 // the guide can never drift from how the game actually behaves.
@@ -88,10 +95,12 @@ export const buildWiki = () => ({
     stageDurationMinutes: rules.STAGE_DURATION_MINUTES,
     species: SPECIES,
   },
+  rareEgg: { lines: RARE_EGG_LINES, raidTokenPrice: rules.RARE_EGG_RAID_TOKEN_PRICE },
   merge: {
     coinCost: rules.MERGE_COIN_COST,
     gemCost: rules.MERGE_GEM_COST,
     powerMultiplier: rules.MERGE_POWER_MULTIPLIER,
+    spiritualLines: SPIRITUAL_LINES,
     lifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
     forms: FUSED_FORMS.map(([a, b]) => {
       const species = getSpecies(fusedSpeciesId(a, b))

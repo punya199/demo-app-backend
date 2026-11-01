@@ -12,6 +12,7 @@ import {
   fusedSpeciesId,
   getSpecies,
   NATURAL_LINES,
+  SPIRITUAL_LINES,
   scaleStats,
   SPECIES,
   STAGE_BASE_STATS,
@@ -54,21 +55,42 @@ describe('assertCanMerge', () => {
 })
 
 describe('fused forms', () => {
-  it('has one form per line pair, found whatever the parent order', () => {
-    const lines = NATURAL_LINES
+  it('has one form per line pair inside a group, found whatever the parent order', () => {
     const ids = new Set<string>()
-    for (const x of lines) {
-      for (const y of lines) {
-        expect(fusedSpeciesId(x, y)).toBe(fusedSpeciesId(y, x))
-        ids.add(fusedSpeciesId(x, y))
+    for (const group of [NATURAL_LINES, SPIRITUAL_LINES]) {
+      for (const x of group) {
+        for (const y of group) {
+          expect(fusedSpeciesId(x, y)).toBe(fusedSpeciesId(y, x))
+          ids.add(fusedSpeciesId(x, y))
+        }
       }
     }
-    // 5 awakened + 10 hybrids; the original six ids keep their names.
-    expect(ids.size).toBe(15)
+    // Natural: 5 awakened + 10 hybrids. Spiritual: 3 + 3. The original six ids keep their names.
+    expect(ids.size).toBe(21)
     expect(ids).toContain('fused_flame_tide')
     expect(ids).toContain('fused_leaf_leaf')
     ids.forEach(id => expect(getSpecies(id).stage).toBe(EnumMonsterStage.FUSED))
-    expect(SPECIES.filter(s => s.stage === EnumMonsterStage.FUSED)).toHaveLength(15)
+    expect(SPECIES.filter(s => s.stage === EnumMonsterStage.FUSED)).toHaveLength(21)
+  })
+
+  it('refuses to merge a natural monster with a spiritual one', () => {
+    const ultimate = (speciesId: string, line: EnumMonsterLine) => ({
+      ...createEgg(line, NOW),
+      speciesId,
+      stage: EnumMonsterStage.ULTIMATE,
+    })
+    expect(() =>
+      assertCanMerge(
+        ultimate('flame_ultimate', EnumMonsterLine.FLAME),
+        ultimate('holy_ultimate', EnumMonsterLine.HOLY)
+      )
+    ).toThrow('cannot be merged')
+    expect(() =>
+      assertCanMerge(
+        ultimate('holy_ultimate', EnumMonsterLine.HOLY),
+        ultimate('dark_ultimate', EnumMonsterLine.DARK)
+      )
+    ).not.toThrow()
   })
 
   it('never evolves', () => {

@@ -9,6 +9,9 @@ export enum EnumMonsterLine {
   LEAF = 'leaf',
   EARTH = 'earth',
   LIGHTNING = 'lightning',
+  HOLY = 'holy',
+  DARK = 'dark',
+  SHADOW = 'shadow',
 }
 
 export enum EnumMonsterStage {
