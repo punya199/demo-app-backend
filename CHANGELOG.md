@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/punya199/demo-app-backend/compare/v1.25.0...v1.26.0) (2026-11-03)
+
+
+### Update
+
+* passive tree balance (node power scale) and team engine keystone effects ([b315063](https://github.com/punya199/demo-app-backend/commit/b315063fb868632cabcf7bb66f6d7470bffdadb3))
+
 # [1.25.0](https://github.com/punya199/demo-app-backend/compare/v1.24.0...v1.25.0) (2026-11-03)
 
 
