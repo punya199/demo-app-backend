@@ -33,6 +33,10 @@ export const POTENTIAL_CRIT_RATE_MAX_BONUS = 0.1
 export const POTENTIAL_CRIT_DAMAGE_MAX_BONUS = 0.3
 export const POTENTIAL_EVASION_MAX = 0.05
 
+// Lifesteal and thorns (passives) stack to at most this share.
+export const LIFESTEAL_CAP = 0.5
+export const THORNS_CAP = 0.5
+
 // Stacking caps (potential + gear + passives): crit rate 60%, crit damage x3.0, evasion 30%.
 export const CRIT_RATE_CAP = 0.6
 export const CRIT_DAMAGE_CAP = 3
@@ -112,6 +116,12 @@ export const capEffects = (effects: IFighterEffects): IFighterEffects => {
   }
   if (capped.evasion !== undefined) {
     capped.evasion = Math.min(capped.evasion, EVASION_CAP)
+  }
+  if (capped.lifesteal !== undefined) {
+    capped.lifesteal = Math.min(capped.lifesteal, LIFESTEAL_CAP)
+  }
+  if (capped.thorns !== undefined) {
+    capped.thorns = Math.min(capped.thorns, THORNS_CAP)
   }
   return capped
 }

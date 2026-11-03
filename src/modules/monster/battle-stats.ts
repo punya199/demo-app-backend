@@ -28,6 +28,15 @@ export interface IFighterEffects {
   critDamage?: number
   // Chance to dodge an incoming hit completely (drawn only when above 0).
   evasion?: number
+  // Trainer passive keystones (1v1 fights only; the team engine ignores the three below).
+  // Heals this share of the HP damage it deals.
+  lifesteal?: number
+  // Reflects this share of each hit it takes back at the attacker (ignores the attacker's shield).
+  thorns?: number
+  // 1 = always acts first in a round (both sides having it falls back to speed).
+  firstStrike?: number
+  // 1 = its hits can never be critical (the crit roll is still drawn, so RNG order is unchanged).
+  noCrit?: number
 }
 
 export interface IFighter {

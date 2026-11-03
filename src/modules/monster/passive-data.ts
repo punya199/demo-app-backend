@@ -3,7 +3,8 @@ import { IFighterEffects } from './battle-stats'
 
 // Trainer passive tree: one per player, kept across monsters. Nodes are code (ids are stored, so
 // never rename one); GET /passive publishes this graph, so the client only draws it.
-// Effect values are percent points (3 = +3%), except `burn` (turns).
+// Effect values are percent points (3 = +3%), except `burn` (turns) and `firstStrike` / `noCrit`
+// (flags: any value above 0 turns them on).
 
 export type PassiveEffectKey =
   | 'atk'
@@ -19,17 +20,23 @@ export type PassiveEffectKey =
   | 'hunger'
   | 'expCoin'
   | 'drop'
+  | 'lifesteal'
+  | 'thorns'
+  | 'firstStrike'
+  | 'noCrit'
 export type IPassiveEffects = Partial<Record<PassiveEffectKey, number>>
 
-export type EnumPassiveKind = 'small' | 'notable' | 'key'
+export type EnumPassiveKind = 'small' | 'notable' | 'key' | 'mastery' | 'ascend'
 
 export interface IPassiveNode {
   id: string
   name: string
   kind: EnumPassiveKind
   // Which arm it belongs to; bridge nodes sit between two arms.
-  arm: ArmId | 'bridge'
+  arm: ArmId | 'bridge' | 'ascend'
   fx: IPassiveEffects
+  // Masteries: the player picks one of these (index 0..2); `fx` stays empty until they do.
+  options?: { name: string; fx: IPassiveEffects }[]
   x: number
   y: number
   adj: string[]
@@ -53,6 +60,7 @@ interface IArmDef {
   id: ArmId
   lanes: { name: string; small: IPassiveEffects; notable: IPassiveEffects }[]
   keystones: [string, IPassiveEffects][]
+  masteries: [string, [string, IPassiveEffects][]][]
   main: PassiveEffectKey
 }
 
@@ -69,6 +77,24 @@ const ARMS: IArmDef[] = [
       ['Inferno Pact', { atk: 50, def: -40 }],
       ['Cinder Pyre', { burn: 2, hp: -20 }],
     ],
+    masteries: [
+      [
+        'Ember Craft',
+        [
+          ['Slow burn', { burn: 1 }],
+          ['Hot blood', { atk: 8 }],
+          ['Keen flame', { crit: 4 }],
+        ],
+      ],
+      [
+        'Pyre Rite',
+        [
+          ['Scorching edge', { critdmg: 20 }],
+          ['Fury', { atk: 6, crit: 2 }],
+          ['Stoked', { hp: 8 }],
+        ],
+      ],
+    ],
   },
   {
     id: 'tide',
@@ -80,7 +106,25 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Tidal Ward', { shield: 30, atk: -25 }],
-      ['Deep Current', { hp: 35, spd: -20 }],
+      ['Undertow', { lifesteal: 15, spd: -15 }],
+    ],
+    masteries: [
+      [
+        'Deep Current',
+        [
+          ['Ward', { shield: 8 }],
+          ['Siphon', { lifesteal: 5 }],
+          ['Swell', { hp: 8 }],
+        ],
+      ],
+      [
+        'Reef Lore',
+        [
+          ['Armour', { def: 8 }],
+          ['Mend', { regen: 1 }],
+          ['Treasure', { expCoin: 6 }],
+        ],
+      ],
     ],
   },
   {
@@ -92,8 +136,26 @@ const ARMS: IArmDef[] = [
       { name: 'Lucky Forager', small: { drop: 2 }, notable: { drop: 4, spd: 2 } },
     ],
     keystones: [
-      ['Overgrowth', { regen: 3, atk: -20 }],
-      ['Wind Dancer', { spd: 30, def: -20 }],
+      ['Overgrowth', { regen: 3, noCrit: 1 }],
+      ['Thorn Mantle', { thorns: 20, atk: -20 }],
+    ],
+    masteries: [
+      [
+        'Wild Growth',
+        [
+          ['Vigor', { regen: 1.5 }],
+          ['Brambles', { thorns: 8 }],
+          ['Gale', { spd: 6 }],
+        ],
+      ],
+      [
+        'Forager Rite',
+        [
+          ['Bounty', { drop: 6 }],
+          ['Hardy', { hunger: 8 }],
+          ['Twin shoots', { dbl: 6 }],
+        ],
+      ],
     ],
   },
   {
@@ -106,7 +168,25 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Bedrock Oath', { def: 40, spd: -30 }],
-      ['Immovable', { hp: 30, def: 20, spd: -25 }],
+      ['Immovable', { hp: 30, def: 20, noCrit: 1 }],
+    ],
+    masteries: [
+      [
+        'Stone Lore',
+        [
+          ['Plating', { def: 8 }],
+          ['Aegis', { shield: 6 }],
+          ['Spikes', { thorns: 6 }],
+        ],
+      ],
+      [
+        'Hearth Rite',
+        [
+          ['Bulk', { hp: 8 }],
+          ['Moss', { regen: 1 }],
+          ['Feast', { hunger: 8 }],
+        ],
+      ],
     ],
   },
   {
@@ -119,7 +199,25 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Overcharge', { critdmg: 60, def: -25 }],
-      ['Storm Rush', { spd: 35, hp: -25 }],
+      ['First Strike', { firstStrike: 1, hp: -20 }],
+    ],
+    masteries: [
+      [
+        'Static Field',
+        [
+          ['Charge', { spd: 6 }],
+          ['Spark', { crit: 4 }],
+          ['Echo', { dbl: 6 }],
+        ],
+      ],
+      [
+        'Storm Rite',
+        [
+          ['Thunderclap', { critdmg: 20 }],
+          ['Surge', { atk: 6 }],
+          ['Leech bolt', { lifesteal: 4 }],
+        ],
+      ],
     ],
   },
   {
@@ -131,11 +229,72 @@ const ARMS: IArmDef[] = [
       { name: 'Soul Harvest', small: { drop: 2 }, notable: { drop: 3, expCoin: 3 } },
     ],
     keystones: [
-      ['Soul Pact', { atk: 30, hp: -30 }],
+      ['Soul Pact', { lifesteal: 25, hp: -30 }],
       ['Twilight Gambit', { dbl: 20, def: -30 }],
+    ],
+    masteries: [
+      [
+        'Veil Rite',
+        [
+          ['Drain', { lifesteal: 6 }],
+          ['Echo strike', { dbl: 6 }],
+          ['Spoils', { drop: 5 }],
+        ],
+      ],
+      [
+        'Soul Tithe',
+        [
+          ['Tribute', { expCoin: 6 }],
+          ['Malice', { atk: 6 }],
+          ['Shroud', { def: 6 }],
+        ],
+      ],
     ],
   },
 ]
+
+// Ascendancy: three paths of 12 nodes outside the main tree, with their own point pool. Each path
+// is a chain from `-00`; a player commits to one path and pays gems to start over.
+export const ASCENDANCY_PATHS = ['vanguard', 'striker', 'warden'] as const
+export type AscendancyPath = (typeof ASCENDANCY_PATHS)[number]
+export const ASCENDANCY_LENGTH = 12
+export const ASCENDANCY_MAX_POINTS = 12
+export const ASCENDANCY_RESET_GEM_PRICE = 20
+export const MASTERY_REPICK_GEM_PRICE = 1
+
+const ASCENDANCY: Record<
+  AscendancyPath,
+  { small: IPassiveEffects[]; notable: IPassiveEffects[]; capstone: IPassiveEffects }
+> = {
+  vanguard: {
+    small: [{ def: 3 }, { hp: 3 }, { shield: 2 }],
+    notable: [
+      { def: 6, hp: 4 },
+      { shield: 5, hp: 5 },
+    ],
+    capstone: { def: 15, hp: 15, thorns: 10 },
+  },
+  striker: {
+    small: [{ crit: 2 }, { dbl: 3 }, { spd: 3 }],
+    notable: [
+      { crit: 4, critdmg: 15 },
+      { dbl: 6, spd: 5 },
+    ],
+    capstone: { crit: 8, critdmg: 30, dbl: 8 },
+  },
+  warden: {
+    small: [{ regen: 0.5 }, { drop: 2 }, { expCoin: 2 }],
+    notable: [
+      { regen: 1, hp: 5 },
+      { lifesteal: 4, burn: 1 },
+    ],
+    capstone: { regen: 2, lifesteal: 8, drop: 5 },
+  },
+}
+
+export const ascendancyRoot = (path: AscendancyPath) => `v2-asc-${path}-00`
+export const getAscendancyPath = (nodeId: string): AscendancyPath | null =>
+  ASCENDANCY_PATHS.find(path => nodeId.startsWith(`v2-asc-${path}-`)) ?? null
 
 export const PASSIVE_LANE_LENGTH = 16
 const LANE_OFFSET = [-15, 0, 15]
@@ -258,6 +417,46 @@ const buildNodes = () => {
     }
     link(`v2-bridge-${armIndex}-0-02`, `v2-bridge-${armIndex}-1-02`)
   })
+
+  // Masteries sit between the lanes at index 8 and carry three options each.
+  ARMS.forEach((arm, armIndex) => {
+    const base = armIndex * 60 - 90
+    arm.masteries.forEach(([name, options], index) => {
+      const id = `v2-${arm.id}-m${index}`
+      add(id, name, 'mastery', arm.id, {}, 332, base + (index === 0 ? -8 : 8))
+      nodes.get(id)!.options = options.map(([optionName, fx]) => ({ name: optionName, fx }))
+      link(`v2-${arm.id}-${index === 0 ? 0 : 2}-08`, id)
+      link(`v2-${arm.id}-1-08`, id)
+    })
+  })
+
+  ASCENDANCY_PATHS.forEach((path, pathIndex) => {
+    const def = ASCENDANCY[path]
+    let previous = ''
+    for (let k = 0; k < ASCENDANCY_LENGTH; k++) {
+      const id = `v2-asc-${path}-${pad(k)}`
+      const isNotable = k === 3 || k === 7
+      const isCapstone = k === ASCENDANCY_LENGTH - 1
+      const fx = isCapstone
+        ? def.capstone
+        : isNotable
+          ? def.notable[k === 3 ? 0 : 1]
+          : def.small[k % 3]
+      add(
+        id,
+        `${path} ${isCapstone ? 'capstone' : isNotable ? 'notable' : 'node'}`,
+        'ascend',
+        'ascend',
+        fx,
+        610 + (k % 2) * 22,
+        pathIndex * 120 + 30 - 33 + k * 6
+      )
+      if (previous) {
+        link(previous, id)
+      }
+      previous = id
+    }
+  })
   return nodes
 }
 
@@ -366,7 +565,49 @@ export interface IPassiveBonus {
   equipmentDropMultiplier: number
 }
 
-export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
+export type MasteryPicks = Record<string, number>
+
+// Ascendancy points: Nightmare raid first clears and world boss kills, 6 each at most.
+export const calcAscendancyPoints = (progress: {
+  nightmareClears: number
+  worldBossDefeats: number
+}) =>
+  Math.min(
+    ASCENDANCY_MAX_POINTS,
+    Math.min(progress.nightmareClears, 6) + Math.min(progress.worldBossDefeats, 6)
+  )
+
+// A path's first node is free to take; the rest must touch an owned node. One path per player.
+export const canAllocateAscendancy = (
+  path: AscendancyPath | null,
+  ids: string[],
+  nodeId: string
+) => {
+  const nodePath = getAscendancyPath(nodeId)
+  if (!nodePath || ids.includes(nodeId) || !NODES.has(nodeId)) {
+    return false
+  }
+  if (ids.length > 0 && path !== nodePath) {
+    return false
+  }
+  return nodeId === ascendancyRoot(nodePath) || NODES.get(nodeId)!.adj.some(id => ids.includes(id))
+}
+
+export const isValidMasteryPick = (nodeId: string, option: number) => {
+  const node = NODES.get(nodeId)
+  return (
+    node?.kind === 'mastery' &&
+    Number.isInteger(option) &&
+    option >= 0 &&
+    option < (node.options?.length ?? 0)
+  )
+}
+
+export const calcPassiveBonus = (
+  ids: string[],
+  picks: MasteryPicks = {},
+  ascendancyIds: string[] = []
+): IPassiveBonus => {
   const sum: Record<PassiveEffectKey, number> = {
     atk: 0,
     hp: 0,
@@ -381,9 +622,17 @@ export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
     hunger: 0,
     expCoin: 0,
     drop: 0,
+    lifesteal: 0,
+    thorns: 0,
+    firstStrike: 0,
+    noCrit: 0,
   }
-  for (const id of ids) {
-    for (const [key, value] of Object.entries(NODES.get(id)?.fx ?? {})) {
+  const effectsOf = (id: string) => {
+    const node = NODES.get(id)
+    return { ...node?.fx, ...(node?.options?.[picks[id]]?.fx ?? {}) }
+  }
+  for (const id of [...ids, ...ascendancyIds]) {
+    for (const [key, value] of Object.entries(effectsOf(id))) {
       sum[key as PassiveEffectKey] += value
     }
   }
@@ -399,6 +648,10 @@ export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
   setIf('regenPct', sum.regen / 100)
   setIf('critChance', sum.crit / 100)
   setIf('critDamage', sum.critdmg / 100)
+  setIf('lifesteal', sum.lifesteal / 100)
+  setIf('thorns', sum.thorns / 100)
+  setIf('firstStrike', sum.firstStrike > 0 ? 1 : 0)
+  setIf('noCrit', sum.noCrit > 0 ? 1 : 0)
   return {
     combat: {
       flat: { ...NO_EQUIPMENT_BONUS.flat },

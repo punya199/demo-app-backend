@@ -20,4 +20,15 @@ export class PassiveAllocationEntity extends BaseModelEntity {
   // Points taken back so far; the first PASSIVE_FREE_REFUNDS are free, the rest cost gems.
   @Column({ name: 'refunded_points', type: 'integer', default: 0 })
   refundedPoints: number
+
+  // Mastery node id -> index of the option the player picked (0..2).
+  @Column({ name: 'mastery_picks', type: 'jsonb', default: () => `'{}'` })
+  masteryPicks: Record<string, number>
+
+  // Ascendancy: one path per player, with its own point pool (see ascendancy in passive-data.ts).
+  @Column({ name: 'ascendancy_path', type: 'varchar', nullable: true })
+  ascendancyPath: string | null
+
+  @Column({ name: 'ascendancy_node_ids', type: 'jsonb', default: () => `'[]'` })
+  ascendancyNodeIds: string[]
 }
