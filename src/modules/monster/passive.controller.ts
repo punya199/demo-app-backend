@@ -27,6 +27,12 @@ export class PassiveController {
   }
 
   @AuthUser()
+  @Post('deallocate-branch')
+  async deallocateBranch(@Body() body: PassiveNodeBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.passiveService.deallocateBranch(user['user-id'], body.nodeId)
+  }
+
+  @AuthUser()
   @Post('respec')
   async respec(@ReqUser() user: IAppJwtPayload) {
     return this.passiveService.respec(user['user-id'])

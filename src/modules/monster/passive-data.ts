@@ -28,7 +28,7 @@ export interface IPassiveNode {
   name: string
   kind: EnumPassiveKind
   // Which arm it belongs to; bridge nodes sit between two arms.
-  arm: 'flame' | 'tide' | 'leaf' | 'bridge'
+  arm: ArmId | 'bridge'
   fx: IPassiveEffects
   x: number
   y: number
@@ -36,115 +36,114 @@ export interface IPassiveNode {
 }
 
 export const PASSIVE_HUB = 'hub'
-export const PASSIVE_MAX_POINTS = 60
+export const PASSIVE_MAX_POINTS = 100
 // The first points taken back are free; after that each refunded point costs a gem.
 export const PASSIVE_FREE_REFUNDS = 10
 export const PASSIVE_RESPEC_GEM_PRICE = 1
+// Taking back a whole branch never costs more than this many gems in one action.
+export const PASSIVE_BRANCH_REFUND_CAP = 20
 // Economy nodes can never add more than this much (percent) however many are taken.
 export const PASSIVE_ECONOMY_CAP = 15
 
-type NodeDef = [string, IPassiveEffects]
+export type ArmId = 'flame' | 'tide' | 'leaf' | 'earth' | 'lightning' | 'spirit'
+
+// Three lanes per arm (small stat nodes, a notable at index 5 and 10) and two keystones that close
+// the outer lanes. Ids are `v2-<arm>-<lane>-<index>`, never rename one: they are stored per player.
 interface IArmDef {
-  id: 'flame' | 'tide' | 'leaf'
-  angle: number
-  spine: NodeDef[]
-  // Side branch toward the previous arm, and toward the next one (clockwise).
-  prev: NodeDef[]
-  next: NodeDef[]
+  id: ArmId
+  lanes: { name: string; small: IPassiveEffects; notable: IPassiveEffects }[]
+  keystones: [string, IPassiveEffects][]
+  main: PassiveEffectKey
 }
 
 const ARMS: IArmDef[] = [
   {
     id: 'flame',
-    angle: -90,
-    spine: [
-      ['Ember Spark', { atk: 3 }],
-      ['Kindled Fury', { atk: 3 }],
-      ['Ember Heart', { atk: 6, burn: 1 }],
-      ['Searing Edge', { atk: 3 }],
-      ['Glass Cannon', { atk: 25, hp: -20 }],
+    main: 'atk',
+    lanes: [
+      { name: 'Ember Might', small: { atk: 2 }, notable: { atk: 5, hp: 2 } },
+      { name: 'Searing Eye', small: { crit: 1 }, notable: { crit: 3, critdmg: 10 } },
+      { name: 'Cinder Heart', small: { hp: 2 }, notable: { burn: 1, hp: 3 } },
     ],
-    prev: [
-      ['Hearty Appetite', { hunger: 5 }],
-      ['Hearty Appetite', { hunger: 5 }],
-      ['Well Fed Fury', { atk: 8, hunger: 5 }],
-    ],
-    next: [
-      ['Sharp Eye', { crit: 2 }],
-      ['Sharp Eye', { crit: 2 }],
-      ['Killer Instinct', { crit: 4, critdmg: 15 }],
+    keystones: [
+      ['Inferno Pact', { atk: 50, def: -40 }],
+      ['Cinder Pyre', { burn: 2, hp: -20 }],
     ],
   },
   {
     id: 'tide',
-    angle: 30,
-    spine: [
-      ['Deep Pool', { hp: 4 }],
-      ['Deep Pool', { hp: 4 }],
-      ['Tidal Heart', { hp: 8, def: 4 }],
-      ['Coral Plating', { def: 4 }],
-      ['Bulwark', { def: 30, spd: -15 }],
+    main: 'hp',
+    lanes: [
+      { name: 'Deep Pool', small: { hp: 2 }, notable: { hp: 5, def: 2 } },
+      { name: 'Coral Plate', small: { def: 2 }, notable: { def: 5, shield: 2 } },
+      { name: 'Tidal Barrier', small: { shield: 1 }, notable: { shield: 3, hp: 3 } },
     ],
-    prev: [
-      ['Water Ward', { shield: 2 }],
-      ['Water Ward', { shield: 2 }],
-      ['Tidal Barrier', { shield: 6 }],
-    ],
-    next: [
-      ['Pearl Diver', { expCoin: 5 }],
-      ['Pearl Diver', { expCoin: 5 }],
-      ['Deep Treasure', { expCoin: 10 }],
+    keystones: [
+      ['Tidal Ward', { shield: 30, atk: -25 }],
+      ['Deep Current', { hp: 35, spd: -20 }],
     ],
   },
   {
     id: 'leaf',
-    angle: 150,
-    spine: [
-      ['Light Step', { spd: 3 }],
-      ['Quick Roots', { spd: 3 }],
-      ['Twin Strike', { spd: 6, dbl: 8 }],
-      ['Gale Shoots', { spd: 3 }],
-      ['Wind Dancer', { spd: 25, def: -15 }],
+    main: 'spd',
+    lanes: [
+      { name: 'Quick Roots', small: { spd: 2 }, notable: { spd: 5, dbl: 3 } },
+      { name: 'Evergreen', small: { regen: 0.5 }, notable: { regen: 1, hp: 3 } },
+      { name: 'Lucky Forager', small: { drop: 2 }, notable: { drop: 4, spd: 2 } },
     ],
-    prev: [
-      ['Sap Flow', { regen: 0.5 }],
-      ['Sap Flow', { regen: 0.5 }],
-      ['Evergreen', { regen: 1.5 }],
+    keystones: [
+      ['Overgrowth', { regen: 3, atk: -20 }],
+      ['Wind Dancer', { spd: 30, def: -20 }],
     ],
-    next: [
-      ['Lucky Forager', { drop: 5 }],
-      ['Lucky Forager', { drop: 5 }],
-      ['Rich Harvest', { drop: 10 }],
+  },
+  {
+    id: 'earth',
+    main: 'def',
+    lanes: [
+      { name: 'Bedrock', small: { def: 2 }, notable: { def: 5, hp: 3 } },
+      { name: 'Stone Heart', small: { hp: 2 }, notable: { hp: 5, regen: 0.5 } },
+      { name: 'Hearty Appetite', small: { hunger: 2 }, notable: { hunger: 5, def: 3 } },
+    ],
+    keystones: [
+      ['Bedrock Oath', { def: 40, spd: -30 }],
+      ['Immovable', { hp: 30, def: 20, spd: -25 }],
+    ],
+  },
+  {
+    id: 'lightning',
+    main: 'crit',
+    lanes: [
+      { name: 'Static', small: { spd: 2 }, notable: { spd: 5, crit: 2 } },
+      { name: 'Overload', small: { crit: 1 }, notable: { crit: 3, critdmg: 12 } },
+      { name: 'Twin Bolt', small: { dbl: 2 }, notable: { dbl: 5, atk: 3 } },
+    ],
+    keystones: [
+      ['Overcharge', { critdmg: 60, def: -25 }],
+      ['Storm Rush', { spd: 35, hp: -25 }],
+    ],
+  },
+  {
+    id: 'spirit',
+    main: 'drop',
+    lanes: [
+      { name: 'Veil Strike', small: { atk: 1, def: 1 }, notable: { atk: 4, def: 3 } },
+      { name: 'Pearl Tithe', small: { expCoin: 2 }, notable: { expCoin: 4, hp: 3 } },
+      { name: 'Soul Harvest', small: { drop: 2 }, notable: { drop: 3, expCoin: 3 } },
+    ],
+    keystones: [
+      ['Soul Pact', { atk: 30, hp: -30 }],
+      ['Twilight Gambit', { dbl: 20, def: -30 }],
     ],
   },
 ]
 
-// Hybrid chains between an arm's `next` branch and the following arm's `prev` branch.
-const BRIDGES: NodeDef[][] = [
-  [
-    ['Steam', { atk: 2, def: 2 }],
-    ['Steam Veil', { atk: 5, def: 5 }],
-    ['Steam', { atk: 2, def: 2 }],
-  ],
-  [
-    ['Marsh', { hp: 3, regen: 0.5 }],
-    ['Mangrove', { hp: 6, regen: 1 }],
-    ['Marsh', { hp: 3, regen: 0.5 }],
-  ],
-  [
-    ['Ash', { spd: 2, atk: 2 }],
-    ['Wildfire', { spd: 5, burn: 1 }],
-    ['Ash', { spd: 2, atk: 2 }],
-  ],
-]
-
-const SPINE_RADIUS = [100, 150, 200, 260, 310]
-const SPINE_KIND: EnumPassiveKind[] = ['small', 'small', 'notable', 'small', 'key']
-const BRANCH_RADIUS = [170, 215, 265]
-const BRANCH_OFFSET = [45, 70, 85]
-const BRIDGE_RADIUS = 300
+export const PASSIVE_LANE_LENGTH = 16
+const LANE_OFFSET = [-15, 0, 15]
+const BRIDGE_LENGTH = 6
+const RING_SIZE = 12
 
 const round = (value: number) => Math.round(value * 10) / 10
+const pad = (value: number) => String(value).padStart(2, '0')
 
 const buildNodes = () => {
   const nodes = new Map<string, IPassiveNode>()
@@ -154,78 +153,110 @@ const buildNodes = () => {
     kind: EnumPassiveKind,
     arm: IPassiveNode['arm'],
     fx: IPassiveEffects,
-    x: number,
-    y: number
-  ) => nodes.set(id, { id, name, kind, arm, fx, x: round(x), y: round(y), adj: [] })
+    radius: number,
+    degrees: number
+  ) => {
+    const t = (degrees * Math.PI) / 180
+    nodes.set(id, {
+      id,
+      name,
+      kind,
+      arm,
+      fx,
+      x: round(radius * Math.cos(t)),
+      y: round(radius * Math.sin(t)),
+      adj: [],
+    })
+    return id
+  }
   const link = (a: string, b: string) => {
     nodes.get(a)!.adj.push(b)
     nodes.get(b)!.adj.push(a)
   }
-  const place = (angle: number, radius: number, lateral: number) => {
-    const t = (angle * Math.PI) / 180
-    return [
-      radius * Math.cos(t) - lateral * Math.sin(t),
-      radius * Math.sin(t) + lateral * Math.cos(t),
-    ]
-  }
+  const double = (fx: IPassiveEffects): IPassiveEffects =>
+    Object.fromEntries(Object.entries(fx).map(([key, value]) => [key, value * 2]))
 
   add(PASSIVE_HUB, 'Trainer hub', 'small', 'bridge', {}, 0, 0)
-
-  for (const arm of ARMS) {
-    arm.spine.forEach(([name, fx], index) => {
-      const [x, y] = place(arm.angle, SPINE_RADIUS[index], 0)
-      add(`${arm.id}-s${index}`, name, SPINE_KIND[index], arm.id, fx, x, y)
-      link(index === 0 ? PASSIVE_HUB : `${arm.id}-s${index - 1}`, `${arm.id}-s${index}`)
-    })
-    for (const [letter, branch, side] of [
-      ['p', arm.prev, -1],
-      ['n', arm.next, 1],
-    ] as const) {
-      branch.forEach(([name, fx], index) => {
-        const [x, y] = place(arm.angle, BRANCH_RADIUS[index], side * BRANCH_OFFSET[index])
-        add(
-          `${arm.id}-${letter}${index}`,
-          name,
-          index === 2 ? 'notable' : 'small',
-          arm.id,
-          fx,
-          x,
-          y
-        )
-        link(
-          index === 0 ? `${arm.id}-s1` : `${arm.id}-${letter}${index - 1}`,
-          `${arm.id}-${letter}${index}`
-        )
-      })
-    }
+  for (let i = 0; i < RING_SIZE; i++) {
+    add(`v2-ring-${pad(i)}`, 'Hub ring', 'small', 'bridge', { hp: 1 }, 55, (i * 360) / RING_SIZE)
+    link(PASSIVE_HUB, `v2-ring-${pad(i)}`)
   }
 
   ARMS.forEach((arm, armIndex) => {
-    const next = ARMS[(armIndex + 1) % ARMS.length]
-    const from = nodes.get(`${arm.id}-n2`)!
-    const to = nodes.get(`${next.id}-p2`)!
-    const a0 = Math.atan2(from.y, from.x)
-    let a1 = Math.atan2(to.y, to.x)
-    if (a1 < a0) {
-      a1 += Math.PI * 2
-    }
-    let previous = from.id
-    BRIDGES[armIndex].forEach(([name, fx], index) => {
-      const t = a0 + ((a1 - a0) * (index + 1)) / 4
-      const id = `bridge${armIndex}-${index}`
-      add(
-        id,
-        name,
-        index === 1 ? 'notable' : 'small',
-        'bridge',
-        fx,
-        BRIDGE_RADIUS * Math.cos(t),
-        BRIDGE_RADIUS * Math.sin(t)
-      )
-      link(previous, id)
-      previous = id
+    const base = armIndex * 60 - 90
+    arm.lanes.forEach((lane, laneIndex) => {
+      let previous = ''
+      for (let k = 0; k < PASSIVE_LANE_LENGTH; k++) {
+        const id = `v2-${arm.id}-${laneIndex}-${pad(k)}`
+        const sway = Math.sin(k * 0.7 + armIndex) * 2.2
+        const angle = base + LANE_OFFSET[laneIndex] + sway
+        const radius = 110 + k * 24
+        if (k === PASSIVE_LANE_LENGTH - 1 && laneIndex !== 1) {
+          const [name, fx] = arm.keystones[laneIndex === 0 ? 0 : 1]
+          add(id, name, 'key', arm.id, fx, radius, angle)
+        } else if (k === 5 || k === 10 || k === PASSIVE_LANE_LENGTH - 1) {
+          add(
+            id,
+            lane.name,
+            'notable',
+            arm.id,
+            k === 10 ? double(lane.notable) : lane.notable,
+            radius,
+            angle
+          )
+        } else {
+          add(id, `${lane.name} +`, 'small', arm.id, lane.small, radius, angle)
+        }
+        if (previous) {
+          link(previous, id)
+        } else {
+          const ring =
+            ((Math.round((base + LANE_OFFSET[laneIndex]) / 30) % RING_SIZE) + RING_SIZE) % RING_SIZE
+          link(`v2-ring-${pad(ring)}`, id)
+        }
+        previous = id
+      }
     })
-    link(previous, to.id)
+    // Cross-links between the three lanes every fourth node, so the arm is a mesh, not 3 strings.
+    for (let k = 3; k < PASSIVE_LANE_LENGTH; k += 4) {
+      link(`v2-${arm.id}-0-${pad(k)}`, `v2-${arm.id}-1-${pad(k)}`)
+      link(`v2-${arm.id}-1-${pad(k)}`, `v2-${arm.id}-2-${pad(k)}`)
+    }
+  })
+
+  // Bridges: two short parallel lanes from an arm's clockwise lane to the next arm's first lane.
+  ARMS.forEach((arm, armIndex) => {
+    const next = ARMS[(armIndex + 1) % ARMS.length]
+    const middle = armIndex * 60 - 60
+    for (let lane = 0; lane < 2; lane++) {
+      let previous = ''
+      for (let k = 0; k < BRIDGE_LENGTH; k++) {
+        const id = `v2-bridge-${armIndex}-${lane}-${pad(k)}`
+        const fx: IPassiveEffects = { [arm.main]: 1, [next.main]: 1 }
+        const isNotable = k === 2 && lane === 0
+        add(
+          id,
+          `${arm.id}/${next.id} bridge`,
+          isNotable ? 'notable' : 'small',
+          'bridge',
+          isNotable ? double(fx) : fx,
+          150 + k * 40,
+          middle + (lane === 0 ? -4 : 4)
+        )
+        if (previous) {
+          link(previous, id)
+        }
+        previous = id
+      }
+      if (lane === 0) {
+        link(`v2-${arm.id}-2-02`, `v2-bridge-${armIndex}-0-00`)
+        link(`v2-${next.id}-0-10`, `v2-bridge-${armIndex}-0-${pad(BRIDGE_LENGTH - 1)}`)
+      } else {
+        link(`v2-${arm.id}-2-03`, `v2-bridge-${armIndex}-1-00`)
+        link(`v2-${next.id}-0-09`, `v2-bridge-${armIndex}-1-${pad(BRIDGE_LENGTH - 1)}`)
+      }
+    }
+    link(`v2-bridge-${armIndex}-0-02`, `v2-bridge-${armIndex}-1-02`)
   })
   return nodes
 }
@@ -283,11 +314,18 @@ export const PVP_SEASON_POINTS = [
 // Dex species pay 1 point each, up to this many (more species than this are collectible).
 export const PASSIVE_DEX_MAX_POINTS = 33
 
+// One point per adventure stage cleared once (there are 20), and one per 100 total wins, up to 10.
+export const PASSIVE_ADVENTURE_MAX_POINTS = 20
+export const PASSIVE_WINS_PER_POINT = 100
+export const PASSIVE_WIN_MAX_POINTS = 10
+
 export const calcPassivePoints = (progress: {
   dexSpecies: number
   raidFirstClears: number
   worldBossDefeats: number
   pvpSeasonRanks: number[]
+  adventureClears: number
+  totalWins: number
 }) => {
   const pvp = progress.pvpSeasonRanks.reduce(
     (sum, rank) =>
@@ -298,9 +336,19 @@ export const calcPassivePoints = (progress: {
     PASSIVE_MAX_POINTS,
     Math.min(progress.dexSpecies, PASSIVE_DEX_MAX_POINTS) +
       progress.raidFirstClears +
+      Math.min(progress.adventureClears, PASSIVE_ADVENTURE_MAX_POINTS) +
+      Math.min(Math.floor(progress.totalWins / PASSIVE_WINS_PER_POINT), PASSIVE_WIN_MAX_POINTS) +
       progress.worldBossDefeats +
       pvp
   )
+}
+
+// `nodeId` and every owned node that is no longer connected to the hub once it is gone.
+export const branchOf = (ids: string[], nodeId: string) => {
+  const rest = new Set(ids)
+  rest.delete(nodeId)
+  const seen = reachableFromHub(rest)
+  return ids.filter(id => !seen.has(id))
 }
 
 // How many gems taking back `count` points costs, given how many were already taken back.
@@ -354,7 +402,13 @@ export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
   return {
     combat: {
       flat: { ...NO_EQUIPMENT_BONUS.flat },
-      pct: { hp: sum.hp / 100, atk: sum.atk / 100, def: sum.def / 100, spd: sum.spd / 100 },
+      // Trade-off keystones stack, so a stat can never drop below -90%.
+      pct: {
+        hp: Math.max(-0.9, sum.hp / 100),
+        atk: Math.max(-0.9, sum.atk / 100),
+        def: Math.max(-0.9, sum.def / 100),
+        spd: Math.max(-0.9, sum.spd / 100),
+      },
       effects,
     },
     hungerDrainMultiplier: 1 - Math.min(sum.hunger, 100) / 100,
