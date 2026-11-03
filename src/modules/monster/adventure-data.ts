@@ -1,6 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IFighter } from './battle-stats'
-import { scaleStats, STAGE_BASE_STATS } from './species-data'
+import { IBattleStats, scaleStats, STAGE_BASE_STATS } from './species-data'
 
 export interface IAdventureStage {
   id: string
@@ -29,7 +29,7 @@ const enemy = (
   emoji: string,
   element: EnumMonsterLine,
   level: EnumMonsterStage,
-  strength: number,
+  strength: IBattleStats | number,
   skillName: string,
   reward: number,
   isBoss = false,
@@ -293,7 +293,8 @@ export const ADVENTURE_AREAS: IAdventureArea[] = [
         '🦚',
         EnumMonsterLine.LIGHTNING,
         EnumMonsterStage.ULTIMATE,
-        1.1,
+        // Hits harder than the rest of its stats: with percentage DEF a low-ATK tank can stall it.
+        { hp: 1.1, atk: 1.65, def: 1.1, spd: 1.1 },
         'ขนไฟฟ้าสาด',
         280,
         true,
