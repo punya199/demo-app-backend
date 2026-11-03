@@ -3,7 +3,8 @@ import { IFighterEffects } from './battle-stats'
 
 // Trainer passive tree: one per player, kept across monsters. Nodes are code (ids are stored, so
 // never rename one); GET /passive publishes this graph, so the client only draws it.
-// Effect values are percent points (3 = +3%), except `burn` (turns).
+// Effect values are percent points (3 = +3%), except `burn` (turns) and `firstStrike` / `noCrit`
+// (flags: any value above 0 turns them on).
 
 export type PassiveEffectKey =
   | 'atk'
@@ -19,6 +20,10 @@ export type PassiveEffectKey =
   | 'hunger'
   | 'expCoin'
   | 'drop'
+  | 'lifesteal'
+  | 'thorns'
+  | 'firstStrike'
+  | 'noCrit'
 export type IPassiveEffects = Partial<Record<PassiveEffectKey, number>>
 
 export type EnumPassiveKind = 'small' | 'notable' | 'key'
@@ -80,7 +85,7 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Tidal Ward', { shield: 30, atk: -25 }],
-      ['Deep Current', { hp: 35, spd: -20 }],
+      ['Undertow', { lifesteal: 15, spd: -15 }],
     ],
   },
   {
@@ -92,8 +97,8 @@ const ARMS: IArmDef[] = [
       { name: 'Lucky Forager', small: { drop: 2 }, notable: { drop: 4, spd: 2 } },
     ],
     keystones: [
-      ['Overgrowth', { regen: 3, atk: -20 }],
-      ['Wind Dancer', { spd: 30, def: -20 }],
+      ['Overgrowth', { regen: 3, noCrit: 1 }],
+      ['Thorn Mantle', { thorns: 20, atk: -20 }],
     ],
   },
   {
@@ -106,7 +111,7 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Bedrock Oath', { def: 40, spd: -30 }],
-      ['Immovable', { hp: 30, def: 20, spd: -25 }],
+      ['Immovable', { hp: 30, def: 20, noCrit: 1 }],
     ],
   },
   {
@@ -119,7 +124,7 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Overcharge', { critdmg: 60, def: -25 }],
-      ['Storm Rush', { spd: 35, hp: -25 }],
+      ['First Strike', { firstStrike: 1, hp: -20 }],
     ],
   },
   {
@@ -131,7 +136,7 @@ const ARMS: IArmDef[] = [
       { name: 'Soul Harvest', small: { drop: 2 }, notable: { drop: 3, expCoin: 3 } },
     ],
     keystones: [
-      ['Soul Pact', { atk: 30, hp: -30 }],
+      ['Soul Pact', { lifesteal: 25, hp: -30 }],
       ['Twilight Gambit', { dbl: 20, def: -30 }],
     ],
   },
@@ -381,6 +386,10 @@ export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
     hunger: 0,
     expCoin: 0,
     drop: 0,
+    lifesteal: 0,
+    thorns: 0,
+    firstStrike: 0,
+    noCrit: 0,
   }
   for (const id of ids) {
     for (const [key, value] of Object.entries(NODES.get(id)?.fx ?? {})) {
@@ -399,6 +408,10 @@ export const calcPassiveBonus = (ids: string[]): IPassiveBonus => {
   setIf('regenPct', sum.regen / 100)
   setIf('critChance', sum.crit / 100)
   setIf('critDamage', sum.critdmg / 100)
+  setIf('lifesteal', sum.lifesteal / 100)
+  setIf('thorns', sum.thorns / 100)
+  setIf('firstStrike', sum.firstStrike > 0 ? 1 : 0)
+  setIf('noCrit', sum.noCrit > 0 ? 1 : 0)
   return {
     combat: {
       flat: { ...NO_EQUIPMENT_BONUS.flat },

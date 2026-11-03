@@ -39,6 +39,11 @@ export interface IBattleEvent {
   absorbed?: number
   // The target dodged the hit (damage is 0).
   isDodged?: boolean
+  // Lifesteal: HP the attacker healed from this hit; thorns: damage reflected onto the attacker.
+  // `actorHp` is the attacker's HP afterwards, present whenever one of them is.
+  healed?: number
+  reflected?: number
+  actorHp?: number
 }
 
 export interface IBattleResult {
@@ -122,7 +127,9 @@ export const rollHit = (
   if (defender.effects?.evasion && rng() < defender.effects.evasion) {
     return { damage: 0, isCritical: false, effectiveness, isDodged: true }
   }
-  const isCritical = rng() < CRITICAL_CHANCE + (attacker.effects?.critChance ?? 0)
+  // The roll is always drawn, even for a fighter that can't crit, so RNG order never changes.
+  const critRoll = rng() < CRITICAL_CHANCE + (attacker.effects?.critChance ?? 0)
+  const isCritical = critRoll && !attacker.effects?.noCrit
   const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
   const raw =
     attacker.stats.atk *
@@ -180,7 +187,22 @@ export const simulateBattle = (
     )
     const absorbed = Math.min(shield[target], damage)
     shield[target] -= absorbed
-    hp[target] = Math.max(0, hp[target] - (damage - absorbed))
+    const hpDamage = damage - absorbed
+    hp[target] = Math.max(0, hp[target] - hpDamage)
+
+    // Passive keystones. Both are skipped for fighters without them and never touch the RNG.
+    let healed = 0
+    const lifesteal = attacker.effects?.lifesteal
+    if (lifesteal && hpDamage > 0 && hp[actor] < maxHp[actor]) {
+      healed = Math.min(maxHp[actor] - hp[actor], Math.max(1, Math.round(hpDamage * lifesteal)))
+      hp[actor] += healed
+    }
+    let reflected = 0
+    const thorns = defender.effects?.thorns
+    if (thorns && damage > 0 && hp[target] > 0) {
+      reflected = Math.max(1, Math.round(damage * thorns))
+      hp[actor] = Math.max(0, hp[actor] - reflected)
+    }
 
     events.push({
       round,
@@ -194,12 +216,22 @@ export const simulateBattle = (
       ...(kind && { kind }),
       ...(absorbed > 0 && { absorbed }),
       ...(isDodged && { isDodged }),
+      ...(healed > 0 && { healed }),
+      ...(reflected > 0 && { reflected }),
+      ...((healed > 0 || reflected > 0) && { actorHp: hp[actor] }),
     })
   }
 
   for (let round = 1; round <= MAX_ROUNDS; round++) {
+    // First strike beats speed when only one side has it; otherwise speed decides as before (the
+    // tie-break roll is only drawn on an exact tie, so fights without the effect are unchanged).
+    const playerFirstStrike = !!player.effects?.firstStrike
+    const enemyFirstStrike = !!enemy.effects?.firstStrike
     const playerFirst =
-      player.stats.spd > enemy.stats.spd || (player.stats.spd === enemy.stats.spd && rng() < 0.5)
+      playerFirstStrike !== enemyFirstStrike
+        ? playerFirstStrike
+        : player.stats.spd > enemy.stats.spd ||
+          (player.stats.spd === enemy.stats.spd && rng() < 0.5)
     const order: BattleSide[] = playerFirst ? ['player', 'enemy'] : ['enemy', 'player']
 
     for (const actor of order) {
@@ -253,6 +285,10 @@ export const simulateBattle = (
       if (hp[target] === 0) {
         return { won: target === 'enemy', rounds: round, events }
       }
+      // Only thorns can drop the attacker here.
+      if (hp[actor] === 0) {
+        return { won: actor === 'enemy', rounds: round, events }
+      }
       if (isSkill && attacker.effects?.burnTurns) {
         burn[target] = {
           turns: attacker.effects.burnTurns,
@@ -266,6 +302,9 @@ export const simulateBattle = (
         strike(round, actor, false, 'double')
         if (hp[target] === 0) {
           return { won: target === 'enemy', rounds: round, events }
+        }
+        if (hp[actor] === 0) {
+          return { won: actor === 'enemy', rounds: round, events }
         }
       }
     }
