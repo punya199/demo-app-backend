@@ -17,6 +17,9 @@ import {
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
 import {
+  ASCENDANCY_MAX_POINTS,
+  ASCENDANCY_RESET_GEM_PRICE,
+  MASTERY_REPICK_GEM_PRICE,
   PASSIVE_ADVENTURE_MAX_POINTS,
   PASSIVE_BRANCH_REFUND_CAP,
   PASSIVE_ECONOMY_CAP,
@@ -213,6 +216,9 @@ export const buildWiki = () => ({
     respecGemPrice: PASSIVE_RESPEC_GEM_PRICE,
     economyCap: PASSIVE_ECONOMY_CAP,
     branchRefundCap: PASSIVE_BRANCH_REFUND_CAP,
+    ascendancyMaxPoints: ASCENDANCY_MAX_POINTS,
+    ascendancyResetGemPrice: ASCENDANCY_RESET_GEM_PRICE,
+    masteryRepickGemPrice: MASTERY_REPICK_GEM_PRICE,
     adventureMaxPoints: PASSIVE_ADVENTURE_MAX_POINTS,
     winsPerPoint: PASSIVE_WINS_PER_POINT,
     winMaxPoints: PASSIVE_WIN_MAX_POINTS,

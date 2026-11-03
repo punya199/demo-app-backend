@@ -7,12 +7,20 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import {
+  ASCENDANCY_MAX_POINTS,
+  ASCENDANCY_RESET_GEM_PRICE,
+  AscendancyPath,
+  branchOf,
+  calcAscendancyPoints,
   calcPassiveBonus,
   calcPassivePoints,
-  branchOf,
   calcRespecCost,
   canAllocate,
+  canAllocateAscendancy,
   canDeallocate,
+  getAscendancyPath,
+  isValidMasteryPick,
+  MASTERY_REPICK_GEM_PRICE,
   PASSIVE_BRANCH_REFUND_CAP,
   PASSIVE_FREE_REFUNDS,
   PASSIVE_NODES,
@@ -24,41 +32,51 @@ import { getSeason } from './pvp-season'
 // The owner's allocated nodes. Used by every fight, expedition and drop, so it stays one cheap read.
 export const loadPassiveBonus = async (userId: string, etm: EntityManager) => {
   const row = await etm.findOne(PassiveAllocationEntity, { where: { userId } })
-  return calcPassiveBonus(row?.nodeIds ?? [])
+  return calcPassiveBonus(row?.nodeIds ?? [], row?.masteryPicks ?? {}, row?.ascendancyNodeIds ?? [])
 }
 
 // What the player has achieved so far, which is what earns passive points.
 const loadProgress = async (userId: string, now: Date, etm: EntityManager) => {
   const count = async (query: string) => (await etm.query<{ n: number }[]>(query, [userId]))[0].n
-  const [dexSpecies, raidFirstClears, adventureClears, totalWins, worldBossDefeats, seasons] =
-    await Promise.all([
-      count(
-        `SELECT count(*)::int AS n FROM "monster_dex" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
-      ),
-      count(
-        `SELECT count(*)::int AS n FROM "raid_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
-      ),
-      count(
-        `SELECT count(*)::int AS n FROM "adventure_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
-      ),
-      // Merged or retired monsters keep their wins, so deleted rows count too.
-      count(`SELECT coalesce(sum("wins"), 0)::int AS n FROM "monsters" WHERE "owner_id" = $1`),
-      count(
-        `SELECT count(*)::int AS n FROM "world_boss_damage" d
+  const [
+    dexSpecies,
+    raidFirstClears,
+    nightmareClears,
+    adventureClears,
+    totalWins,
+    worldBossDefeats,
+    seasons,
+  ] = await Promise.all([
+    count(
+      `SELECT count(*)::int AS n FROM "monster_dex" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+    ),
+    count(
+      `SELECT count(*)::int AS n FROM "raid_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+    ),
+    count(
+      `SELECT count(*)::int AS n FROM "raid_progress" WHERE "user_id" = $1 AND "difficulty" = 'nightmare' AND "deleted_at" IS NULL`
+    ),
+    count(
+      `SELECT count(*)::int AS n FROM "adventure_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+    ),
+    // Merged or retired monsters keep their wins, so deleted rows count too.
+    count(`SELECT coalesce(sum("wins"), 0)::int AS n FROM "monsters" WHERE "owner_id" = $1`),
+    count(
+      `SELECT count(*)::int AS n FROM "world_boss_damage" d
        JOIN "world_bosses" b ON b."id" = d."world_boss_id"
        WHERE d."user_id" = $1 AND d."hits" > 0 AND b."defeated_at" IS NOT NULL
          AND d."deleted_at" IS NULL AND b."deleted_at" IS NULL`
-      ),
-      // Final rank of every finished season the player qualified for (same ranking as the arena).
-      etm.query<{ rank: number }[]>(
-        `SELECT "rank"::int FROM (
+    ),
+    // Final rank of every finished season the player qualified for (same ranking as the arena).
+    etm.query<{ rank: number }[]>(
+      `SELECT "rank"::int FROM (
          SELECT "user_id", rank() OVER (PARTITION BY "season" ORDER BY "rating" DESC) AS "rank"
          FROM "pvp_ratings"
          WHERE "season" < $2 AND ("wins" + "losses") >= $3 AND "deleted_at" IS NULL
        ) ranked WHERE "user_id" = $1`,
-        [userId, getSeason(now), PVP_SEASON_MIN_FIGHTS]
-      ),
-    ])
+      [userId, getSeason(now), PVP_SEASON_MIN_FIGHTS]
+    ),
+  ])
   const pvpSeasonRanks = seasons.map(row => row.rank)
   return {
     dexSpecies,
@@ -67,6 +85,7 @@ const loadProgress = async (userId: string, now: Date, etm: EntityManager) => {
     totalWins,
     worldBossDefeats,
     pvpSeasonRanks,
+    ascendancyEarned: calcAscendancyPoints({ nightmareClears, worldBossDefeats }),
     earned: calcPassivePoints({
       dexSpecies,
       raidFirstClears,
@@ -89,9 +108,23 @@ export class PassiveService {
     const progress = await loadProgress(userId, new Date(), etm)
     const nodeIds = row?.nodeIds ?? []
     const refunded = row?.refundedPoints ?? 0
+    const ascendancyIds = row?.ascendancyNodeIds ?? []
     return {
       nodes: PASSIVE_NODES,
       allocated: nodeIds,
+      masteries: row?.masteryPicks ?? {},
+      ascendancy: {
+        path: (row?.ascendancyPath ?? null) as AscendancyPath | null,
+        nodeIds: ascendancyIds,
+        points: {
+          earned: progress.ascendancyEarned,
+          used: ascendancyIds.length,
+          left: Math.max(0, progress.ascendancyEarned - ascendancyIds.length),
+          max: ASCENDANCY_MAX_POINTS,
+        },
+        resetCost: ascendancyIds.length ? ASCENDANCY_RESET_GEM_PRICE : 0,
+        masteryRepickPrice: MASTERY_REPICK_GEM_PRICE,
+      },
       points: {
         earned: progress.earned,
         used: nodeIds.length,
@@ -176,6 +209,9 @@ export class PassiveService {
       )
     }
     row.nodeIds = remaining
+    row.masteryPicks = Object.fromEntries(
+      Object.entries(row.masteryPicks ?? {}).filter(([id]) => !removing.has(id))
+    )
     row.refundedPoints += nodeIds.length
     return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
   }
@@ -193,6 +229,71 @@ export class PassiveService {
         throw new BadRequestException('Nothing to take back')
       }
       return this.refund(userId, branch, etm, PASSIVE_BRANCH_REFUND_CAP)
+    })
+  }
+
+  // Picks one of a mastery's three options. The first pick is free; changing it costs a gem.
+  async pickMastery(userId: string, nodeId: string, option: number) {
+    return this.dataSource.transaction(async etm => {
+      const row = await this.lockRow(userId, etm)
+      if (!row.nodeIds.includes(nodeId) || !isValidMasteryPick(nodeId, option)) {
+        throw new BadRequestException('Take this mastery first, then pick one of its options')
+      }
+      const current = row.masteryPicks?.[nodeId]
+      if (current === option) {
+        throw new BadRequestException('That option is already picked')
+      }
+      if (current !== undefined) {
+        await this.walletService.change(
+          userId,
+          EnumWalletCurrency.GEM,
+          -MASTERY_REPICK_GEM_PRICE,
+          EnumWalletTransactionReason.PASSIVE_RESPEC,
+          nodeId,
+          etm
+        )
+      }
+      row.masteryPicks = { ...row.masteryPicks, [nodeId]: option }
+      return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
+    })
+  }
+
+  // Ascendancy has its own pool. The first node chosen fixes the path.
+  async allocateAscendancy(userId: string, nodeId: string) {
+    return this.dataSource.transaction(async etm => {
+      const row = await this.lockRow(userId, etm)
+      const path = (row.ascendancyPath ?? null) as AscendancyPath | null
+      if (!canAllocateAscendancy(path, row.ascendancyNodeIds ?? [], nodeId)) {
+        throw new BadRequestException('That node is not connected to your ascendancy path')
+      }
+      const { ascendancyEarned } = await loadProgress(userId, new Date(), etm)
+      if ((row.ascendancyNodeIds ?? []).length >= ascendancyEarned) {
+        throw new BadRequestException('No ascendancy points left')
+      }
+      row.ascendancyPath = getAscendancyPath(nodeId)
+      row.ascendancyNodeIds = [...(row.ascendancyNodeIds ?? []), nodeId]
+      return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
+    })
+  }
+
+  // Starting the ascendancy over (to switch path) costs gems; an empty one resets for free.
+  async resetAscendancy(userId: string) {
+    return this.dataSource.transaction(async etm => {
+      const row = await this.lockRow(userId, etm)
+      if (!(row.ascendancyNodeIds ?? []).length) {
+        throw new BadRequestException('Nothing to take back')
+      }
+      await this.walletService.change(
+        userId,
+        EnumWalletCurrency.GEM,
+        -ASCENDANCY_RESET_GEM_PRICE,
+        EnumWalletTransactionReason.PASSIVE_RESPEC,
+        row.ascendancyPath,
+        etm
+      )
+      row.ascendancyPath = null
+      row.ascendancyNodeIds = []
+      return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
     })
   }
 
