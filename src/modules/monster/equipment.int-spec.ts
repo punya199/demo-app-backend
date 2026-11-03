@@ -225,17 +225,60 @@ describe('equipment and enhancing', () => {
       DISMANTLE_STONES[EnumEquipmentGrade.COMMON] + DISMANTLE_STONES[EnumEquipmentGrade.EPIC]
     expect(result.gained.enhance_stone).toBe(expected)
     expect((await quantity('enhance_stone')) - before).toBe(expected)
+    expect(result.gained[EnumMaterialId.REFINE_COMMON]).toBe(2)
     const left = (await equipment.getEquipment(userId)).items.map(item => item.id)
     expect(left).not.toContain(a.id)
     expect(left).toContain(worn.id)
     await equipment.unequip(userId, EnumEquipmentSlot.ACCESSORY)
   })
 
+  it('refines one stat line with the lowest covering stone, then keeps or discards the roll', async () => {
+    await give(userId, 10_000)
+    const piece = await grant(EnumEquipmentGrade.RARE)
+    await sql(`UPDATE equipment_items SET sub_stats='{"atk":5}', enhance_level=5 WHERE id=$1`, [
+      piece.id,
+    ])
+    const coins = async () => (await wallet.getBalance(userId)).coin
+    const stone = async (material: EnumMaterialId, quantity: number) =>
+      dataSource.transaction(etm => inventory.add(userId, material, etm, quantity))
+
+    await expect(equipment.refine(userId, piece.id, 'hp')).rejects.toThrow(/no such/)
+    await expect(equipment.refine(userId, piece.id, 'atk')).rejects.toThrow(/No refine stone/)
+    // a common stone does not reach +5
+    await stone(EnumMaterialId.REFINE_COMMON, 1)
+    await expect(equipment.refine(userId, piece.id, 'atk')).rejects.toThrow(/No refine stone/)
+
+    await stone(EnumMaterialId.REFINE_RARE, 1)
+    const before = await coins()
+    const result = await equipment.refine(userId, piece.id, 'atk')
+    expect(before - (await coins())).toBe(100)
+    expect(await quantity(EnumMaterialId.REFINE_RARE)).toBe(0)
+    expect(await quantity(EnumMaterialId.REFINE_COMMON)).toBeGreaterThanOrEqual(1)
+    expect(result.pending.oldValue).toBe(5)
+    await expect(equipment.refine(userId, piece.id, 'atk')).rejects.toThrow(/pending/)
+
+    // stats keep the old value until the roll is kept
+    const stored = () => dataSource.manager.findOneByOrFail(EquipmentItemEntity, { id: piece.id })
+    expect((await stored()).subStats.atk).toBe(5)
+    await equipment.resolveRefine(userId, piece.id, false)
+    expect((await stored()).subStats.atk).toBe(5)
+    expect((await stored()).pendingRefine).toBeNull()
+    await expect(equipment.resolveRefine(userId, piece.id, true)).rejects.toThrow(/Nothing/)
+
+    await stone(EnumMaterialId.REFINE_RARE, 1)
+    const second = await equipment.refine(userId, piece.id, 'atk')
+    await equipment.resolveRefine(userId, piece.id, true)
+    expect((await stored()).subStats.atk).toBe(second.pending.newValue)
+  })
+
   it('dismantles into stones and refuses a box when the bag is full, without charging', async () => {
     const epic = await grant(EnumEquipmentGrade.EPIC)
     const before = await quantity('enhance_stone')
     await equipment.dismantle(userId, epic.id)
-    expect((await quantity('enhance_stone')) - before).toBe(8)
+    expect((await quantity('enhance_stone')) - before).toBe(
+      DISMANTLE_STONES[EnumEquipmentGrade.EPIC]
+    )
+    expect(await quantity(EnumMaterialId.REFINE_COMMON)).toBeGreaterThan(0)
 
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)

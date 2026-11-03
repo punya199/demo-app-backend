@@ -434,6 +434,9 @@ export class WorldBossService {
         etm
       )
       await this.inventoryService.add(userId, bossTokenItemId(boss.bossId), etm, reward.bossToken)
+      for (const [materialId, quantity] of Object.entries(reward.refineStones)) {
+        await this.inventoryService.add(userId, materialId, etm, quantity)
+      }
 
       let drop: ReturnType<typeof toEquipmentView> | null = null
       if (reward.pieceGrade) {

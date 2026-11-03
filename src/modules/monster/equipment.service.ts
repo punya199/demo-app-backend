@@ -3,7 +3,7 @@ import { randomInt } from 'crypto'
 import { DataSource, EntityManager, In } from 'typeorm'
 import { EnumEquipmentLogType, EquipmentLogEntity } from '../../db/entities/equipment-log.entity'
 import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
-import { EnumMonsterStage } from '../../db/entities/monster.entity'
+import { EnumMonsterStage, MonsterEntity } from '../../db/entities/monster.entity'
 import {
   EnumWalletCurrency,
   EnumWalletTransactionReason,
@@ -13,12 +13,12 @@ import { toFighter } from './battle-stats'
 import { combatTotals } from './monster-potential'
 import {
   BOX_GRADE_RATES,
+  calcDismantleYield,
   calcEquipmentBonus,
   canEquip,
   ISpecialOption,
   calcSetBonuses,
   calcSetProgress,
-  DISMANTLE_STONES,
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   EnumMaterialId,
@@ -27,6 +27,9 @@ import {
   getItemStats,
   IEquipmentItem,
   mainValueAt,
+  refineTiersFor,
+  rollSubStatValue,
+  StatKey,
   MIN_STAGE_BY_GRADE,
   rollEquipment,
   rollGrade,
@@ -78,6 +81,8 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
     mainValue: mainValueAt(row.mainValue, row.enhanceLevel),
     subStats: row.subStats,
     specialOptions: row.specialOptions,
+    // A refine roll waiting to be kept or discarded (null when none).
+    pendingRefine: row.pendingRefine,
     // The youngest form that may put it on (null = any); the screen locks it for younger pets.
     minStage: MIN_STAGE_BY_GRADE[row.grade as EnumEquipmentGrade],
     stats: getItemStats(core),
@@ -327,21 +332,111 @@ export class EquipmentService {
       if (items.some(item => item.equipped)) {
         throw new BadRequestException('Take the equipment off first')
       }
-      const stonesOf = (item: EquipmentItemEntity) =>
-        DISMANTLE_STONES[item.grade as EnumEquipmentGrade] + Math.floor(item.enhanceLevel / 2)
-      const stones = items.reduce((sum, item) => sum + stonesOf(item), 0)
-      await etm.softDelete(EquipmentItemEntity, { id: In(ids) })
-      await this.inventoryService.add(userId, EnumMaterialId.ENHANCE_STONE, etm, stones)
-      await etm.save(
-        EquipmentLogEntity,
-        items.map(item => ({
+      const gained: Record<string, number> = { [EnumMaterialId.ENHANCE_STONE]: 0 }
+      const logs = items.map(item => {
+        const piece = calcDismantleYield(item.grade as EnumEquipmentGrade, item.enhanceLevel)
+        gained[EnumMaterialId.ENHANCE_STONE] += piece.enhanceStones
+        gained[piece.refineStone] = (gained[piece.refineStone] ?? 0) + 1
+        return {
           userId,
           equipmentId: item.id,
           type: EnumEquipmentLogType.DISMANTLE,
-          payload: { stones: stonesOf(item), grade: item.grade, enhanceLevel: item.enhanceLevel },
-        }))
+          payload: { ...piece, grade: item.grade, enhanceLevel: item.enhanceLevel },
+        }
+      })
+      await etm.softDelete(EquipmentItemEntity, { id: In(ids) })
+      for (const [materialId, quantity] of Object.entries(gained)) {
+        await this.inventoryService.add(userId, materialId, etm, quantity)
+      }
+      await etm.save(EquipmentLogEntity, logs)
+      return { gained, ...(await this.getEquipment(userId, etm)) }
+    })
+  }
+
+  // Re-rolls one secondary stat line. The lowest refine stone tier that covers the piece is spent
+  // (with its coins) before rolling, and the roll waits in `pendingRefine` until it is resolved.
+  async refine(userId: string, equipmentId: string, line: StatKey) {
+    return this.dataSource.transaction(async etm => {
+      const item = await this.lockItem(userId, equipmentId, etm)
+      if (item.pendingRefine) {
+        throw new BadRequestException('Keep or discard the pending refine first')
+      }
+      if (!Object.hasOwn(item.subStats, line)) {
+        throw new BadRequestException('Equipment has no such secondary stat')
+      }
+      const owned = new Map(
+        (await this.inventoryService.getInventory(userId, etm)).items.map(row => [
+          row.itemId,
+          row.quantity,
+        ])
       )
-      return { gained: { enhance_stone: stones }, ...(await this.getEquipment(userId, etm)) }
+      const tier = refineTiersFor(item.enhanceLevel).find(row => (owned.get(row.material) ?? 0) > 0)
+      if (!tier) {
+        throw new BadRequestException('No refine stone for this enhance level')
+      }
+      // Charge before rolling, so a roll can never be had for free.
+      const wallet = await this.walletService.change(
+        userId,
+        EnumWalletCurrency.COIN,
+        -tier.coin,
+        EnumWalletTransactionReason.REFINE,
+        item.id,
+        etm
+      )
+      if (!(await this.inventoryService.spend(userId, tier.material, 1, etm))) {
+        throw new BadRequestException('No refine stone for this enhance level')
+      }
+      const oldValue = item.subStats[line]
+      const newValue = rollSubStatValue(line, item.grade as EnumEquipmentGrade, rand)
+      item.pendingRefine = { key: line, value: newValue }
+      await etm.save(EquipmentItemEntity, item)
+      await etm.save(EquipmentLogEntity, {
+        userId,
+        equipmentId,
+        type: EnumEquipmentLogType.REFINE,
+        payload: { step: 'roll', line, oldValue, newValue, stone: tier.material, coin: tier.coin },
+      })
+      return {
+        pending: { line, oldValue, newValue },
+        wallet,
+        equipment: await this.getEquipment(userId, etm),
+        inventory: (await this.inventoryService.getInventory(userId, etm)).items,
+      }
+    })
+  }
+
+  async resolveRefine(userId: string, equipmentId: string, keep: boolean) {
+    return this.dataSource.transaction(async etm => {
+      const item = await this.lockItem(userId, equipmentId, etm)
+      const pending = item.pendingRefine
+      if (!pending) {
+        throw new BadRequestException('Nothing to resolve')
+      }
+      const oldValue = item.subStats[pending.key]
+      if (keep) {
+        // A worn piece changes its pet's stats, and an exploring pet's gear is locked.
+        const wearer = item.monsterId
+          ? await etm.findOne(MonsterEntity, { where: { id: item.monsterId } })
+          : null
+        if (wearer?.expeditionAreaId) {
+          throw new BadRequestException('Monster is on an expedition')
+        }
+        item.subStats = { ...item.subStats, [pending.key]: pending.value }
+      }
+      item.pendingRefine = null
+      await etm.save(EquipmentItemEntity, item)
+      await etm.save(EquipmentLogEntity, {
+        userId,
+        equipmentId,
+        type: EnumEquipmentLogType.REFINE,
+        payload: {
+          step: keep ? 'keep' : 'discard',
+          line: pending.key,
+          oldValue,
+          newValue: pending.value,
+        },
+      })
+      return this.getEquipment(userId, etm)
     })
   }
 }

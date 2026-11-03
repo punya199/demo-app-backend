@@ -4,7 +4,14 @@ import {
   calcEquipmentBonus,
   calcSetBonuses,
   calcSetProgress,
+  calcDismantleYield,
   calcSpecialBonuses,
+  EnumMaterialId,
+  refineTiersFor,
+  rollSubStatValue,
+  SUB_STAT_BASE,
+  SUB_STAT_ROLL,
+  GRADE_MULTIPLIER,
   canEquip,
   SPECIAL_DEFINITIONS,
   SUB_STAT_COUNT_BY_GRADE,
@@ -355,5 +362,55 @@ describe('canEquip', () => {
         EnumMonsterStage.FUSED,
       ])
     }
+  })
+})
+
+describe('refine stones', () => {
+  it('lets the lowest covering tier work on each enhance level', () => {
+    const lowest = (level: number) => refineTiersFor(level)[0].material
+    for (const level of [0, 4]) {
+      expect(lowest(level)).toBe(EnumMaterialId.REFINE_COMMON)
+    }
+    for (const level of [5, 8]) {
+      expect(lowest(level)).toBe(EnumMaterialId.REFINE_RARE)
+    }
+    for (const level of [9, 12]) {
+      expect(lowest(level)).toBe(EnumMaterialId.REFINE_EPIC)
+    }
+    for (const level of [13, 15]) {
+      expect(lowest(level)).toBe(EnumMaterialId.REFINE_LEGENDARY)
+    }
+    // a higher tier also covers everything below it
+    expect(refineTiersFor(3)).toHaveLength(4)
+    expect(refineTiersFor(15)).toHaveLength(1)
+  })
+
+  it('rolls a refined value in the same window as a fresh drop', () => {
+    const rand = createRng(5)
+    for (const grade of Object.values(EnumEquipmentGrade)) {
+      const scale = SUB_STAT_BASE.atk * GRADE_MULTIPLIER[grade]
+      for (let index = 0; index < 200; index++) {
+        const value = rollSubStatValue('atk', grade, rand)
+        expect(value).toBeGreaterThanOrEqual(Math.max(1, Math.round(scale * SUB_STAT_ROLL.min)))
+        expect(value).toBeLessThanOrEqual(Math.round(scale * SUB_STAT_ROLL.max))
+      }
+    }
+  })
+
+  it('pays enhance stones by grade and level, and one refine stone by enhance level', () => {
+    expect(calcDismantleYield(EnumEquipmentGrade.COMMON, 0)).toEqual({
+      enhanceStones: 1,
+      refineStone: EnumMaterialId.REFINE_COMMON,
+    })
+    expect(calcDismantleYield(EnumEquipmentGrade.LEGENDARY, 15)).toEqual({
+      enhanceStones: 10 + 3,
+      refineStone: EnumMaterialId.REFINE_RARE,
+    })
+    expect(calcDismantleYield(EnumEquipmentGrade.RARE, 4).refineStone).toBe(
+      EnumMaterialId.REFINE_COMMON
+    )
+    expect(calcDismantleYield(EnumEquipmentGrade.RARE, 5).refineStone).toBe(
+      EnumMaterialId.REFINE_RARE
+    )
   })
 })

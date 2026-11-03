@@ -21,6 +21,7 @@ export enum EnumWalletTransactionReason {
   AUTO_BATTLE_REWARD = 'auto_battle_reward',
   EQUIPMENT_BOX = 'equipment_box',
   ENHANCE = 'enhance',
+  REFINE = 'refine',
   PVP_REWARD = 'pvp_reward',
   PVP_SEASON_REWARD = 'pvp_season_reward',
   RAID_REWARD = 'raid_reward',

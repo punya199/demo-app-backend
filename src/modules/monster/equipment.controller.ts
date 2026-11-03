@@ -6,6 +6,8 @@ import {
   EquipBodyDto,
   EquipmentIdBodyDto,
   EquipmentIdsBodyDto,
+  RefineBodyDto,
+  RefineResolveBodyDto,
   UnequipBodyDto,
 } from './dto/equipment.dto'
 import { EnhanceService } from './enhance.service'
@@ -54,6 +56,18 @@ export class EquipmentController {
   @Post('dismantle-many')
   async dismantleMany(@Body() body: EquipmentIdsBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.equipmentService.dismantleMany(user['user-id'], body.equipmentIds)
+  }
+
+  @AuthUser()
+  @Post('refine')
+  async refine(@Body() body: RefineBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.equipmentService.refine(user['user-id'], body.equipmentId, body.line)
+  }
+
+  @AuthUser()
+  @Post('refine/resolve')
+  async resolveRefine(@Body() body: RefineResolveBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.equipmentService.resolveRefine(user['user-id'], body.equipmentId, body.keep)
   }
 
   @AuthUser()

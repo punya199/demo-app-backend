@@ -1,7 +1,7 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { createRng } from './battle-engine'
 import { IFighter } from './battle-stats'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from './equipment-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot, EnumMaterialId } from './equipment-data'
 import { scaleStats, STAGE_BASE_STATS } from './species-data'
 
 // One world boss per Thai ISO week, shared by every player: they all chip away at one HP pool.
@@ -91,6 +91,8 @@ export const WORLD_BOSS_PARTICIPATION_PER_HIT = { coin: 50, raidToken: 1 }
 export const WORLD_BOSS_DEFEATED_BONUS = { coin: 200, raidToken: 5 }
 export const WORLD_BOSS_KILLING_BLOW_GRADE = EnumEquipmentGrade.EPIC
 
+export type RefineStones = Partial<Record<EnumMaterialId, number>>
+
 export interface IWorldBossRankTier {
   // Best damage rank that gets this tier (inclusive); null = everyone else who took part.
   maxRank: number | null
@@ -99,16 +101,26 @@ export interface IWorldBossRankTier {
   // Chance (0-1) of one piece of the boss's set at pieceGrade.
   pieceChance: number
   pieceGrade: EnumEquipmentGrade
+  // Refine stones paid to everyone in this tier.
+  refineStones: RefineStones
 }
 
 export const WORLD_BOSS_RANK_REWARDS: IWorldBossRankTier[] = [
-  { maxRank: 1, raidToken: 15, bossToken: 6, pieceChance: 1, pieceGrade: EnumEquipmentGrade.EPIC },
+  {
+    maxRank: 1,
+    raidToken: 15,
+    bossToken: 6,
+    pieceChance: 1,
+    pieceGrade: EnumEquipmentGrade.EPIC,
+    refineStones: { [EnumMaterialId.REFINE_EPIC]: 2, [EnumMaterialId.REFINE_LEGENDARY]: 1 },
+  },
   {
     maxRank: 3,
     raidToken: 10,
     bossToken: 4,
     pieceChance: 0.5,
     pieceGrade: EnumEquipmentGrade.RARE,
+    refineStones: { [EnumMaterialId.REFINE_EPIC]: 2 },
   },
   {
     maxRank: 10,
@@ -116,6 +128,7 @@ export const WORLD_BOSS_RANK_REWARDS: IWorldBossRankTier[] = [
     bossToken: 2,
     pieceChance: 0.25,
     pieceGrade: EnumEquipmentGrade.RARE,
+    refineStones: { [EnumMaterialId.REFINE_EPIC]: 1 },
   },
   {
     maxRank: null,
@@ -123,6 +136,7 @@ export const WORLD_BOSS_RANK_REWARDS: IWorldBossRankTier[] = [
     bossToken: 1,
     pieceChance: 0,
     pieceGrade: EnumEquipmentGrade.RARE,
+    refineStones: {},
   },
 ]
 
@@ -142,6 +156,7 @@ export interface IWorldBossReward {
   bossToken: number
   // The set piece won, if any (grade only; the slot is picked by the caller).
   pieceGrade: EnumEquipmentGrade | null
+  refineStones: RefineStones
 }
 
 // What a week's participation pays. `pieceRoll` in [0, 1) decides the rank tier's piece chance, so
@@ -163,6 +178,13 @@ export const calcWorldBossReward = (
       input.hits * WORLD_BOSS_PARTICIPATION_PER_HIT.raidToken + bonus.raidToken + tier.raidToken,
     bossToken: tier.bossToken,
     pieceGrade,
+    // The finishing hit also earns one more epic stone.
+    refineStones: input.isKillingBlow
+      ? {
+          ...tier.refineStones,
+          [EnumMaterialId.REFINE_EPIC]: (tier.refineStones[EnumMaterialId.REFINE_EPIC] ?? 0) + 1,
+        }
+      : tier.refineStones,
   }
 }
 
