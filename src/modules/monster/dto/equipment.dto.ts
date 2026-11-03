@@ -1,10 +1,30 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator'
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsUUID,
+} from 'class-validator'
 import { EnumEquipmentSlot, EnumMaterialId } from '../equipment-data'
+import { EQUIPMENT_CAPACITY } from '../monster-rules'
 
 export class EquipmentIdBodyDto {
   @IsNotEmpty()
   @IsUUID()
   equipmentId: string
+}
+
+export class EquipmentIdsBodyDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(EQUIPMENT_CAPACITY)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  equipmentIds: string[]
 }
 
 export class EquipBodyDto extends EquipmentIdBodyDto {

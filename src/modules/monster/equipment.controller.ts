@@ -5,6 +5,7 @@ import {
   EnhanceBodyDto,
   EquipBodyDto,
   EquipmentIdBodyDto,
+  EquipmentIdsBodyDto,
   UnequipBodyDto,
 } from './dto/equipment.dto'
 import { EnhanceService } from './enhance.service'
@@ -47,6 +48,12 @@ export class EquipmentController {
   @Post('dismantle')
   async dismantle(@Body() body: EquipmentIdBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.equipmentService.dismantle(user['user-id'], body.equipmentId)
+  }
+
+  @AuthUser()
+  @Post('dismantle-many')
+  async dismantleMany(@Body() body: EquipmentIdsBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.equipmentService.dismantleMany(user['user-id'], body.equipmentIds)
   }
 
   @AuthUser()
