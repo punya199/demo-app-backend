@@ -7,6 +7,7 @@ export enum EnumEquipmentLogType {
   EQUIP = 'equip',
   UNEQUIP = 'unequip',
   DISMANTLE = 'dismantle',
+  REFINE = 'refine',
 }
 
 // Audit trail of every random roll and change to a user's equipment.

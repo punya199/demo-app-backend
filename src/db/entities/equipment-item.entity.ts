@@ -44,6 +44,11 @@ export class EquipmentItemEntity extends BaseModelEntity {
   @Column({ name: 'special_options', type: 'jsonb', default: [] })
   specialOptions: { key: string; value: number }[]
 
+  // A refine roll waiting to be kept or discarded: the stat line and its new value. Stats keep
+  // using the old value until it is kept.
+  @Column({ name: 'pending_refine', type: 'jsonb', nullable: true })
+  pendingRefine: { key: string; value: number } | null
+
   @Column({ name: 'enhance_level', type: 'integer', default: 0 })
   enhanceLevel: number
 

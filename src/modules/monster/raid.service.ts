@@ -188,6 +188,10 @@ export class RaidService {
           RAID_BOSS_TOKENS_PER_WIN
         )
 
+        if (difficulty.refineStone) {
+          await this.inventoryService.add(userId, difficulty.refineStone, etm)
+        }
+
         const slot = SLOTS[randomInt(0, SLOTS.length)]
         const template = findSetPieceTemplate(boss.setId, slot)!
         const row = await grantItem(
@@ -211,6 +215,7 @@ export class RaidService {
         isFirstClear,
         raidTokens,
         bossTokens: result.won ? RAID_BOSS_TOKENS_PER_WIN : 0,
+        refineStone: result.won ? difficulty.refineStone : null,
         drop,
         attemptsLeft: Math.max(0, RAID_ATTEMPTS - attempts - 1),
         resetsAt: getWindow(now, RAID_RESET_HOURS).resetsAt,

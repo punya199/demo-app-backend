@@ -34,6 +34,7 @@ import * as rules from './monster-rules'
 import * as potential from './monster-potential'
 import {
   BOX_GRADE_RATES,
+  DISMANTLE_STONE_LEVEL_STEP,
   DISMANTLE_STONES,
   DROP_GRADE_RATES_BY_AREA,
   ENHANCE_BONUS_PER_LEVEL,
@@ -42,12 +43,14 @@ import {
   GRADE_MULTIPLIER,
   MATERIALS,
   MIN_STAGE_BY_GRADE,
+  REFINE_TIERS,
   SET_DEFINITIONS,
   SLOT_MAIN_STAT,
   SPECIAL_BY_GRADE,
   SPECIAL_DEFINITIONS,
   SPECIAL_TOTAL_CAP_MULTIPLIER,
   SUB_STAT_COUNT_BY_GRADE,
+  SUB_STAT_ROLL,
 } from './equipment-data'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
 import {
@@ -199,6 +202,9 @@ export const buildWiki = () => ({
     dropChancePercent: rules.EQUIPMENT_DROP_CHANCE_BP / 100,
     dropGradeRatesByArea: DROP_GRADE_RATES_BY_AREA,
     dismantleStones: DISMANTLE_STONES,
+    dismantleStoneLevelStep: DISMANTLE_STONE_LEVEL_STEP,
+    refineTiers: REFINE_TIERS,
+    subStatRoll: SUB_STAT_ROLL,
     materials: MATERIALS,
     expeditionStoneEveryMinutes: rules.EXPEDITION_STONE_EVERY_MINUTES,
     sets: SET_DEFINITIONS,

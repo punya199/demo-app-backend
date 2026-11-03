@@ -26,6 +26,12 @@ export enum EnumEquipmentGrade {
 export enum EnumMaterialId {
   ENHANCE_STONE = 'enhance_stone',
   PROTECT_SCROLL = 'protect_scroll',
+  // Refine stones re-roll one secondary stat of a piece; the tier is the highest enhance level
+  // they work on (see REFINE_TIERS).
+  REFINE_COMMON = 'refine_stone_common',
+  REFINE_RARE = 'refine_stone_rare',
+  REFINE_EPIC = 'refine_stone_epic',
+  REFINE_LEGENDARY = 'refine_stone_legendary',
 }
 
 export type StatKey = keyof IBattleStats
@@ -55,6 +61,17 @@ export const SUB_STAT_COUNT_BY_GRADE: Record<EnumEquipmentGrade, { min: number; 
   [EnumEquipmentGrade.LEGENDARY]: { min: 3, max: 4 },
 }
 export const SUB_STAT_ROLL = { min: 0.5, max: 1 }
+
+// One secondary stat value: the same window for a fresh drop and for a refine.
+export const rollSubStatValue = (key: StatKey, grade: EnumEquipmentGrade, rand: () => number) =>
+  Math.max(
+    1,
+    Math.round(
+      SUB_STAT_BASE[key] *
+        GRADE_MULTIPLIER[grade] *
+        (SUB_STAT_ROLL.min + rand() * (SUB_STAT_ROLL.max - SUB_STAT_ROLL.min))
+    )
+  )
 
 // The youngest form that may wear a piece of each grade (null = any form, even an egg).
 export const MIN_STAGE_BY_GRADE: Record<EnumEquipmentGrade, EnumMonsterStage | null> = {
@@ -241,13 +258,40 @@ export const DROP_GRADE_RATES_BY_AREA: Record<
   storm_peak: { [EnumEquipmentGrade.EPIC]: 100 },
 }
 
-// Stones for dismantling a piece, by grade; each two enhance levels add one more.
+// Enhance stones for dismantling a piece, by grade; each four enhance levels add one more.
 export const DISMANTLE_STONES: Record<EnumEquipmentGrade, number> = {
   [EnumEquipmentGrade.COMMON]: 1,
-  [EnumEquipmentGrade.RARE]: 3,
-  [EnumEquipmentGrade.EPIC]: 8,
-  [EnumEquipmentGrade.LEGENDARY]: 20,
+  [EnumEquipmentGrade.RARE]: 2,
+  [EnumEquipmentGrade.EPIC]: 4,
+  [EnumEquipmentGrade.LEGENDARY]: 10,
 }
+export const DISMANTLE_STONE_LEVEL_STEP = 4
+
+// Refine stones: a stone works on any piece up to its tier's maxLevel, and a refine spends the
+// lowest tier that covers the piece. Epic and legendary stones only come from bosses.
+export const REFINE_TIERS: {
+  material: EnumMaterialId
+  name: string
+  maxLevel: number
+  coin: number
+}[] = [
+  { material: EnumMaterialId.REFINE_COMMON, name: 'หินรีไฟน์ธรรมดา', maxLevel: 4, coin: 50 },
+  { material: EnumMaterialId.REFINE_RARE, name: 'หินรีไฟน์หายาก', maxLevel: 8, coin: 100 },
+  { material: EnumMaterialId.REFINE_EPIC, name: 'หินรีไฟน์มหากาพย์', maxLevel: 12, coin: 200 },
+  { material: EnumMaterialId.REFINE_LEGENDARY, name: 'หินรีไฟน์ตำนาน', maxLevel: 15, coin: 400 },
+]
+// Tiers that can cover an enhance level, lowest first.
+export const refineTiersFor = (enhanceLevel: number) =>
+  REFINE_TIERS.filter(tier => tier.maxLevel >= enhanceLevel)
+
+// What dismantling a piece pays: enhance stones, and one refine stone (common up to +4, rare above).
+export const calcDismantleYield = (grade: EnumEquipmentGrade, enhanceLevel: number) => ({
+  enhanceStones: DISMANTLE_STONES[grade] + Math.floor(enhanceLevel / DISMANTLE_STONE_LEVEL_STEP),
+  refineStone:
+    enhanceLevel <= REFINE_TIERS[0].maxLevel
+      ? EnumMaterialId.REFINE_COMMON
+      : EnumMaterialId.REFINE_RARE,
+})
 
 export interface IMaterial {
   id: EnumMaterialId
@@ -526,15 +570,13 @@ export const rollGrade = (
 // Rolls a new plain piece. `rand` returns [0, 1) so tests can seed it.
 // Random secondary stats and special options, shared by plain and set pieces.
 const rollRandomStats = (grade: EnumEquipmentGrade, rand: () => number) => {
-  const multiplier = GRADE_MULTIPLIER[grade]
   const count = SUB_STAT_COUNT_BY_GRADE[grade]
   const subCount = count.min + Math.floor(rand() * (count.max - count.min + 1))
   const pool = [...STAT_KEYS]
   const subStats: Partial<Record<StatKey, number>> = {}
   for (let index = 0; index < subCount; index++) {
     const key = pool.splice(Math.floor(rand() * pool.length), 1)[0]
-    const factor = SUB_STAT_ROLL.min + rand() * (SUB_STAT_ROLL.max - SUB_STAT_ROLL.min)
-    subStats[key] = Math.max(1, Math.round(SUB_STAT_BASE[key] * multiplier * factor))
+    subStats[key] = rollSubStatValue(key, grade, rand)
   }
   return { subStats, specialOptions: rollSpecialOptions(grade, rand) }
 }

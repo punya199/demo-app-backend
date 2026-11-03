@@ -1,6 +1,11 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { toFighter } from './battle-stats'
-import { EnumEquipmentGrade, EnumEquipmentSlot, SET_DEFINITIONS } from './equipment-data'
+import {
+  EnumEquipmentGrade,
+  EnumEquipmentSlot,
+  EnumMaterialId,
+  SET_DEFINITIONS,
+} from './equipment-data'
 import { createEgg } from './monster-engine'
 import { WORLD_BOSS_ROUNDS } from './monster-rules'
 import { simulateTeamBattle } from './team-battle'
@@ -53,10 +58,25 @@ describe('world boss rewards', () => {
       raidToken: 2,
       bossToken: 1,
       pieceGrade: null,
+      refineStones: {},
     })
     const first = calcWorldBossReward({ ...input, rank: 1, hits: 3 }, 0.99)
     expect(first).toMatchObject({ coin: 150, raidToken: 3 + 15, bossToken: 6 })
     expect(first.pieceGrade).toBe(EnumEquipmentGrade.EPIC) // rank 1 always gets a piece
+  })
+
+  it('pays epic and legendary refine stones by rank, and one more epic for the killing blow', () => {
+    const stones = (overrides: Partial<typeof input>) =>
+      calcWorldBossReward({ ...input, ...overrides }, 0.99).refineStones
+    expect(stones({ rank: 1 })).toEqual({
+      [EnumMaterialId.REFINE_EPIC]: 2,
+      [EnumMaterialId.REFINE_LEGENDARY]: 1,
+    })
+    expect(stones({ rank: 3 })).toEqual({ [EnumMaterialId.REFINE_EPIC]: 2 })
+    expect(stones({ rank: 10 })).toEqual({ [EnumMaterialId.REFINE_EPIC]: 1 })
+    expect(stones({ rank: 11 })).toEqual({})
+    expect(stones({ rank: 11, isKillingBlow: true })).toEqual({ [EnumMaterialId.REFINE_EPIC]: 1 })
+    expect(stones({ rank: 1, isKillingBlow: true })[EnumMaterialId.REFINE_EPIC]).toBe(3)
   })
 
   it('rolls the rank tier piece chance', () => {

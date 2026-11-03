@@ -1,6 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { IFighter } from './battle-stats'
-import { EnumEquipmentGrade } from './equipment-data'
+import { EnumEquipmentGrade, EnumMaterialId } from './equipment-data'
 import { scaleStats, STAGE_BASE_STATS } from './species-data'
 
 // Boss Raid: a solo fight (the normal 1-vs-1 engine, win within 20 rounds) against an element
@@ -28,6 +28,8 @@ export interface IRaidDifficulty {
   grade: EnumEquipmentGrade
   // Raid tokens for a win (doubled for the first win of each boss and difficulty).
   raidTokens: number
+  // The refine stone every win drops (none on Normal).
+  refineStone: EnumMaterialId | null
 }
 
 export const RAID_DIFFICULTIES: IRaidDifficulty[] = [
@@ -37,6 +39,7 @@ export const RAID_DIFFICULTIES: IRaidDifficulty[] = [
     strength: 1.125,
     grade: EnumEquipmentGrade.RARE,
     raidTokens: 2,
+    refineStone: null,
   },
   {
     difficulty: EnumRaidDifficulty.HARD,
@@ -44,6 +47,7 @@ export const RAID_DIFFICULTIES: IRaidDifficulty[] = [
     strength: 1.21,
     grade: EnumEquipmentGrade.EPIC,
     raidTokens: 4,
+    refineStone: EnumMaterialId.REFINE_EPIC,
   },
   {
     difficulty: EnumRaidDifficulty.NIGHTMARE,
@@ -51,6 +55,7 @@ export const RAID_DIFFICULTIES: IRaidDifficulty[] = [
     strength: 1.26,
     grade: EnumEquipmentGrade.LEGENDARY,
     raidTokens: 8,
+    refineStone: EnumMaterialId.REFINE_LEGENDARY,
   },
 ]
 
