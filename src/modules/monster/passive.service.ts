@@ -9,9 +9,11 @@ import { WalletService } from '../wallet/wallet.service'
 import {
   calcPassiveBonus,
   calcPassivePoints,
+  branchOf,
   calcRespecCost,
   canAllocate,
   canDeallocate,
+  PASSIVE_BRANCH_REFUND_CAP,
   PASSIVE_FREE_REFUNDS,
   PASSIVE_NODES,
   PASSIVE_RESPEC_GEM_PRICE,
@@ -28,36 +30,51 @@ export const loadPassiveBonus = async (userId: string, etm: EntityManager) => {
 // What the player has achieved so far, which is what earns passive points.
 const loadProgress = async (userId: string, now: Date, etm: EntityManager) => {
   const count = async (query: string) => (await etm.query<{ n: number }[]>(query, [userId]))[0].n
-  const [dexSpecies, raidFirstClears, worldBossDefeats, seasons] = await Promise.all([
-    count(
-      `SELECT count(*)::int AS n FROM "monster_dex" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
-    ),
-    count(
-      `SELECT count(*)::int AS n FROM "raid_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
-    ),
-    count(
-      `SELECT count(*)::int AS n FROM "world_boss_damage" d
+  const [dexSpecies, raidFirstClears, adventureClears, totalWins, worldBossDefeats, seasons] =
+    await Promise.all([
+      count(
+        `SELECT count(*)::int AS n FROM "monster_dex" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+      ),
+      count(
+        `SELECT count(*)::int AS n FROM "raid_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+      ),
+      count(
+        `SELECT count(*)::int AS n FROM "adventure_progress" WHERE "user_id" = $1 AND "deleted_at" IS NULL`
+      ),
+      // Merged or retired monsters keep their wins, so deleted rows count too.
+      count(`SELECT coalesce(sum("wins"), 0)::int AS n FROM "monsters" WHERE "owner_id" = $1`),
+      count(
+        `SELECT count(*)::int AS n FROM "world_boss_damage" d
        JOIN "world_bosses" b ON b."id" = d."world_boss_id"
        WHERE d."user_id" = $1 AND d."hits" > 0 AND b."defeated_at" IS NOT NULL
          AND d."deleted_at" IS NULL AND b."deleted_at" IS NULL`
-    ),
-    // Final rank of every finished season the player qualified for (same ranking as the arena).
-    etm.query<{ rank: number }[]>(
-      `SELECT "rank"::int FROM (
+      ),
+      // Final rank of every finished season the player qualified for (same ranking as the arena).
+      etm.query<{ rank: number }[]>(
+        `SELECT "rank"::int FROM (
          SELECT "user_id", rank() OVER (PARTITION BY "season" ORDER BY "rating" DESC) AS "rank"
          FROM "pvp_ratings"
          WHERE "season" < $2 AND ("wins" + "losses") >= $3 AND "deleted_at" IS NULL
        ) ranked WHERE "user_id" = $1`,
-      [userId, getSeason(now), PVP_SEASON_MIN_FIGHTS]
-    ),
-  ])
+        [userId, getSeason(now), PVP_SEASON_MIN_FIGHTS]
+      ),
+    ])
   const pvpSeasonRanks = seasons.map(row => row.rank)
   return {
     dexSpecies,
     raidFirstClears,
+    adventureClears,
+    totalWins,
     worldBossDefeats,
     pvpSeasonRanks,
-    earned: calcPassivePoints({ dexSpecies, raidFirstClears, worldBossDefeats, pvpSeasonRanks }),
+    earned: calcPassivePoints({
+      dexSpecies,
+      raidFirstClears,
+      adventureClears,
+      totalWins,
+      worldBossDefeats,
+      pvpSeasonRanks,
+    }),
   }
 }
 
@@ -82,6 +99,8 @@ export class PassiveService {
         sources: {
           dexSpecies: progress.dexSpecies,
           raidFirstClears: progress.raidFirstClears,
+          adventureClears: progress.adventureClears,
+          totalWins: progress.totalWins,
           worldBossDefeats: progress.worldBossDefeats,
           pvpSeasons: progress.pvpSeasonRanks.length,
         },
@@ -90,6 +109,7 @@ export class PassiveService {
         refunded,
         freeLeft: Math.max(0, PASSIVE_FREE_REFUNDS - refunded),
         gemPrice: PASSIVE_RESPEC_GEM_PRICE,
+        branchCap: PASSIVE_BRANCH_REFUND_CAP,
       },
     }
   }
@@ -134,17 +154,17 @@ export class PassiveService {
   }
 
   // Taking points back costs gems once the free refunds are used up.
-  private async refund(userId: string, nodeIds: string[], etm: EntityManager) {
+  private async refund(userId: string, nodeIds: string[], etm: EntityManager, maxCost = Infinity) {
     const row = await this.lockRow(userId, etm)
     const removing = new Set(nodeIds)
     if (!nodeIds.length || nodeIds.some(id => !row.nodeIds.includes(id))) {
       throw new BadRequestException('Nothing to take back')
     }
     const remaining = row.nodeIds.filter(id => !removing.has(id))
-    if (nodeIds.length === 1 && !canDeallocate(row.nodeIds, nodeIds[0])) {
+    if (maxCost === Infinity && nodeIds.length === 1 && !canDeallocate(row.nodeIds, nodeIds[0])) {
       throw new BadRequestException('Other nodes depend on this one')
     }
-    const cost = calcRespecCost(row.refundedPoints, nodeIds.length)
+    const cost = Math.min(calcRespecCost(row.refundedPoints, nodeIds.length), maxCost)
     if (cost > 0) {
       await this.walletService.change(
         userId,
@@ -162,6 +182,18 @@ export class PassiveService {
 
   async deallocate(userId: string, nodeId: string) {
     return this.dataSource.transaction(etm => this.refund(userId, [nodeId], etm))
+  }
+
+  // Takes back a node and everything that hangs off it. Never costs more than the branch cap.
+  async deallocateBranch(userId: string, nodeId: string) {
+    return this.dataSource.transaction(async etm => {
+      const row = await this.lockRow(userId, etm)
+      const branch = branchOf(row.nodeIds, nodeId)
+      if (!row.nodeIds.includes(nodeId) || !branch.length) {
+        throw new BadRequestException('Nothing to take back')
+      }
+      return this.refund(userId, branch, etm, PASSIVE_BRANCH_REFUND_CAP)
+    })
   }
 
   async respec(userId: string) {

@@ -17,10 +17,14 @@ import {
   OVERWEIGHT_SPD_MULTIPLIER,
 } from './battle-stats'
 import {
+  PASSIVE_ADVENTURE_MAX_POINTS,
+  PASSIVE_BRANCH_REFUND_CAP,
   PASSIVE_ECONOMY_CAP,
   PASSIVE_FREE_REFUNDS,
   PASSIVE_MAX_POINTS,
   PASSIVE_RESPEC_GEM_PRICE,
+  PASSIVE_WIN_MAX_POINTS,
+  PASSIVE_WINS_PER_POINT,
   PVP_SEASON_POINTS,
 } from './passive-data'
 import * as rules from './monster-rules'
@@ -58,7 +62,7 @@ import {
 import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from './elo'
 import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
-import { DAILY_QUESTS } from './quest-data'
+import { DAILY_QUESTS, WEEKLY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
 import {
   FUSED_FORMS,
@@ -208,6 +212,10 @@ export const buildWiki = () => ({
     freeRefunds: PASSIVE_FREE_REFUNDS,
     respecGemPrice: PASSIVE_RESPEC_GEM_PRICE,
     economyCap: PASSIVE_ECONOMY_CAP,
+    branchRefundCap: PASSIVE_BRANCH_REFUND_CAP,
+    adventureMaxPoints: PASSIVE_ADVENTURE_MAX_POINTS,
+    winsPerPoint: PASSIVE_WINS_PER_POINT,
+    winMaxPoints: PASSIVE_WIN_MAX_POINTS,
     pvpSeasonPoints: PVP_SEASON_POINTS,
   },
   worldBoss: {
@@ -269,6 +277,7 @@ export const buildWiki = () => ({
   economy: {
     shopItems: SHOP_ITEMS,
     dailyQuests: DAILY_QUESTS,
+    weeklyQuests: WEEKLY_QUESTS,
     dexDiscoveryGems: rules.DEX_DISCOVERY_GEM_REWARD,
   },
 })

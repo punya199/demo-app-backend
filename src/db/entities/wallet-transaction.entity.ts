@@ -15,6 +15,8 @@ export enum EnumWalletTransactionReason {
   DEX_DISCOVERY = 'dex_discovery',
   STAMINA_REFILL = 'stamina_refill',
   DAILY_QUEST = 'daily_quest',
+  WEEKLY_QUEST = 'weekly_quest',
+  LOGIN_REWARD = 'login_reward',
   EXPEDITION_REWARD = 'expedition_reward',
   AUTO_BATTLE_REWARD = 'auto_battle_reward',
   EQUIPMENT_BOX = 'equipment_box',

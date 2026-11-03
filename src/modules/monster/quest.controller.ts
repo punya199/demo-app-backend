@@ -19,4 +19,10 @@ export class QuestController {
   async claim(@Body() body: ClaimQuestBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.questService.claim(user['user-id'], body.questId)
   }
+
+  @AuthUser()
+  @Post('login')
+  async claimLogin(@ReqUser() user: IAppJwtPayload) {
+    return this.questService.claimLogin(user['user-id'])
+  }
 }
