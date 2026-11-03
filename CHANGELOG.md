@@ -1,3 +1,15 @@
+# [1.25.0](https://github.com/punya199/demo-app-backend/compare/v1.24.0...v1.25.0) (2026-11-03)
+
+
+### Fix
+
+* type the json helper in the keystone effect spec ([f33a792](https://github.com/punya199/demo-app-backend/commit/f33a7925eb6be4511cff4a34547c080b9c163f9e))
+
+### New
+
+* lifesteal, thorns, first strike and no-crit keystone effects in the 1v1 battle engine ([2e3550e](https://github.com/punya199/demo-app-backend/commit/2e3550e635a728390850b97b0a883cb1d59e2be0))
+* passive masteries, ascendancy paths and their endpoints ([6710b92](https://github.com/punya199/demo-app-backend/commit/6710b9297487695d1a37721810ff8777c0389111))
+
 # [1.24.0](https://github.com/punya199/demo-app-backend/compare/v1.23.0...v1.24.0) (2026-11-03)
 
 
