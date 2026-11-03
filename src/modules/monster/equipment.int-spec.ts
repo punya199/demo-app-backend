@@ -3,7 +3,12 @@ import dataSource from '../../config/database.config'
 import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
 import { EnhanceService } from './enhance.service'
-import { EnumEquipmentGrade, EnumEquipmentSlot, EnumMaterialId } from './equipment-data'
+import {
+  DISMANTLE_STONES,
+  EnumEquipmentGrade,
+  EnumEquipmentSlot,
+  EnumMaterialId,
+} from './equipment-data'
 import { EquipmentService, grantEquipment } from './equipment.service'
 import { InventoryService } from './inventory.service'
 import {
@@ -198,6 +203,34 @@ describe('equipment and enhancing', () => {
     ).toBeNull()
   })
 
+  it('dismantles many pieces at once, all or nothing', async () => {
+    const [a, b, worn] = [
+      await grant(EnumEquipmentGrade.COMMON),
+      await grant(EnumEquipmentGrade.EPIC),
+      await grant(EnumEquipmentGrade.COMMON),
+    ]
+    await sql(`UPDATE equipment_items SET slot='accessory' WHERE id=$1`, [worn.id])
+    await equipment.equip(userId, worn.id)
+    const before = await quantity('enhance_stone')
+
+    await expect(equipment.dismantleMany(userId, [a.id, worn.id])).rejects.toThrow(/off first/)
+    await expect(
+      equipment.dismantleMany(userId, [a.id, '00000000-0000-4000-8000-000000000000'])
+    ).rejects.toThrow(/not found/)
+    expect(await quantity('enhance_stone')).toBe(before)
+    expect((await equipment.getEquipment(userId)).items.map(item => item.id)).toContain(a.id)
+
+    const result = await equipment.dismantleMany(userId, [a.id, b.id, a.id])
+    const expected =
+      DISMANTLE_STONES[EnumEquipmentGrade.COMMON] + DISMANTLE_STONES[EnumEquipmentGrade.EPIC]
+    expect(result.gained.enhance_stone).toBe(expected)
+    expect((await quantity('enhance_stone')) - before).toBe(expected)
+    const left = (await equipment.getEquipment(userId)).items.map(item => item.id)
+    expect(left).not.toContain(a.id)
+    expect(left).toContain(worn.id)
+    await equipment.unequip(userId, EnumEquipmentSlot.ACCESSORY)
+  })
+
   it('dismantles into stones and refuses a box when the bag is full, without charging', async () => {
     const epic = await grant(EnumEquipmentGrade.EPIC)
     const before = await quantity('enhance_stone')
@@ -206,7 +239,7 @@ describe('equipment and enhancing', () => {
 
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)
-       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 60)`,
+       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 100)`,
       [userId]
     )
     const coin = (await wallet.getBalance(userId)).coin

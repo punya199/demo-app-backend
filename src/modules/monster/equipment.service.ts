@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { randomInt } from 'crypto'
-import { DataSource, EntityManager } from 'typeorm'
+import { DataSource, EntityManager, In } from 'typeorm'
 import { EnumEquipmentLogType, EquipmentLogEntity } from '../../db/entities/equipment-log.entity'
 import { EquipmentItemEntity } from '../../db/entities/equipment-item.entity'
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
@@ -308,21 +308,39 @@ export class EquipmentService {
 
   // Only a piece that isn't worn can be dismantled, so a worn one can't be lost by a stray click.
   async dismantle(userId: string, equipmentId: string) {
+    return this.dismantleMany(userId, [equipmentId])
+  }
+
+  // All or nothing: one worn or missing piece refuses the whole batch, so a stale selection never
+  // half-applies. Rows are locked in id order so two overlapping batches cannot deadlock.
+  async dismantleMany(userId: string, equipmentIds: string[]) {
+    const ids = [...new Set(equipmentIds)].sort()
     return this.dataSource.transaction(async etm => {
-      const item = await this.lockItem(userId, equipmentId, etm)
-      if (item.equipped) {
+      const items = await etm.find(EquipmentItemEntity, {
+        where: { userId, id: In(ids) },
+        order: { id: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      })
+      if (items.length !== ids.length) {
+        throw new NotFoundException('Equipment not found')
+      }
+      if (items.some(item => item.equipped)) {
         throw new BadRequestException('Take the equipment off first')
       }
-      const stones =
+      const stonesOf = (item: EquipmentItemEntity) =>
         DISMANTLE_STONES[item.grade as EnumEquipmentGrade] + Math.floor(item.enhanceLevel / 2)
-      await etm.softDelete(EquipmentItemEntity, { id: item.id })
+      const stones = items.reduce((sum, item) => sum + stonesOf(item), 0)
+      await etm.softDelete(EquipmentItemEntity, { id: In(ids) })
       await this.inventoryService.add(userId, EnumMaterialId.ENHANCE_STONE, etm, stones)
-      await etm.save(EquipmentLogEntity, {
-        userId,
-        equipmentId,
-        type: EnumEquipmentLogType.DISMANTLE,
-        payload: { stones, grade: item.grade, enhanceLevel: item.enhanceLevel },
-      })
+      await etm.save(
+        EquipmentLogEntity,
+        items.map(item => ({
+          userId,
+          equipmentId: item.id,
+          type: EnumEquipmentLogType.DISMANTLE,
+          payload: { stones: stonesOf(item), grade: item.grade, enhanceLevel: item.enhanceLevel },
+        }))
+      )
       return { gained: { enhance_stone: stones }, ...(await this.getEquipment(userId, etm)) }
     })
   }

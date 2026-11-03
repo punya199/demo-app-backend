@@ -125,7 +125,7 @@ export const AUTO_BATTLE_DAILY_COIN_CAP = 1500
 
 // Equipment (phase 3). Slot/grade data lives in equipment-data.ts, the enhance table in
 // enhance-engine.ts.
-export const EQUIPMENT_CAPACITY = 50
+export const EQUIPMENT_CAPACITY = 100
 export const EQUIPMENT_BOX_PRICE = 120
 // Chance (out of 10,000) that a manual adventure win drops a piece; auto-battle and expeditions never do.
 export const EQUIPMENT_DROP_CHANCE_BP = 800
