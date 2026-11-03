@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/punya199/demo-app-backend/compare/v1.31.0...v1.32.0) (2026-11-03)
+
+
+### Update
+
+* rebalance earth, lightning, holy, dark and shadow line bias ([9563762](https://github.com/punya199/demo-app-backend/commit/956376283f9a2aba2ef24b2d8238947b9d983419))
+
 # [1.31.0](https://github.com/punya199/demo-app-backend/compare/v1.30.0...v1.31.0) (2026-11-03)
 
 
