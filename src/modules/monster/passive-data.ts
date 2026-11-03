@@ -296,6 +296,25 @@ export const ascendancyRoot = (path: AscendancyPath) => `v2-asc-${path}-00`
 export const getAscendancyPath = (nodeId: string): AscendancyPath | null =>
   ASCENDANCY_PATHS.find(path => nodeId.startsWith(`v2-asc-${path}-`)) ?? null
 
+// Balance knobs. Node values in the arm tables below are written at "face value"; the tree scales
+// them so that a full 100-point build stays in line with what play progression expects (see
+// passive-balance.spec.ts). Burn turns and the first strike / no crit flags are never scaled.
+export const PASSIVE_POWER_SCALE = 0.5
+export const PASSIVE_KEYSTONE_SCALE = 0.8
+const UNSCALED: PassiveEffectKey[] = ['burn', 'firstStrike', 'noCrit']
+
+// Rounded to the nearest 0.5 so tooltips stay readable, never below 0.5 for a positive value.
+const scaleFx = (fx: IPassiveEffects, scale: number): IPassiveEffects =>
+  Object.fromEntries(
+    Object.entries(fx).map(([key, value]) => {
+      if (UNSCALED.includes(key as PassiveEffectKey)) {
+        return [key, value]
+      }
+      const scaled = Math.round(Math.abs(value) * scale * 2) / 2
+      return [key, Math.sign(value) * Math.max(0.5, scaled)]
+    })
+  )
+
 export const PASSIVE_LANE_LENGTH = 16
 const LANE_OFFSET = [-15, 0, 15]
 const BRIDGE_LENGTH = 6
@@ -321,7 +340,7 @@ const buildNodes = () => {
       name,
       kind,
       arm,
-      fx,
+      fx: scaleFx(fx, kind === 'key' ? PASSIVE_KEYSTONE_SCALE : PASSIVE_POWER_SCALE),
       x: round(radius * Math.cos(t)),
       y: round(radius * Math.sin(t)),
       adj: [],
@@ -424,7 +443,10 @@ const buildNodes = () => {
     arm.masteries.forEach(([name, options], index) => {
       const id = `v2-${arm.id}-m${index}`
       add(id, name, 'mastery', arm.id, {}, 332, base + (index === 0 ? -8 : 8))
-      nodes.get(id)!.options = options.map(([optionName, fx]) => ({ name: optionName, fx }))
+      nodes.get(id)!.options = options.map(([optionName, fx]) => ({
+        name: optionName,
+        fx: scaleFx(fx, PASSIVE_POWER_SCALE),
+      }))
       link(`v2-${arm.id}-${index === 0 ? 0 : 2}-08`, id)
       link(`v2-${arm.id}-1-08`, id)
     })

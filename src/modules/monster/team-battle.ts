@@ -112,8 +112,28 @@ export const simulateTeamBattle = (
     target.shield -= absorbed
     const hpBefore = target.hp
     target.hp = Math.max(0, target.hp - (damage - absorbed))
+    const hpDamage = hpBefore - target.hp
     if (attacker.side === 'player') {
-      damageByMember[attacker.member] += hpBefore - target.hp
+      damageByMember[attacker.member] += hpDamage
+    }
+    // Passive keystones, as in the 1-vs-1 engine: skipped for fighters without them, no RNG.
+    let healed = 0
+    const lifesteal = attacker.fighter.effects?.lifesteal
+    if (lifesteal && hpDamage > 0 && attacker.hp < attacker.maxHp) {
+      healed = Math.min(attacker.maxHp - attacker.hp, Math.max(1, Math.round(hpDamage * lifesteal)))
+      attacker.hp += healed
+    }
+    let reflected = 0
+    const thorns = target.fighter.effects?.thorns
+    if (thorns && damage > 0 && target.hp > 0) {
+      const hpBeforeReflect = attacker.hp
+      reflected = Math.max(1, Math.round(damage * thorns))
+      attacker.hp = Math.max(0, attacker.hp - reflected)
+      // Reflected damage on the boss counts for the member who reflected it, so the per-member
+      // totals still add up to the boss's lost HP.
+      if (attacker.side === 'enemy') {
+        damageByMember[target.member] += hpBeforeReflect - attacker.hp
+      }
     }
     record(round, attacker, target, {
       moveName: isSkill ? attacker.fighter.skill.name : 'โจมตี',
@@ -124,14 +144,22 @@ export const simulateTeamBattle = (
       ...(kind && { kind }),
       ...(absorbed > 0 && { absorbed }),
       ...(isDodged && { isDodged }),
+      ...(healed > 0 && { healed }),
+      ...(reflected > 0 && { reflected }),
+      ...((healed > 0 || reflected > 0) && { actorHp: attacker.hp }),
     })
   }
 
   for (let round = 1; round <= maxRounds; round++) {
-    // Fastest first; on a tie the team goes before the boss, members in team order. No RNG here.
+    // First strike goes before speed, then fastest first; on a tie the team goes before the boss,
+    // members in team order. No RNG here.
     const order = [...members, bossCombatant]
       .filter(combatant => combatant.hp > 0)
-      .sort((a, b) => b.fighter.stats.spd - a.fighter.stats.spd)
+      .sort(
+        (a, b) =>
+          Number(!!b.fighter.effects?.firstStrike) - Number(!!a.fighter.effects?.firstStrike) ||
+          b.fighter.stats.spd - a.fighter.stats.spd
+      )
     const isSkill = round % TEAM_BATTLE_SKILL_EVERY_ROUNDS === 0
 
     for (const actor of order) {
@@ -203,6 +231,10 @@ export const simulateTeamBattle = (
       if (isOver()) {
         return result(round)
       }
+      // Only thorns can drop the attacker here.
+      if (actor.hp === 0) {
+        continue
+      }
       if (isSkill && actor.fighter.effects?.burnTurns && target.hp > 0) {
         target.burn = {
           turns: actor.fighter.effects.burnTurns,
@@ -215,6 +247,9 @@ export const simulateTeamBattle = (
         strike(round, actor, target, false, 'double')
         if (isOver()) {
           return result(round)
+        }
+        if (actor.hp === 0) {
+          continue
         }
       }
     }
