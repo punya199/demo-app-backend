@@ -15,7 +15,7 @@ const fighter = (overrides: Overrides = {}): IFighter => ({
   stats: { hp: 100, atk: 20, def: 0, spd: 10, ...overrides.stats },
 })
 
-const json = (value: unknown) => JSON.parse(JSON.stringify(value))
+const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value)) as unknown
 
 describe('passive keystone effects in the 1v1 engine', () => {
   it('treats zero or absent keystone effects exactly like no effects', () => {
