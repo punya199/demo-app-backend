@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/punya199/demo-app-backend/compare/v1.27.0...v1.28.0) (2026-11-03)
+
+
+### Update
+
+* gate equipment by pet stage and roll set-piece stats ([8edbd18](https://github.com/punya199/demo-app-backend/commit/8edbd1838fd2a24010c83c93e68f56bb7d8ce5cf))
+
 # [1.27.0](https://github.com/punya199/demo-app-backend/compare/v1.26.0...v1.27.0) (2026-11-03)
 
 
