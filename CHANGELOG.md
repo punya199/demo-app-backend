@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/punya199/demo-app-backend/compare/v1.29.0...v1.30.0) (2026-11-03)
+
+
+### New
+
+* add refine stones to re-roll a secondary stat ([f9afb67](https://github.com/punya199/demo-app-backend/commit/f9afb67fc073ee02de8dbd69c78c35594a578831))
+
 # [1.29.0](https://github.com/punya199/demo-app-backend/compare/v1.28.0...v1.29.0) (2026-11-03)
 
 
