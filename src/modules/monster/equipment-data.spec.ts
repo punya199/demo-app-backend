@@ -5,6 +5,7 @@ import {
   calcSetBonuses,
   calcSetProgress,
   calcSpecialBonuses,
+  canEquip,
   SPECIAL_DEFINITIONS,
   SUB_STAT_COUNT_BY_GRADE,
   EnumEquipmentGrade,
@@ -19,6 +20,7 @@ import {
   SET_DEFINITIONS,
   SLOT_MAIN_STAT,
 } from './equipment-data'
+import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import { SET_ENHANCE_THRESHOLD } from './monster-rules'
 
 const item = (overrides: Partial<IEquipmentItem> = {}): IEquipmentItem => ({
@@ -191,7 +193,7 @@ describe('boss sets', () => {
     Object.values(EnumEquipmentSlot)
       .slice(0, count)
       .map(slot => ({
-        ...buildSetPiece(`${setId}_${slot}`, EnumEquipmentGrade.EPIC),
+        ...buildSetPiece(`${setId}_${slot}`, EnumEquipmentGrade.EPIC, createRng(1)),
         enhanceLevel,
       }))
 
@@ -214,13 +216,30 @@ describe('boss sets', () => {
     )
   })
 
-  it('gives set pieces fixed secondary stats and a stronger main stat than plain pieces', () => {
-    const piece = buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC)
-    expect(piece.subStats).toEqual({ atk: 4, spd: 2 })
-    expect(buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC)).toEqual(piece)
+  it('rolls set pieces like plain ones, with a stronger main stat', () => {
+    const piece = buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC, createRng(3))
+    expect(buildSetPiece('blazing_weapon', EnumEquipmentGrade.EPIC, createRng(3))).toEqual(piece)
     expect(piece.mainValue).toBe(Math.round(4 * 2.2 * 1.2))
     expect(piece.mainValue).toBeGreaterThan(Math.round(4 * 2.2))
-    expect(() => buildSetPiece('wooden_sword', EnumEquipmentGrade.COMMON)).toThrow()
+    expect(() => buildSetPiece('wooden_sword', EnumEquipmentGrade.COMMON, createRng(1))).toThrow()
+  })
+
+  it('rolls set-piece secondary stats by grade, and always a special on legendary', () => {
+    for (const grade of Object.values(EnumEquipmentGrade)) {
+      const { min, max } = SUB_STAT_COUNT_BY_GRADE[grade]
+      for (let seed = 1; seed <= 50; seed++) {
+        const piece = buildSetPiece('blazing_armor', grade, createRng(seed))
+        const count = Object.keys(piece.subStats).length
+        expect(count).toBeGreaterThanOrEqual(min)
+        expect(count).toBeLessThanOrEqual(max)
+        if (grade === EnumEquipmentGrade.LEGENDARY) {
+          expect(piece.specialOptions?.length).toBeGreaterThanOrEqual(1)
+        }
+        if (grade === EnumEquipmentGrade.COMMON) {
+          expect(piece.specialOptions).toEqual([])
+        }
+      }
+    }
   })
 
   it('applies the roadmap bonuses: percent at 2 pieces, a battle effect at 4', () => {
@@ -314,5 +333,27 @@ describe('calcSpecialBonuses', () => {
     expect(calcSpecialBonuses([piece(15), piece(15), piece(15)]).hungerDrainMultiplier).toBeCloseTo(
       0.7
     )
+  })
+})
+
+describe('canEquip', () => {
+  const stages = Object.values(EnumMonsterStage)
+  const allowed = (grade: EnumEquipmentGrade) => stages.filter(stage => canEquip(stage, grade))
+
+  it('gates each grade by the youngest form that may wear it', () => {
+    expect(allowed(EnumEquipmentGrade.COMMON)).toEqual(stages)
+    expect(allowed(EnumEquipmentGrade.RARE)).toEqual([
+      EnumMonsterStage.ADULT,
+      EnumMonsterStage.PERFECT,
+      EnumMonsterStage.ULTIMATE,
+      EnumMonsterStage.FUSED,
+    ])
+    for (const grade of [EnumEquipmentGrade.EPIC, EnumEquipmentGrade.LEGENDARY]) {
+      expect(allowed(grade)).toEqual([
+        EnumMonsterStage.PERFECT,
+        EnumMonsterStage.ULTIMATE,
+        EnumMonsterStage.FUSED,
+      ])
+    }
   })
 })

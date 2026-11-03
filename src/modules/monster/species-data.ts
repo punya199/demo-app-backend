@@ -1,5 +1,18 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 
+const STAGE_ORDER = [
+  EnumMonsterStage.EGG,
+  EnumMonsterStage.BABY_1,
+  EnumMonsterStage.BABY_2,
+  EnumMonsterStage.ADULT,
+  EnumMonsterStage.PERFECT,
+  EnumMonsterStage.ULTIMATE,
+  EnumMonsterStage.FUSED,
+]
+
+export const isStageAtLeast = (stage: EnumMonsterStage, minimum: EnumMonsterStage) =>
+  STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(minimum)
+
 export interface IEvolutionRule {
   to: string
   // Care conditions are checked against the counters of the stage being left (they reset on

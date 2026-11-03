@@ -25,6 +25,7 @@ import {
   grantItem,
   isEquipmentBagFull,
   loadEquipmentBonus,
+  rand,
   toEquipmentView,
 } from './equipment.service'
 import { loadPublicCostumes } from './costume.service'
@@ -437,11 +438,11 @@ export class WorldBossService {
       let drop: ReturnType<typeof toEquipmentView> | null = null
       if (reward.pieceGrade) {
         const definition = findWorldBoss(boss.bossId)!
-        const { slot } = claimRolls(boss.id, userId)
+        const { slot, rng } = claimRolls(boss.id, userId)
         const template = findSetPieceTemplate(definition.setId, slot)!
         const piece = await grantItem(
           userId,
-          buildSetPiece(template.id, reward.pieceGrade),
+          buildSetPiece(template.id, reward.pieceGrade, rng),
           `world_boss:${week}`,
           etm
         )
@@ -485,7 +486,7 @@ export class WorldBossService {
       }
       const row = (await grantItem(
         userId,
-        buildSetPiece(template.id, grade),
+        buildSetPiece(template.id, grade, rand),
         `exchange:${bossId}`,
         etm
       ))!

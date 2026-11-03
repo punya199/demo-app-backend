@@ -181,5 +181,6 @@ export const claimRolls = (worldBossId: string, userId: string) => {
   const rng = createRng(fnv1a(`${worldBossId}:${userId}`))
   const pieceRoll = rng()
   const slots = Object.values(EnumEquipmentSlot)
-  return { pieceRoll, slot: slots[Math.floor(rng() * slots.length)] }
+  // `rng` carries on for the piece's own stat rolls, so those are fixed per claim too.
+  return { pieceRoll, slot: slots[Math.floor(rng() * slots.length)], rng }
 }

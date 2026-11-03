@@ -1,10 +1,11 @@
+import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import type { IFighterEffects } from './battle-stats'
 import {
   SET_ENHANCE_MULTIPLIER,
   SET_ENHANCE_THRESHOLD,
   SET_PIECE_MAIN_MULTIPLIER,
 } from './monster-rules'
-import { IBattleStats } from './species-data'
+import { IBattleStats, isStageAtLeast } from './species-data'
 
 // Equipment is data-driven: add a template (or a set) here and it works everywhere.
 
@@ -55,7 +56,21 @@ export const SUB_STAT_COUNT_BY_GRADE: Record<EnumEquipmentGrade, { min: number; 
 }
 export const SUB_STAT_ROLL = { min: 0.5, max: 1 }
 
-// Special options: care perks for the pet wearing the piece (not battle stats). Plain pieces only.
+// The youngest form that may wear a piece of each grade (null = any form, even an egg).
+export const MIN_STAGE_BY_GRADE: Record<EnumEquipmentGrade, EnumMonsterStage | null> = {
+  [EnumEquipmentGrade.COMMON]: null,
+  [EnumEquipmentGrade.RARE]: EnumMonsterStage.ADULT,
+  [EnumEquipmentGrade.EPIC]: EnumMonsterStage.PERFECT,
+  [EnumEquipmentGrade.LEGENDARY]: EnumMonsterStage.PERFECT,
+}
+
+// Checked wherever a piece is put on. Pieces already worn are never re-checked (grandfathered).
+export const canEquip = (stage: EnumMonsterStage, grade: EnumEquipmentGrade) => {
+  const minimum = MIN_STAGE_BY_GRADE[grade]
+  return minimum === null || isStageAtLeast(stage, minimum)
+}
+
+// Special options: care perks for the pet wearing the piece (not battle stats). Every piece rolls them, set pieces too.
 export type SpecialKey = 'slowHunger' | 'staminaSaver' | 'treasureNose' | 'tidyPet'
 export interface ISpecialOption {
   key: SpecialKey
@@ -146,16 +161,6 @@ export interface IEquipmentTemplate {
   slot: EnumEquipmentSlot
   // Set pieces share a setId; plain items have null.
   setId: string | null
-  // Set pieces have fixed secondary stats (at common grade, scaled by grade) instead of rolled ones.
-  fixedSubStats?: Partial<Record<StatKey, number>>
-}
-
-// Fixed secondary stats every set piece carries, by slot, at common grade.
-const SET_PIECE_SUB_STATS: Record<EnumEquipmentSlot, Partial<Record<StatKey, number>>> = {
-  [EnumEquipmentSlot.WEAPON]: { atk: 2, spd: 1 },
-  [EnumEquipmentSlot.ARMOR]: { def: 2, hp: 6 },
-  [EnumEquipmentSlot.HELMET]: { hp: 8, def: 1 },
-  [EnumEquipmentSlot.ACCESSORY]: { spd: 2, atk: 1 },
 }
 
 const setPieces = (
@@ -170,7 +175,6 @@ const setPieces = (
     emoji,
     slot,
     setId,
-    fixedSubStats: SET_PIECE_SUB_STATS[slot],
   }))
 
 const SET_PIECE_NAMES: Record<EnumEquipmentSlot, string> = {
@@ -520,13 +524,8 @@ export const rollGrade = (
 }
 
 // Rolls a new plain piece. `rand` returns [0, 1) so tests can seed it.
-export const rollEquipment = (
-  grade: EnumEquipmentGrade,
-  rand: () => number,
-  templates: IEquipmentTemplate[] = EQUIPMENT_TEMPLATES
-): IEquipmentItem => {
-  const plain = templates.filter(template => template.setId === null)
-  const template = plain[Math.floor(rand() * plain.length)]
+// Random secondary stats and special options, shared by plain and set pieces.
+const rollRandomStats = (grade: EnumEquipmentGrade, rand: () => number) => {
   const multiplier = GRADE_MULTIPLIER[grade]
   const count = SUB_STAT_COUNT_BY_GRADE[grade]
   const subCount = count.min + Math.floor(rand() * (count.max - count.min + 1))
@@ -537,31 +536,36 @@ export const rollEquipment = (
     const factor = SUB_STAT_ROLL.min + rand() * (SUB_STAT_ROLL.max - SUB_STAT_ROLL.min)
     subStats[key] = Math.max(1, Math.round(SUB_STAT_BASE[key] * multiplier * factor))
   }
+  return { subStats, specialOptions: rollSpecialOptions(grade, rand) }
+}
+
+export const rollEquipment = (
+  grade: EnumEquipmentGrade,
+  rand: () => number,
+  templates: IEquipmentTemplate[] = EQUIPMENT_TEMPLATES
+): IEquipmentItem => {
+  const plain = templates.filter(template => template.setId === null)
+  const template = plain[Math.floor(rand() * plain.length)]
   return {
     templateId: template.id,
     slot: template.slot,
     setId: template.setId,
     grade,
-    mainValue: Math.round(SLOT_MAIN_STAT[template.slot].base * multiplier),
-    subStats,
-    specialOptions: rollSpecialOptions(grade, rand),
+    mainValue: Math.round(SLOT_MAIN_STAT[template.slot].base * GRADE_MULTIPLIER[grade]),
+    ...rollRandomStats(grade, rand),
     enhanceLevel: 0,
   }
 }
 
-// A set piece of the given grade: fixed secondary stats, main stat boosted over plain pieces.
-export const buildSetPiece = (templateId: string, grade: EnumEquipmentGrade): IEquipmentItem => {
+// A set piece of the given grade: main stat boosted over plain pieces, other stats rolled.
+export const buildSetPiece = (
+  templateId: string,
+  grade: EnumEquipmentGrade,
+  rand: () => number
+): IEquipmentItem => {
   const template = findEquipmentTemplate(templateId)
-  if (!template?.setId || !template.fixedSubStats) {
+  if (!template?.setId) {
     throw new Error(`Not a set piece: ${templateId}`)
-  }
-  const multiplier = GRADE_MULTIPLIER[grade]
-  const subStats: Partial<Record<StatKey, number>> = {}
-  for (const key of STAT_KEYS) {
-    const base = template.fixedSubStats[key]
-    if (base) {
-      subStats[key] = Math.max(1, Math.round(base * multiplier))
-    }
   }
   return {
     templateId: template.id,
@@ -569,9 +573,9 @@ export const buildSetPiece = (templateId: string, grade: EnumEquipmentGrade): IE
     setId: template.setId,
     grade,
     mainValue: Math.round(
-      SLOT_MAIN_STAT[template.slot].base * multiplier * SET_PIECE_MAIN_MULTIPLIER
+      SLOT_MAIN_STAT[template.slot].base * GRADE_MULTIPLIER[grade] * SET_PIECE_MAIN_MULTIPLIER
     ),
-    subStats,
+    ...rollRandomStats(grade, rand),
     enhanceLevel: 0,
   }
 }

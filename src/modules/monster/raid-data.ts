@@ -12,18 +12,8 @@ export enum EnumRaidDifficulty {
   NIGHTMARE = 'nightmare',
 }
 
-const STAGE_ORDER = [
-  EnumMonsterStage.EGG,
-  EnumMonsterStage.BABY_1,
-  EnumMonsterStage.BABY_2,
-  EnumMonsterStage.ADULT,
-  EnumMonsterStage.PERFECT,
-  EnumMonsterStage.ULTIMATE,
-  EnumMonsterStage.FUSED,
-]
-
-export const isStageAtLeast = (stage: EnumMonsterStage, minimum: EnumMonsterStage) =>
-  STAGE_ORDER.indexOf(stage) >= STAGE_ORDER.indexOf(minimum)
+// Lives in species-data (equipment needs it too); re-exported so existing imports keep working.
+export { isStageAtLeast } from './species-data'
 
 export interface IRaidDifficulty {
   difficulty: EnumRaidDifficulty

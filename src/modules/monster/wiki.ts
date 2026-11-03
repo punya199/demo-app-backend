@@ -41,6 +41,7 @@ import {
   ENHANCE_MILESTONE_EVERY,
   GRADE_MULTIPLIER,
   MATERIALS,
+  MIN_STAGE_BY_GRADE,
   SET_DEFINITIONS,
   SLOT_MAIN_STAT,
   SPECIAL_BY_GRADE,
@@ -187,6 +188,7 @@ export const buildWiki = () => ({
     slots: SLOT_MAIN_STAT,
     gradeMultiplier: GRADE_MULTIPLIER,
     subStatCount: SUB_STAT_COUNT_BY_GRADE,
+    minStageByGrade: MIN_STAGE_BY_GRADE,
     special: {
       options: SPECIAL_DEFINITIONS,
       byGrade: SPECIAL_BY_GRADE,

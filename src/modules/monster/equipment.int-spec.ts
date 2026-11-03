@@ -32,6 +32,9 @@ describe('equipment and enhancing', () => {
   const grant = async (grade: EnumEquipmentGrade) =>
     (await dataSource.transaction(etm => grantEquipment(userId, grade, 'test', etm)))!
 
+  const setStage = (stage: string) =>
+    sql(`UPDATE monsters SET stage=$2 WHERE owner_id=$1 AND deleted_at IS NULL`, [userId, stage])
+
   beforeAll(async () => {
     await startTestDatabase()
     userId = await createUser('equip')
@@ -54,12 +57,27 @@ describe('equipment and enhancing', () => {
     await sql(`UPDATE equipment_items SET slot='weapon' WHERE id = ANY($1)`, [
       [first.id, second.id],
     ])
+    await setStage('adult')
     await equipment.equip(userId, first.id)
     await equipment.equip(userId, second.id)
     const worn = (await equipment.getEquipment(userId)).items.filter(item => item.equipped)
     expect(worn.map(item => item.id)).toEqual([second.id])
     await expect(equipment.dismantle(userId, second.id)).rejects.toThrow(/Take the equipment off/)
     await equipment.unequip(userId, EnumEquipmentSlot.WEAPON)
+  })
+
+  it('refuses a piece the pet is too young for, and keeps one it already wears', async () => {
+    const epic = await grant(EnumEquipmentGrade.EPIC)
+    await sql(`UPDATE equipment_items SET slot='helmet' WHERE id=$1`, [epic.id])
+    await setStage('adult')
+    await expect(equipment.equip(userId, epic.id)).rejects.toThrow(/too young/)
+    await setStage('perfect')
+    await equipment.equip(userId, epic.id)
+    await setStage('baby_2')
+    const worn = (await equipment.getEquipment(userId)).items.filter(item => item.equipped)
+    expect(worn.map(item => item.id)).toEqual([epic.id])
+    await equipment.unequip(userId, EnumEquipmentSlot.HELMET)
+    await setStage('adult')
   })
 
   it('keeps a separate loadout per pet, moves a piece between pets, and frees it when its pet dies', async () => {
