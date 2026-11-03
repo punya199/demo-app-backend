@@ -58,7 +58,7 @@ import {
 import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from './elo'
 import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
-import { DAILY_QUESTS } from './quest-data'
+import { DAILY_QUESTS, WEEKLY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
 import {
   FUSED_FORMS,
@@ -269,6 +269,7 @@ export const buildWiki = () => ({
   economy: {
     shopItems: SHOP_ITEMS,
     dailyQuests: DAILY_QUESTS,
+    weeklyQuests: WEEKLY_QUESTS,
     dexDiscoveryGems: rules.DEX_DISCOVERY_GEM_REWARD,
   },
 })
