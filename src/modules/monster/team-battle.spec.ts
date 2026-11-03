@@ -154,3 +154,38 @@ describe('damage by member', () => {
     expect(result.damageByMember.reduce((sum, value) => sum + value, 0)).toBe(result.damageDealt)
   })
 })
+
+describe('passive keystones in the team engine', () => {
+  it('acts before faster fighters with first strike, and changes nothing without it', () => {
+    const slow = fighter({ stats: { spd: 1 }, effects: { firstStrike: 1 } })
+    const fast = fighter({ stats: { spd: 50 } })
+    const withFs = simulateTeamBattle([fast, slow], boss(100_000), 3, 2)
+    expect(withFs.events[0].member).toBe(1)
+    const plain = simulateTeamBattle([fast, fighter({ stats: { spd: 1 } })], boss(100_000), 3, 2)
+    expect(plain.events[0].member).toBe(0)
+  })
+
+  it('heals the attacker by lifesteal, never above max HP', () => {
+    const result = simulateTeamBattle(
+      [fighter({ stats: { hp: 1000 }, effects: { lifesteal: 0.5 } })],
+      boss(100_000, { stats: { atk: 60 } }),
+      3,
+      6
+    )
+    const heals = result.events.filter(event => event.actor === 'player' && event.healed)
+    expect(heals.length).toBeGreaterThan(0)
+    expect(heals.every(event => event.actorHp! <= 1000)).toBe(true)
+  })
+
+  it('reflects thorns onto the boss and credits the member, keeping the totals exact', () => {
+    const result = simulateTeamBattle(
+      [fighter({ stats: { hp: 5000, def: 1000 }, effects: { thorns: 0.5 } })],
+      boss(100_000, { stats: { atk: 200, def: 0 } }),
+      3,
+      8
+    )
+    expect(result.events.some(event => event.actor === 'enemy' && event.reflected)).toBe(true)
+    const credited = result.damageByMember.reduce((sum, value) => sum + value, 0)
+    expect(credited).toBe(result.damageDealt)
+  })
+})

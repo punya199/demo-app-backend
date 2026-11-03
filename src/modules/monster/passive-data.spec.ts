@@ -92,10 +92,10 @@ describe('passive graph', () => {
 describe('calcPassiveBonus', () => {
   it('maps stats, effects and keystone trade-offs onto the equipment bonus shape', () => {
     const { combat } = calcPassiveBonus(['v2-flame-0-00', 'v2-flame-0-01'])
-    expect(combat.pct.atk).toBeCloseTo(0.04)
+    expect(combat.pct.atk).toBeCloseTo(0.02)
     const keystone = calcPassiveBonus(['v2-flame-0-15']).combat.pct
-    expect(keystone.atk).toBeCloseTo(0.5)
-    expect(keystone.def).toBeCloseTo(-0.4)
+    expect(keystone.atk).toBeCloseTo(0.4)
+    expect(keystone.def).toBeCloseTo(-0.32)
     expect(calcPassiveBonus(['v2-flame-2-15']).combat.effects).toEqual({ burnTurns: 2 })
   })
 
@@ -122,7 +122,7 @@ describe('calcPassiveBonus', () => {
     )
     expect(merged.effects.burnTurns).toBe(5)
     expect(merged.effects.shieldPct).toBe(0.15)
-    expect(merged.pct.hp).toBeCloseTo(-0.2)
+    expect(merged.pct.hp).toBeCloseTo(-0.16)
   })
 })
 
@@ -161,14 +161,14 @@ describe('masteries and ascendancy', () => {
   it('adds the picked mastery option to the bonus, and nothing without a pick', () => {
     const ids = ['v2-flame-m0']
     expect(calcPassiveBonus(ids).combat.pct.atk).toBe(0)
-    expect(calcPassiveBonus(ids, { 'v2-flame-m0': 1 }).combat.pct.atk).toBeCloseTo(0.08)
+    expect(calcPassiveBonus(ids, { 'v2-flame-m0': 1 }).combat.pct.atk).toBeCloseTo(0.04)
     expect(calcPassiveBonus(ids, { 'v2-flame-m0': 0 }).combat.effects).toEqual({ burnTurns: 1 })
   })
 
   it('applies keystone effects: lifesteal, thorns, first strike and no crit', () => {
     const { effects } = calcPassiveBonus(['v2-tide-2-15', 'v2-leaf-2-15']).combat
-    expect(effects.lifesteal).toBeCloseTo(0.15)
-    expect(effects.thorns).toBeCloseTo(0.2)
+    expect(effects.lifesteal).toBeCloseTo(0.12)
+    expect(effects.thorns).toBeCloseTo(0.16)
     expect(calcPassiveBonus(['v2-lightning-2-15']).combat.effects.firstStrike).toBe(1)
     expect(calcPassiveBonus(['v2-earth-2-15']).combat.effects.noCrit).toBe(1)
   })
@@ -185,8 +185,8 @@ describe('masteries and ascendancy', () => {
 
   it('adds ascendancy nodes to the bonus', () => {
     const { combat } = calcPassiveBonus([], {}, ['v2-asc-striker-00', 'v2-asc-striker-01'])
-    expect(combat.effects.critChance).toBeCloseTo(0.02)
-    expect(combat.effects.doubleStrikeChance).toBeCloseTo(0.03)
+    expect(combat.effects.critChance).toBeCloseTo(0.01)
+    expect(combat.effects.doubleStrikeChance).toBeCloseTo(0.015)
   })
 
   it('earns ascendancy points from nightmare clears and boss kills, 6 each, 12 in total', () => {
