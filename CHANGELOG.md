@@ -1,3 +1,11 @@
+# [1.24.0](https://github.com/punya199/demo-app-backend/compare/v1.23.0...v1.24.0) (2026-11-03)
+
+
+### New
+
+* passive tree v2 with 6 arms, 373 nodes, branch refund and new point sources ([65136d3](https://github.com/punya199/demo-app-backend/commit/65136d32fb1b95c4c49ab3f10239c425a6e35ca5))
+* weekly quests, quest gem rewards and daily login streak ([1f23454](https://github.com/punya199/demo-app-backend/commit/1f23454e4a014e6acc78926f1e2691c2080e040c))
+
 # [1.23.0](https://github.com/punya199/demo-app-backend/compare/v1.22.0...v1.23.0) (2026-11-01)
 
 
