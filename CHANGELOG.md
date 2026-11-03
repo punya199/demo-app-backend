@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/punya199/demo-app-backend/compare/v1.26.0...v1.27.0) (2026-11-03)
+
+
+### New
+
+* save the whole passive tree in one request, and space the nodes out ([a9136ec](https://github.com/punya199/demo-app-backend/commit/a9136ec536e42e191b109158cd635b2d841e2ffd))
+
 # [1.26.0](https://github.com/punya199/demo-app-backend/compare/v1.25.0...v1.26.0) (2026-11-03)
 
 
