@@ -62,16 +62,19 @@ export const STAGE_BASE_STATS: Record<EnumMonsterStage, IBattleStats> = {
   [EnumMonsterStage.FUSED]: { hp: 195, atk: 39, def: 26, spd: 26 },
 }
 
-// Each line leans toward one stat: flame hits hard, tide is tanky, leaf is fast.
+// Each line leans toward one stat: flame hits hard, tide is tanky, leaf is fast. Earth, lightning,
+// holy, dark and shadow carry a small extra factor (x0.98-1.03) so 1v1 win rates of all lines sit
+// near 50% (simulated over every same-stage form). Flame, tide and leaf are left as they were: the
+// PvP rivals and raid bosses are calibrated against them (pvp-data.spec.ts, raid-data.spec.ts).
 const LINE_BIAS: Record<EnumMonsterLine, IBattleStats> = {
   [EnumMonsterLine.FLAME]: { hp: 1, atk: 1.15, def: 1, spd: 1 },
   [EnumMonsterLine.TIDE]: { hp: 1.15, atk: 1, def: 1.1, spd: 1 },
   [EnumMonsterLine.LEAF]: { hp: 1.05, atk: 1, def: 1, spd: 1.15 },
-  [EnumMonsterLine.EARTH]: { hp: 1.1, atk: 1, def: 1.15, spd: 0.95 },
-  [EnumMonsterLine.LIGHTNING]: { hp: 1, atk: 1.1, def: 0.95, spd: 1.15 },
-  [EnumMonsterLine.HOLY]: { hp: 1.1, atk: 0.95, def: 1.1, spd: 1 },
-  [EnumMonsterLine.DARK]: { hp: 0.95, atk: 1.2, def: 1, spd: 1 },
-  [EnumMonsterLine.SHADOW]: { hp: 0.9, atk: 1.05, def: 0.95, spd: 1.2 },
+  [EnumMonsterLine.EARTH]: { hp: 1.128, atk: 1.025, def: 1.179, spd: 0.974 },
+  [EnumMonsterLine.LIGHTNING]: { hp: 0.977, atk: 1.075, def: 0.928, spd: 1.124 },
+  [EnumMonsterLine.HOLY]: { hp: 1.13, atk: 0.976, def: 1.13, spd: 1.027 },
+  [EnumMonsterLine.DARK]: { hp: 0.939, atk: 1.186, def: 0.988, spd: 0.988 },
+  [EnumMonsterLine.SHADOW]: { hp: 0.923, atk: 1.077, def: 0.975, spd: 1.231 },
 }
 
 // Alternate branches lean a different way from their line: flame turns agile, tide turns fierce,
