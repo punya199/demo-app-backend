@@ -11,7 +11,10 @@ export const CRITICAL_CHANCE = 0.15
 export const CRITICAL_MULTIPLIER = 1.5
 export const STRONG_MULTIPLIER = 1.3
 export const WEAK_MULTIPLIER = 0.8
-export const DEFENSE_FACTOR = 0.5
+// Defense cuts damage by DEF / (DEF + DEFENSE_K): never 0% or 100%, with diminishing returns.
+export const DEFENSE_K = 40
+// Defense can never cut more than this share of a hit.
+export const MAX_DEFENSE_REDUCTION = 0.75
 // Each hit lands between (1 - DAMAGE_VARIANCE) and (1 + DAMAGE_VARIANCE) of its base damage.
 export const DAMAGE_VARIANCE = 0.15
 
@@ -133,9 +136,9 @@ export const rollHit = (
   const variance = 1 - DAMAGE_VARIANCE + rng() * DAMAGE_VARIANCE * 2
   const raw =
     attacker.stats.atk *
-      (isSkill ? attacker.skill.power : 1) *
-      effectivenessMultiplier[effectiveness] -
-    defender.stats.def * DEFENSE_FACTOR
+    (isSkill ? attacker.skill.power : 1) *
+    effectivenessMultiplier[effectiveness] *
+    (1 - Math.min(MAX_DEFENSE_REDUCTION, defender.stats.def / (defender.stats.def + DEFENSE_K)))
   const damage = Math.max(
     1,
     Math.round(
