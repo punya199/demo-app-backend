@@ -137,7 +137,7 @@ const ARMS: IArmDef[] = [
     ],
     keystones: [
       ['Overgrowth', { regen: 3, noCrit: 1 }],
-      ['Thorn Mantle', { thorns: 20, atk: -20 }],
+      ['Thorn Mantle', { thorns: 12, atk: -20 }],
     ],
     masteries: [
       [
@@ -300,7 +300,7 @@ export const getAscendancyPath = (nodeId: string): AscendancyPath | null =>
 // them so that a full 100-point build stays in line with what play progression expects (see
 // passive-balance.spec.ts). Burn turns and the first strike / no crit flags are never scaled.
 export const PASSIVE_POWER_SCALE = 0.5
-export const PASSIVE_KEYSTONE_SCALE = 0.8
+export const PASSIVE_KEYSTONE_SCALE = 0.6
 const UNSCALED: PassiveEffectKey[] = ['burn', 'firstStrike', 'noCrit']
 
 // Rounded to the nearest 0.5 so tooltips stay readable, never below 0.5 for a positive value.
@@ -316,7 +316,9 @@ const scaleFx = (fx: IPassiveEffects, scale: number): IPassiveEffects =>
   )
 
 export const PASSIVE_LANE_LENGTH = 16
-const LANE_OFFSET = [-15, 0, 15]
+// Spacing: nodes sit 34 apart along a lane, lanes fan out by 18 degrees, so no two nodes touch even
+// with the largest frame (the keystone hexagon, 19 across).
+const LANE_OFFSET = [-18, 0, 18]
 const BRIDGE_LENGTH = 6
 const RING_SIZE = 12
 
@@ -356,7 +358,7 @@ const buildNodes = () => {
 
   add(PASSIVE_HUB, 'Trainer hub', 'small', 'bridge', {}, 0, 0)
   for (let i = 0; i < RING_SIZE; i++) {
-    add(`v2-ring-${pad(i)}`, 'Hub ring', 'small', 'bridge', { hp: 1 }, 55, (i * 360) / RING_SIZE)
+    add(`v2-ring-${pad(i)}`, 'Hub ring', 'small', 'bridge', { hp: 1 }, 68, (i * 360) / RING_SIZE)
     link(PASSIVE_HUB, `v2-ring-${pad(i)}`)
   }
 
@@ -368,7 +370,7 @@ const buildNodes = () => {
         const id = `v2-${arm.id}-${laneIndex}-${pad(k)}`
         const sway = Math.sin(k * 0.7 + armIndex) * 2.2
         const angle = base + LANE_OFFSET[laneIndex] + sway
-        const radius = 110 + k * 24
+        const radius = 120 + k * 34
         if (k === PASSIVE_LANE_LENGTH - 1 && laneIndex !== 1) {
           const [name, fx] = arm.keystones[laneIndex === 0 ? 0 : 1]
           add(id, name, 'key', arm.id, fx, radius, angle)
@@ -418,8 +420,8 @@ const buildNodes = () => {
           isNotable ? 'notable' : 'small',
           'bridge',
           isNotable ? double(fx) : fx,
-          150 + k * 40,
-          middle + (lane === 0 ? -4 : 4)
+          (lane === 0 ? 256 : 290) + k * 40.8,
+          middle + (lane === 0 ? -3 : 3)
         )
         if (previous) {
           link(previous, id)
@@ -427,11 +429,11 @@ const buildNodes = () => {
         previous = id
       }
       if (lane === 0) {
-        link(`v2-${arm.id}-2-02`, `v2-bridge-${armIndex}-0-00`)
+        link(`v2-${arm.id}-2-04`, `v2-bridge-${armIndex}-0-00`)
         link(`v2-${next.id}-0-10`, `v2-bridge-${armIndex}-0-${pad(BRIDGE_LENGTH - 1)}`)
       } else {
-        link(`v2-${arm.id}-2-03`, `v2-bridge-${armIndex}-1-00`)
-        link(`v2-${next.id}-0-09`, `v2-bridge-${armIndex}-1-${pad(BRIDGE_LENGTH - 1)}`)
+        link(`v2-${arm.id}-2-05`, `v2-bridge-${armIndex}-1-00`)
+        link(`v2-${next.id}-0-11`, `v2-bridge-${armIndex}-1-${pad(BRIDGE_LENGTH - 1)}`)
       }
     }
     link(`v2-bridge-${armIndex}-0-02`, `v2-bridge-${armIndex}-1-02`)
@@ -442,7 +444,7 @@ const buildNodes = () => {
     const base = armIndex * 60 - 90
     arm.masteries.forEach(([name, options], index) => {
       const id = `v2-${arm.id}-m${index}`
-      add(id, name, 'mastery', arm.id, {}, 332, base + (index === 0 ? -8 : 8))
+      add(id, name, 'mastery', arm.id, {}, 430, base + (index === 0 ? -9 : 9))
       nodes.get(id)!.options = options.map(([optionName, fx]) => ({
         name: optionName,
         fx: scaleFx(fx, PASSIVE_POWER_SCALE),
@@ -470,8 +472,8 @@ const buildNodes = () => {
         'ascend',
         'ascend',
         fx,
-        610 + (k % 2) * 22,
-        pathIndex * 120 + 30 - 33 + k * 6
+        780 + (k % 2) * 28,
+        pathIndex * 120 + 30 - 27.5 + k * 5
       )
       if (previous) {
         link(previous, id)
@@ -613,6 +615,88 @@ export const canAllocateAscendancy = (
     return false
   }
   return nodeId === ascendancyRoot(nodePath) || NODES.get(nodeId)!.adj.some(id => ids.includes(id))
+}
+
+// A whole tree as the player edits it: saved in one go, or not at all.
+export interface IPassiveDraft {
+  nodeIds: string[]
+  masteries: MasteryPicks
+  ascendancyNodeIds: string[]
+}
+
+// Why a draft cannot be saved, or null when it can. `points` / `ascendancyPoints` are what the
+// player has earned in each pool.
+export const validatePassiveDraft = (
+  draft: IPassiveDraft,
+  limits: { points: number; ascendancyPoints: number }
+): string | null => {
+  if (!isValidAllocation(draft.nodeIds)) {
+    return 'Those nodes are not one connected tree'
+  }
+  if (draft.nodeIds.length > limits.points) {
+    return 'Not enough passive points'
+  }
+  const picked = Object.entries(draft.masteries)
+  if (
+    picked.some(([id, option]) => !draft.nodeIds.includes(id) || !isValidMasteryPick(id, option))
+  ) {
+    return 'Invalid mastery pick'
+  }
+  const asc = draft.ascendancyNodeIds
+  if (asc.length) {
+    const path = getAscendancyPath(asc[0])
+    const owned = new Set(asc)
+    if (!path || owned.size !== asc.length || asc.some(id => getAscendancyPath(id) !== path)) {
+      return 'Ascendancy nodes must be unique and on one path'
+    }
+    // Every node must be reachable from the path's first node through owned nodes.
+    const seen = new Set([ascendancyRoot(path)])
+    const stack = [ascendancyRoot(path)]
+    while (stack.length) {
+      for (const id of NODES.get(stack.pop()!)?.adj ?? []) {
+        if (owned.has(id) && !seen.has(id)) {
+          seen.add(id)
+          stack.push(id)
+        }
+      }
+    }
+    if (!owned.has(ascendancyRoot(path)) || asc.some(id => !seen.has(id))) {
+      return 'Ascendancy nodes must be connected to the first node of the path'
+    }
+    if (asc.length > limits.ascendancyPoints) {
+      return 'No ascendancy points left'
+    }
+  }
+  return null
+}
+
+// Gems a save costs: points taken back beyond the free refunds, a changed mastery pick, and
+// starting the ascendancy over (anything removed from it, or a different path).
+export const calcPassiveSaveCost = (
+  saved: IPassiveDraft,
+  draft: IPassiveDraft,
+  refundedPoints: number
+) => {
+  const kept = new Set(draft.nodeIds)
+  const removed = saved.nodeIds.filter(id => !kept.has(id)).length
+  const respec = calcRespecCost(refundedPoints, removed)
+  const repicks = Object.entries(saved.masteries).filter(
+    ([id, option]) =>
+      kept.has(id) && draft.masteries[id] !== undefined && draft.masteries[id] !== option
+  ).length
+  const ascendancyReset =
+    saved.ascendancyNodeIds.length > 0 &&
+    saved.ascendancyNodeIds.some(id => !draft.ascendancyNodeIds.includes(id))
+  return {
+    removed,
+    respec,
+    repicks: repicks * MASTERY_REPICK_GEM_PRICE,
+    ascendancyReset: ascendancyReset ? ASCENDANCY_RESET_GEM_PRICE : 0,
+    total:
+      respec +
+      repicks * MASTERY_REPICK_GEM_PRICE +
+      (ascendancyReset ? ASCENDANCY_RESET_GEM_PRICE : 0),
+  }
 }
 
 export const isValidMasteryPick = (nodeId: string, option: number) => {

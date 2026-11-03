@@ -13,6 +13,7 @@ import {
   branchOf,
   calcAscendancyPoints,
   calcPassiveBonus,
+  calcPassiveSaveCost,
   calcPassivePoints,
   calcRespecCost,
   canAllocate,
@@ -20,6 +21,8 @@ import {
   canDeallocate,
   getAscendancyPath,
   isValidMasteryPick,
+  IPassiveDraft,
+  validatePassiveDraft,
   MASTERY_REPICK_GEM_PRICE,
   PASSIVE_BRANCH_REFUND_CAP,
   PASSIVE_FREE_REFUNDS,
@@ -123,6 +126,7 @@ export class PassiveService {
           max: ASCENDANCY_MAX_POINTS,
         },
         resetCost: ascendancyIds.length ? ASCENDANCY_RESET_GEM_PRICE : 0,
+        resetPrice: ASCENDANCY_RESET_GEM_PRICE,
         masteryRepickPrice: MASTERY_REPICK_GEM_PRICE,
       },
       points: {
@@ -214,6 +218,47 @@ export class PassiveService {
     )
     row.refundedPoints += nodeIds.length
     return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
+  }
+
+  // Replaces the whole tree in one transaction: validates it against the points earned, then
+  // charges for what was taken back (free refunds first), changed mastery picks and a restarted
+  // ascendancy. Nothing is written if any part is invalid or the gems are short.
+  async save(userId: string, draft: IPassiveDraft) {
+    return this.dataSource.transaction(async etm => {
+      const row = await this.lockRow(userId, etm)
+      const progress = await loadProgress(userId, new Date(), etm)
+      const error = validatePassiveDraft(draft, {
+        points: progress.earned,
+        ascendancyPoints: progress.ascendancyEarned,
+      })
+      if (error) {
+        throw new BadRequestException(error)
+      }
+      const saved: IPassiveDraft = {
+        nodeIds: row.nodeIds,
+        masteries: row.masteryPicks ?? {},
+        ascendancyNodeIds: row.ascendancyNodeIds ?? [],
+      }
+      const cost = calcPassiveSaveCost(saved, draft, row.refundedPoints)
+      if (cost.total > 0) {
+        await this.walletService.change(
+          userId,
+          EnumWalletCurrency.GEM,
+          -cost.total,
+          EnumWalletTransactionReason.PASSIVE_RESPEC,
+          null,
+          etm
+        )
+      }
+      row.nodeIds = draft.nodeIds
+      row.masteryPicks = draft.masteries
+      row.refundedPoints += cost.removed
+      row.ascendancyNodeIds = draft.ascendancyNodeIds
+      row.ascendancyPath = draft.ascendancyNodeIds.length
+        ? getAscendancyPath(draft.ascendancyNodeIds[0])
+        : null
+      return this.state(await etm.save(PassiveAllocationEntity, row), userId, etm)
+    })
   }
 
   async deallocate(userId: string, nodeId: string) {

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
-import { PassiveMasteryBodyDto, PassiveNodeBodyDto } from './dto/passive.dto'
+import { PassiveMasteryBodyDto, PassiveNodeBodyDto, PassiveSaveBodyDto } from './dto/passive.dto'
 import { PassiveService } from './passive.service'
 
 @Controller('passive')
@@ -12,6 +12,12 @@ export class PassiveController {
   @Get()
   async getState(@ReqUser() user: IAppJwtPayload) {
     return this.passiveService.getState(user['user-id'])
+  }
+
+  @AuthUser()
+  @Post('save')
+  async save(@Body() body: PassiveSaveBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.passiveService.save(user['user-id'], body)
   }
 
   @AuthUser()

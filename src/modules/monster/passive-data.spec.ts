@@ -7,6 +7,9 @@ import {
   canDeallocate,
   ascendancyRoot,
   calcAscendancyPoints,
+  calcPassiveSaveCost,
+  IPassiveDraft,
+  validatePassiveDraft,
   canAllocateAscendancy,
   isValidAllocation,
   isValidMasteryPick,
@@ -46,11 +49,23 @@ describe('passive graph', () => {
     expect(PASSIVE_NODES.filter(n => n.kind === 'key').every(n => drawback(n.fx))).toBe(true)
   })
 
-  it('uses only v2 ids and keeps the main tree inside 600 from the hub', () => {
+  it('uses only v2 ids and keeps the main tree inside 700 from the hub', () => {
     expect(PASSIVE_NODES.filter(n => n.id !== PASSIVE_HUB).every(n => n.id.startsWith('v2-'))).toBe(
       true
     )
-    expect(main.every(n => Math.hypot(n.x, n.y) < 600)).toBe(true)
+    expect(main.every(n => Math.hypot(n.x, n.y) < 700)).toBe(true)
+  })
+
+  it('spaces nodes out: no two nodes closer than 28 apart', () => {
+    let closest = Infinity
+    for (let i = 0; i < PASSIVE_NODES.length; i++) {
+      for (let j = i + 1; j < PASSIVE_NODES.length; j++) {
+        const a = PASSIVE_NODES[i]
+        const b = PASSIVE_NODES[j]
+        closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y))
+      }
+    }
+    expect(closest).toBeGreaterThanOrEqual(28)
   })
 
   it('has 12 masteries with 3 options each and no effect until one is picked', () => {
@@ -94,8 +109,8 @@ describe('calcPassiveBonus', () => {
     const { combat } = calcPassiveBonus(['v2-flame-0-00', 'v2-flame-0-01'])
     expect(combat.pct.atk).toBeCloseTo(0.02)
     const keystone = calcPassiveBonus(['v2-flame-0-15']).combat.pct
-    expect(keystone.atk).toBeCloseTo(0.4)
-    expect(keystone.def).toBeCloseTo(-0.32)
+    expect(keystone.atk).toBeCloseTo(0.3)
+    expect(keystone.def).toBeCloseTo(-0.24)
     expect(calcPassiveBonus(['v2-flame-2-15']).combat.effects).toEqual({ burnTurns: 2 })
   })
 
@@ -122,7 +137,7 @@ describe('calcPassiveBonus', () => {
     )
     expect(merged.effects.burnTurns).toBe(5)
     expect(merged.effects.shieldPct).toBe(0.15)
-    expect(merged.pct.hp).toBeCloseTo(-0.16)
+    expect(merged.pct.hp).toBeCloseTo(-0.12)
   })
 })
 
@@ -167,8 +182,8 @@ describe('masteries and ascendancy', () => {
 
   it('applies keystone effects: lifesteal, thorns, first strike and no crit', () => {
     const { effects } = calcPassiveBonus(['v2-tide-2-15', 'v2-leaf-2-15']).combat
-    expect(effects.lifesteal).toBeCloseTo(0.12)
-    expect(effects.thorns).toBeCloseTo(0.16)
+    expect(effects.lifesteal).toBeCloseTo(0.09)
+    expect(effects.thorns).toBeCloseTo(0.07)
     expect(calcPassiveBonus(['v2-lightning-2-15']).combat.effects.firstStrike).toBe(1)
     expect(calcPassiveBonus(['v2-earth-2-15']).combat.effects.noCrit).toBe(1)
   })
@@ -193,5 +208,125 @@ describe('masteries and ascendancy', () => {
     expect(calcAscendancyPoints({ nightmareClears: 2, worldBossDefeats: 3 })).toBe(5)
     expect(calcAscendancyPoints({ nightmareClears: 20, worldBossDefeats: 20 })).toBe(12)
     expect(calcAscendancyPoints({ nightmareClears: 0, worldBossDefeats: 0 })).toBe(0)
+  })
+})
+
+describe('saving a whole draft', () => {
+  const empty: IPassiveDraft = { nodeIds: [], masteries: {}, ascendancyNodeIds: [] }
+  const limits = { points: 10, ascendancyPoints: 3 }
+  const draft = (overrides: Partial<IPassiveDraft>): IPassiveDraft => ({ ...empty, ...overrides })
+
+  it('accepts a connected tree within the points earned, and an empty one', () => {
+    expect(validatePassiveDraft(empty, limits)).toBeNull()
+    expect(
+      validatePassiveDraft(draft({ nodeIds: ['v2-ring-09', 'v2-flame-1-00'] }), limits)
+    ).toBeNull()
+  })
+
+  it('refuses unconnected nodes, too many points and duplicates', () => {
+    expect(validatePassiveDraft(draft({ nodeIds: ['v2-flame-1-01'] }), limits)).toMatch(/connected/)
+    expect(validatePassiveDraft(draft({ nodeIds: ['v2-ring-09', 'v2-ring-09'] }), limits)).toMatch(
+      /connected/
+    )
+    const many = PASSIVE_NODES.filter(n => n.id.startsWith('v2-ring-')).map(n => n.id)
+    expect(validatePassiveDraft(draft({ nodeIds: many }), { ...limits, points: 5 })).toMatch(
+      /points/
+    )
+  })
+
+  it('only allows mastery picks on owned masteries with a valid option', () => {
+    // Shortest way from the hub to the mastery.
+    const byId = new Map(PASSIVE_NODES.map(n => [n.id, n]))
+    const via = new Map<string, string>([[PASSIVE_HUB, '']])
+    const queue = [PASSIVE_HUB]
+    while (queue.length) {
+      const id = queue.shift()!
+      for (const next of byId.get(id)!.adj) {
+        if (!via.has(next)) {
+          via.set(next, id)
+          queue.push(next)
+        }
+      }
+    }
+    const path: string[] = []
+    for (let id = 'v2-flame-m0'; id !== PASSIVE_HUB; id = via.get(id)!) {
+      path.unshift(id)
+    }
+    expect(
+      validatePassiveDraft(draft({ nodeIds: path, masteries: { 'v2-flame-m0': 1 } }), {
+        ...limits,
+        points: 40,
+      })
+    ).toBeNull()
+    expect(
+      validatePassiveDraft(draft({ nodeIds: path, masteries: { 'v2-flame-m0': 3 } }), {
+        ...limits,
+        points: 40,
+      })
+    ).toMatch(/mastery/)
+    expect(
+      validatePassiveDraft(
+        draft({ nodeIds: ['v2-ring-09'], masteries: { 'v2-flame-m0': 1 } }),
+        limits
+      )
+    ).toMatch(/mastery/)
+  })
+
+  it('checks the ascendancy: one path, connected to its first node, within its pool', () => {
+    const root = ascendancyRoot('striker')
+    expect(
+      validatePassiveDraft(draft({ ascendancyNodeIds: [root, 'v2-asc-striker-01'] }), limits)
+    ).toBeNull()
+    expect(
+      validatePassiveDraft(draft({ ascendancyNodeIds: ['v2-asc-striker-01'] }), limits)
+    ).toMatch(/first node|connected/)
+    expect(
+      validatePassiveDraft(draft({ ascendancyNodeIds: [root, 'v2-asc-warden-00'] }), limits)
+    ).toMatch(/one path/)
+    expect(
+      validatePassiveDraft(
+        draft({
+          ascendancyNodeIds: [root, 'v2-asc-striker-01', 'v2-asc-striker-02', 'v2-asc-striker-03'],
+        }),
+        limits
+      )
+    ).toMatch(/ascendancy points/)
+  })
+
+  it('charges for taken-back points after the free refunds, changed picks and a restarted ascendancy', () => {
+    const ids = ['v2-ring-09', 'v2-flame-1-00', 'v2-flame-1-01', 'v2-flame-1-02']
+    const saved = draft({ nodeIds: ids })
+    // Adding nodes costs nothing; taking 2 back within the free refunds costs nothing.
+    expect(calcPassiveSaveCost(saved, draft({ nodeIds: [...ids, 'v2-flame-1-03'] }), 0).total).toBe(
+      0
+    )
+    expect(calcPassiveSaveCost(saved, draft({ nodeIds: ids.slice(0, 2) }), 0)).toMatchObject({
+      removed: 2,
+      total: 0,
+    })
+    expect(calcPassiveSaveCost(saved, draft({ nodeIds: ids.slice(0, 2) }), 9).total).toBe(1)
+    expect(calcPassiveSaveCost(saved, empty, 10).total).toBe(4)
+    const picked = draft({
+      nodeIds: ['v2-ring-09', 'v2-flame-m0'],
+      masteries: { 'v2-flame-m0': 0 },
+    })
+    expect(
+      calcPassiveSaveCost(
+        picked,
+        draft({ nodeIds: ['v2-ring-09', 'v2-flame-m0'], masteries: { 'v2-flame-m0': 2 } }),
+        0
+      ).repicks
+    ).toBe(1)
+    expect(
+      calcPassiveSaveCost(draft({ ascendancyNodeIds: ['v2-asc-striker-00'] }), empty, 0)
+        .ascendancyReset
+    ).toBe(20)
+    expect(
+      calcPassiveSaveCost(
+        draft({ ascendancyNodeIds: ['v2-asc-striker-00'] }),
+        draft({ ascendancyNodeIds: ['v2-asc-striker-00', 'v2-asc-striker-01'] }),
+        0
+      ).ascendancyReset
+    ).toBe(0)
   })
 })
