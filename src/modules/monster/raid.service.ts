@@ -20,6 +20,7 @@ import {
   grantItem,
   isEquipmentBagFull,
   loadEquipmentBonus,
+  rand,
   toEquipmentView,
 } from './equipment.service'
 import { InventoryService } from './inventory.service'
@@ -191,7 +192,7 @@ export class RaidService {
         const template = findSetPieceTemplate(boss.setId, slot)!
         const row = await grantItem(
           userId,
-          buildSetPiece(template.id, difficulty.grade),
+          buildSetPiece(template.id, difficulty.grade, rand),
           `raid:${bossId}:${difficulty.difficulty}`,
           etm
         )
@@ -249,7 +250,7 @@ export class RaidService {
       }
       const row = (await grantItem(
         userId,
-        buildSetPiece(template.id, grade),
+        buildSetPiece(template.id, grade, rand),
         `exchange:${bossId}`,
         etm
       ))!

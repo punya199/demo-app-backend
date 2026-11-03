@@ -14,6 +14,7 @@ import { combatTotals } from './monster-potential'
 import {
   BOX_GRADE_RATES,
   calcEquipmentBonus,
+  canEquip,
   ISpecialOption,
   calcSetBonuses,
   calcSetProgress,
@@ -26,6 +27,7 @@ import {
   getItemStats,
   IEquipmentItem,
   mainValueAt,
+  MIN_STAGE_BY_GRADE,
   rollEquipment,
   rollGrade,
   SLOT_MAIN_STAT,
@@ -48,7 +50,7 @@ const MATERIAL_CURRENCY = {
   raid_token: EnumWalletCurrency.RAID_TOKEN,
 } as const
 
-const rand = () => randomInt(0, 1_000_000) / 1_000_000
+export const rand = () => randomInt(0, 1_000_000) / 1_000_000
 
 export const toEquipmentCore = (row: EquipmentItemEntity): IEquipmentItem => ({
   templateId: row.templateId,
@@ -76,6 +78,8 @@ export const toEquipmentView = (row: EquipmentItemEntity) => {
     mainValue: mainValueAt(row.mainValue, row.enhanceLevel),
     subStats: row.subStats,
     specialOptions: row.specialOptions,
+    // The youngest form that may put it on (null = any); the screen locks it for younger pets.
+    minStage: MIN_STAGE_BY_GRADE[row.grade as EnumEquipmentGrade],
     stats: getItemStats(core),
     enhanceLevel: row.enhanceLevel,
     pity: row.pity,
@@ -212,6 +216,9 @@ export class EquipmentService {
         throw new BadRequestException('Monster is on an expedition')
       }
       if (!(item.equipped && item.monsterId === pet.id)) {
+        if (!canEquip(pet.stage, item.grade as EnumEquipmentGrade)) {
+          throw new BadRequestException('Monster is too young to wear this equipment')
+        }
         // Free the slot first: the unique index allows one worn piece per pet and slot.
         await etm.update(
           EquipmentItemEntity,

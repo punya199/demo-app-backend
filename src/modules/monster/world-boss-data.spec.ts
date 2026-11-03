@@ -88,7 +88,14 @@ describe('world boss rewards', () => {
 
 describe('claim rolls', () => {
   it('are the same every time for the same boss and player, so a retry cannot re-roll', () => {
-    expect(claimRolls('boss-1', 'user-1')).toEqual(claimRolls('boss-1', 'user-1'))
+    const first = claimRolls('boss-1', 'user-1')
+    const second = claimRolls('boss-1', 'user-1')
+    expect([first.pieceRoll, first.slot, first.rng(), first.rng()]).toEqual([
+      second.pieceRoll,
+      second.slot,
+      second.rng(),
+      second.rng(),
+    ])
     const rolls = claimRolls('boss-1', 'user-1')
     expect(rolls.pieceRoll).toBeGreaterThanOrEqual(0)
     expect(rolls.pieceRoll).toBeLessThan(1)

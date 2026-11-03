@@ -165,7 +165,7 @@ describe('boss raid', () => {
       const row = await dataSource.transaction(etm =>
         grantItem(
           wearer,
-          buildSetPiece(`tidal_guard_${slot}`, EnumEquipmentGrade.RARE),
+          buildSetPiece(`tidal_guard_${slot}`, EnumEquipmentGrade.RARE, () => 0.5),
           'test',
           etm
         )
