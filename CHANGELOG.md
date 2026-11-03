@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/punya199/demo-app-backend/compare/v1.30.0...v1.31.0) (2026-11-03)
+
+
+### Update
+
+* reduce damage by DEF percentage (DEF/(DEF+40), capped at 75%) ([56f531e](https://github.com/punya199/demo-app-backend/commit/56f531ea459a3dcccd572d08086fac62da6c4c8b))
+
 # [1.30.0](https://github.com/punya199/demo-app-backend/compare/v1.29.0...v1.30.0) (2026-11-03)
 
 
