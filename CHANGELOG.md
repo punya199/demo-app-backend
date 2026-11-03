@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/punya199/demo-app-backend/compare/v1.28.0...v1.29.0) (2026-11-03)
+
+
+### Update
+
+* raise equipment bag to 100 and add bulk dismantle ([e93f830](https://github.com/punya199/demo-app-backend/commit/e93f83031146620aa9ed7d1341b5dc5eba16946b))
+
 # [1.28.0](https://github.com/punya199/demo-app-backend/compare/v1.27.0...v1.28.0) (2026-11-03)
 
 
