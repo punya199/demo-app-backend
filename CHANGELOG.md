@@ -1,3 +1,15 @@
+# [1.34.0](https://github.com/punya199/demo-app-backend/compare/v1.33.0...v1.34.0) (2026-11-04)
+
+
+### New
+
+* add six world bosses, random weekly pick and per-boss mechanics ([67883a3](https://github.com/punya199/demo-app-backend/commit/67883a3cc6c55017b334f6f0da54487f40fc321a))
+
+### Update
+
+* add flat shield and enrage to the team battle engine ([ff23f91](https://github.com/punya199/demo-app-backend/commit/ff23f9194f7f8c269a09574a6c8d9c7383c67422))
+* send the world boss element, shield, enrage and set name in its status ([67a1d1b](https://github.com/punya199/demo-app-backend/commit/67a1d1b77af1ac890ebb6157aca0bd6c8e5a9e89))
+
 # [1.33.0](https://github.com/punya199/demo-app-backend/compare/v1.32.0...v1.33.0) (2026-11-04)
 
 
