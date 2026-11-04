@@ -1,3 +1,11 @@
+# [1.33.0](https://github.com/punya199/demo-app-backend/compare/v1.32.0...v1.33.0) (2026-11-04)
+
+
+### New
+
+* add Claude skills for env vars, release commits and battle golden checks ([d7b316a](https://github.com/punya199/demo-app-backend/commit/d7b316add9f728fe8fa1b01ab3771a78ccbb7f12))
+* add shared Claude skill for monster endpoints ([8565d0a](https://github.com/punya199/demo-app-backend/commit/8565d0a7a9f2ae93a614360a2662018fccc60974))
+
 # [1.32.0](https://github.com/punya199/demo-app-backend/compare/v1.31.0...v1.32.0) (2026-11-03)
 
 
