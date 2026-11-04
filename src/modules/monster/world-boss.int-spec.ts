@@ -1,6 +1,6 @@
 // Runs against a real, throwaway Postgres via `yarn test:integration` (see int-test-helpers.ts).
 import dataSource from '../../config/database.config'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from './equipment-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot, SET_DEFINITIONS } from './equipment-data'
 import { InventoryService } from './inventory.service'
 import {
   buildCore,
@@ -11,7 +11,7 @@ import {
   succeeded,
 } from './int-test-helpers'
 import { bossTokenItemId } from './raid-data'
-import { getWeek } from './world-boss-data'
+import { getWeek, WORLD_BOSS_ROTATION } from './world-boss-data'
 import { WorldBossService } from './world-boss.service'
 
 jest.setTimeout(120_000)
@@ -53,6 +53,15 @@ describe('world boss', () => {
     const status = await worldBoss.getStatus(user)
     expect(status.boss.hp).toBe(status.boss.maxHp)
     expect(status.hitsLeft).toBe(3)
+    // The week's boss comes from the rotation, with its tuned HP, element, set and mechanics.
+    const definition = WORLD_BOSS_ROTATION.find(boss => boss.id === status.boss.id)!
+    expect(status.boss.maxHp).toBe(definition.hp)
+    expect(status.boss).toMatchObject({
+      element: definition.element,
+      shield: definition.shield ?? 0,
+      enrage: definition.enrage ?? null,
+      setName: SET_DEFINITIONS[definition.setId].name,
+    })
   })
 
   it('keeps young monsters out', async () => {
