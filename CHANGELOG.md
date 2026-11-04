@@ -1,3 +1,14 @@
+# [1.35.0](https://github.com/punya199/demo-app-backend/compare/v1.34.0...v1.35.0) (2026-11-04)
+
+
+### Fix
+
+* size the full-bag integration tests from EQUIPMENT_CAPACITY ([c1f9f7f](https://github.com/punya199/demo-app-backend/commit/c1f9f7fa955162bb0e65ea4c2a1981f5dcfe2629))
+
+### Update
+
+* sell the common refine stone and stop expeditions paying enhance stones ([0b5406c](https://github.com/punya199/demo-app-backend/commit/0b5406c01cc19d1af64701931219f7e4d0e05e43))
+
 # [1.34.0](https://github.com/punya199/demo-app-backend/compare/v1.33.0...v1.34.0) (2026-11-04)
 
 
