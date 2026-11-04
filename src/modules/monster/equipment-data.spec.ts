@@ -7,6 +7,7 @@ import {
   calcDismantleYield,
   calcSpecialBonuses,
   EnumMaterialId,
+  MATERIALS,
   refineTiersFor,
   rollSubStatValue,
   SUB_STAT_BASE,
@@ -412,5 +413,20 @@ describe('refine stones', () => {
     expect(calcDismantleYield(EnumEquipmentGrade.RARE, 5).refineStone).toBe(
       EnumMaterialId.REFINE_RARE
     )
+  })
+})
+
+describe('shop stones', () => {
+  it('sells the enhance stone and the common refine stone for coins, and no higher refine stone', () => {
+    const sold = new Map(MATERIALS.map(material => [material.id, material]))
+    expect(sold.get(EnumMaterialId.ENHANCE_STONE)?.currency).toBe('coin')
+    expect(sold.get(EnumMaterialId.REFINE_COMMON)?.currency).toBe('coin')
+    for (const material of [
+      EnumMaterialId.REFINE_RARE,
+      EnumMaterialId.REFINE_EPIC,
+      EnumMaterialId.REFINE_LEGENDARY,
+    ]) {
+      expect(sold.has(material)).toBe(false)
+    }
   })
 })

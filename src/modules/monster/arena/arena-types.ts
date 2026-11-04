@@ -81,6 +81,9 @@ export interface IArenaPassive {
   thorns?: number
   // % cut to attack timing (basic attack and shared skill delay).
   attackSpeed?: number
+  // World bosses: a shield in HP points, and ATK +atk% from `sec` seconds into the fight.
+  flatShield?: number
+  rage?: { sec: number; atk: number }
 }
 
 export interface IArenaDodge {
@@ -173,6 +176,8 @@ export interface IArenaFighterSpec {
   skills: string[]
   dodge: string | null
   boss?: boolean
+  // A boss that still plays by the element triangle.
+  usesElements?: boolean
   // Extra passive effects (from gear/trainer set effects).
   passive?: IArenaPassive
 }

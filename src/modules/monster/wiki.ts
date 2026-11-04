@@ -248,7 +248,6 @@ export const buildWiki = () => ({
     refineTiers: REFINE_TIERS,
     subStatRoll: SUB_STAT_ROLL,
     materials: MATERIALS,
-    expeditionStoneEveryMinutes: rules.EXPEDITION_STONE_EVERY_MINUTES,
     sets: SET_DEFINITIONS,
     enhance: {
       maxLevel: MAX_ENHANCE_LEVEL,

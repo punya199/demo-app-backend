@@ -191,7 +191,7 @@ const ARENA_ENGINE = (() => {
       hp: maxHp,
       maxHp,
       // A start shield has no timer: it stays until it is broken.
-      shield: Math.trunc((maxHp * (passive.startShield || 0)) / 100),
+      shield: Math.trunc((maxHp * (passive.startShield || 0)) / 100) + (passive.flatShield || 0),
       shieldT: 0,
       skills: actives,
       allSlots: slots,
@@ -219,6 +219,8 @@ const ARENA_ENGINE = (() => {
       ccUntil: -1,
       critNext: false,
       critBonus: 0,
+      raging: false,
+      usesElements: !!spec.usesElements,
       seized: false,
       regenAcc: 0,
       flinchReady: 0,
@@ -240,6 +242,7 @@ const ARENA_ENGINE = (() => {
     let pct = 100
     if (has(f, 'atkUp')) pct += Math.trunc((N.atkUp * f.st.atkUp.mag) / 100)
     if (has(f, 'atkDown')) pct -= N.atkDown
+    if (f.raging) pct += (f.passive.rage && f.passive.rage.atk) || 0
     if (f.passive.enrage && f.hp * 100 < f.maxHp * f.passive.enrage.belowPct) pct += f.passive.enrage.atk
     return Math.trunc((f.atk * pct) / 100)
   }
@@ -425,7 +428,7 @@ const ARENA_ENGINE = (() => {
       let elem = effectiveness(skill && skill.el && skill.el !== 'neutral' ? skill.el : a.el, d.el)
       // Adventure bosses ignore elements both ways (like the game's Boss Raid): a boss fight is a
       // close damage race, where even a x1.05 edge decided it for whole elements.
-      if (a.boss || d.boss) elem = 100
+      if ((a.boss && !a.usesElements) || (d.boss && !d.usesElements)) elem = 100
       const atk = atkOf(a)
       const def = defOf(d)
       const raw = Math.floor((atk * power * elem) / 100)
@@ -770,6 +773,10 @@ const ARENA_ENGINE = (() => {
           if (me.st[st] === s && --s.t <= 0) delete me.st[st]
         }
         if (!alive(me)) continue
+        if (me.passive.rage && !me.raging && tick >= sec(me.passive.rage.sec)) {
+          me.raging = true
+          log({ kind: 'rage', who: me.idx, x: me.x, y: me.y })
+        }
         if (me.passive.regenPct && tick % TICK === me.idx % TICK) {
           // Fractions of an HP carry over to the next second instead of rounding up to 1.
           me.regenAcc += Math.round(me.maxHp * me.passive.regenPct * 10)

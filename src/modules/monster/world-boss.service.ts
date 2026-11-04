@@ -23,6 +23,7 @@ import {
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   findSetPieceTemplate,
+  SET_DEFINITIONS,
 } from './equipment-data'
 import {
   grantItem,
@@ -166,6 +167,11 @@ export class WorldBossService {
         name: definition.name,
         emoji: definition.emoji,
         setId: definition.setId,
+        setName: SET_DEFINITIONS[definition.setId].name,
+        element: definition.element,
+        shield: definition.shield ?? 0,
+        enrage: definition.enrage ?? null,
+        ability: definition.ability,
         hp: boss.hp,
         maxHp: boss.maxHp,
         isDefeated: !!boss.defeatedAt,

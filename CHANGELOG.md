@@ -1,3 +1,26 @@
+# [1.35.0](https://github.com/punya199/demo-app-backend/compare/v1.34.0...v1.35.0) (2026-11-04)
+
+
+### Fix
+
+* size the full-bag integration tests from EQUIPMENT_CAPACITY ([c1f9f7f](https://github.com/punya199/demo-app-backend/commit/c1f9f7fa955162bb0e65ea4c2a1981f5dcfe2629))
+
+### Update
+
+* sell the common refine stone and stop expeditions paying enhance stones ([0b5406c](https://github.com/punya199/demo-app-backend/commit/0b5406c01cc19d1af64701931219f7e4d0e05e43))
+
+# [1.34.0](https://github.com/punya199/demo-app-backend/compare/v1.33.0...v1.34.0) (2026-11-04)
+
+
+### New
+
+* add six world bosses, random weekly pick and per-boss mechanics ([67883a3](https://github.com/punya199/demo-app-backend/commit/67883a3cc6c55017b334f6f0da54487f40fc321a))
+
+### Update
+
+* add flat shield and enrage to the team battle engine ([ff23f91](https://github.com/punya199/demo-app-backend/commit/ff23f9194f7f8c269a09574a6c8d9c7383c67422))
+* send the world boss element, shield, enrage and set name in its status ([67a1d1b](https://github.com/punya199/demo-app-backend/commit/67a1d1b77af1ac890ebb6157aca0bd6c8e5a9e89))
+
 # [1.33.0](https://github.com/punya199/demo-app-backend/compare/v1.32.0...v1.33.0) (2026-11-04)
 
 

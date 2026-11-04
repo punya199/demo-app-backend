@@ -277,6 +277,8 @@ interface IFighter {
   ccUntil: number
   critNext: boolean
   critBonus: number
+  raging: boolean
+  usesElements: boolean
   seized: boolean
   regenAcc: number
   flinchReady: number
@@ -351,7 +353,7 @@ const makeFighter = (
     hp: maxHp,
     maxHp,
     // A start shield has no timer: it stays until it is broken.
-    shield: Math.trunc((maxHp * (passive.startShield || 0)) / 100),
+    shield: Math.trunc((maxHp * (passive.startShield || 0)) / 100) + (passive.flatShield || 0),
     shieldT: 0,
     skills: actives,
     allSlots: slots,
@@ -378,6 +380,8 @@ const makeFighter = (
     ccUntil: -1,
     critNext: false,
     critBonus: 0,
+    raging: false,
+    usesElements: !!spec.usesElements,
     seized: false,
     regenAcc: 0,
     flinchReady: 0,
@@ -399,6 +403,7 @@ const atkOf = (f: IFighter) => {
   let pct = 100
   if (has(f, 'atkUp')) pct += Math.trunc((N.atkUp * magOf(f, 'atkUp')) / 100)
   if (has(f, 'atkDown')) pct -= N.atkDown
+  if (f.raging) pct += f.passive.rage?.atk ?? 0
   if (f.passive.enrage && f.hp * 100 < f.maxHp * f.passive.enrage.belowPct) {
     pct += f.passive.enrage.atk
   }
@@ -732,7 +737,8 @@ export const simulateArena = (
     const attackEl: ArenaElement = skill && skill.el && skill.el !== 'neutral' ? skill.el : a.el
     // Adventure bosses ignore elements both ways (like Boss Raid): a boss fight is a close damage
     // race, where even a small element edge decided it for whole elements.
-    const elem = a.boss || d.boss ? 100 : arenaEffectiveness(attackEl, d.el)
+    const ignoresElements = (f: IFighter) => f.boss && !f.usesElements
+    const elem = ignoresElements(a) || ignoresElements(d) ? 100 : arenaEffectiveness(attackEl, d.el)
     const atk = atkOf(a)
     const def = defOf(d)
     const raw = Math.floor((atk * power * elem) / 100)
@@ -1090,6 +1096,10 @@ export const simulateArena = (
         if (me.st[st] === s && --s.t <= 0) delete me.st[st]
       }
       if (!alive(me)) continue
+      if (me.passive.rage && !me.raging && tick >= sec(me.passive.rage.sec)) {
+        me.raging = true
+        log({ kind: 'rage', who: me.idx, x: me.x, y: me.y })
+      }
       if (me.passive.regenPct && tick % TICK === me.idx % TICK) {
         // Fractions of an HP carry over to the next second instead of rounding up to 1.
         me.regenAcc += Math.round(me.maxHp * me.passive.regenPct * 10)

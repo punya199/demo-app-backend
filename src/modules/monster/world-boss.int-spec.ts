@@ -1,6 +1,6 @@
 // Runs against a real, throwaway Postgres via `yarn test:integration` (see int-test-helpers.ts).
 import dataSource from '../../config/database.config'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from './equipment-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot, SET_DEFINITIONS } from './equipment-data'
 import { InventoryService } from './inventory.service'
 import {
   buildCore,
@@ -10,8 +10,9 @@ import {
   stopTestDatabase,
   succeeded,
 } from './int-test-helpers'
+import { EQUIPMENT_CAPACITY } from './monster-rules'
 import { bossTokenItemId } from './raid-data'
-import { getWeek } from './world-boss-data'
+import { getWeek, WORLD_BOSS_ROTATION } from './world-boss-data'
 import { WorldBossService } from './world-boss.service'
 
 jest.setTimeout(120_000)
@@ -53,6 +54,15 @@ describe('world boss', () => {
     const status = await worldBoss.getStatus(user)
     expect(status.boss.hp).toBe(status.boss.maxHp)
     expect(status.hitsLeft).toBe(3)
+    // The week's boss comes from the rotation, with its tuned HP, element, set and mechanics.
+    const definition = WORLD_BOSS_ROTATION.find(boss => boss.id === status.boss.id)!
+    expect(status.boss.maxHp).toBe(definition.hp)
+    expect(status.boss).toMatchObject({
+      element: definition.element,
+      shield: definition.shield ?? 0,
+      enrage: definition.enrage ?? null,
+      setName: SET_DEFINITIONS[definition.setId].name,
+    })
   })
 
   it('keeps young monsters out', async () => {
@@ -170,8 +180,8 @@ describe('world boss', () => {
     const preview = status.claimable[0].reward.pieceGrade
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)
-       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 60)`,
-      [first]
+       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, $2::int)`,
+      [first, EQUIPMENT_CAPACITY]
     )
     await expect(worldBoss.claim(first, '2000-W01')).rejects.toThrow(/bag is full/)
     await sql(`DELETE FROM equipment_items WHERE user_id=$1`, [first])

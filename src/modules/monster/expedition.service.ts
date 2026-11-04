@@ -10,13 +10,11 @@ import {
 import { WalletService } from '../wallet/wallet.service'
 import { ADVENTURE_AREAS, isStageUnlocked } from './adventure-data'
 import { toFighter } from './battle-stats'
-import { EnumMaterialId } from './equipment-data'
 import { loadEquipmentBonus } from './equipment.service'
 import { loadPassiveBonus } from './passive.service'
 import {
   calcExpeditionCoins,
   calcExpeditionDrops,
-  calcExpeditionStones,
   EXPEDITION_DROP_ITEMS,
   findExpeditionArea,
   getExpeditionBaseRate,
@@ -117,12 +115,6 @@ export class ExpeditionService {
       const items = Array.from({ length: calcExpeditionDrops(monster.expeditionMinutes) }, () => {
         return EXPEDITION_DROP_ITEMS[randomInt(0, EXPEDITION_DROP_ITEMS.length)] as string
       })
-      // Enhance stones are a steady yield; the consumable drops above are the lucky extras.
-      items.push(
-        ...Array<string>(calcExpeditionStones(monster.expeditionMinutes)).fill(
-          EnumMaterialId.ENHANCE_STONE
-        )
-      )
       const result = withRuleErrors(() => claimExpedition(monster, { coins, items }, now))
       const saved = await this.monsterService.saveState(monster, result.state, etm)
       await this.monsterService.saveEvents(saved, result.events, etm)
