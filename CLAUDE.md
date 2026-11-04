@@ -88,6 +88,10 @@ Distinct from the rest of the app: it treats a specific Google Sheet as the prim
 
 ## Agent skills
 
+### Project skills
+
+Shared skills live in `.claude/skills/` and are committed (only `.claude/skills/` is un-ignored — personal `.claude/settings.local.json` etc. stay local), so every developer's Claude follows the same checklist. Use `new-monster-endpoint` when adding/changing anything in `src/modules/monster/` (endpoint, rule, wallet reason, migration). The other repo has `new-frontend-page` for its side of the same feature.
+
 ### Issue tracker
 
 Issues live in this repo's GitHub Issues (via `gh` CLI). See `docs/agents/issue-tracker.md`.
