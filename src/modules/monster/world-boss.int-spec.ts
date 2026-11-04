@@ -10,6 +10,7 @@ import {
   stopTestDatabase,
   succeeded,
 } from './int-test-helpers'
+import { EQUIPMENT_CAPACITY } from './monster-rules'
 import { bossTokenItemId } from './raid-data'
 import { getWeek, WORLD_BOSS_ROTATION } from './world-boss-data'
 import { WorldBossService } from './world-boss.service'
@@ -179,8 +180,8 @@ describe('world boss', () => {
     const preview = status.claimable[0].reward.pieceGrade
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)
-       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 60)`,
-      [first]
+       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, $2::int)`,
+      [first, EQUIPMENT_CAPACITY]
     )
     await expect(worldBoss.claim(first, '2000-W01')).rejects.toThrow(/bag is full/)
     await sql(`DELETE FROM equipment_items WHERE user_id=$1`, [first])
