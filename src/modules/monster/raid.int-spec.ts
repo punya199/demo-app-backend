@@ -18,6 +18,7 @@ import {
   stopTestDatabase,
   succeeded,
 } from './int-test-helpers'
+import { EQUIPMENT_CAPACITY } from './monster-rules'
 import { bossTokenItemId, EnumRaidDifficulty } from './raid-data'
 import { RaidService } from './raid.service'
 
@@ -108,8 +109,8 @@ describe('boss raid', () => {
     await newDay()
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)
-       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 60)`,
-      [userId]
+       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, $2::int)`,
+      [userId, EQUIPMENT_CAPACITY]
     )
     const before = (await raid.getRaid(userId)).attemptsLeft
     await expect(raid.battle(userId, 'lava_king', EnumRaidDifficulty.NORMAL)).rejects.toThrow(

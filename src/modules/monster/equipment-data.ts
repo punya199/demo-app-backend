@@ -312,6 +312,16 @@ export const MATERIALS: IMaterial[] = [
     currency: 'coin',
   },
   {
+    // The common refine stone is sold like the enhance stone; rare, epic and legendary ones only
+    // drop (dismantling, bosses).
+    id: EnumMaterialId.REFINE_COMMON,
+    name: REFINE_TIERS[0].name,
+    emoji: '💠',
+    description: `รีไฟน์ค่ารองของชิ้นที่ตีบวกไม่เกิน +${REFINE_TIERS[0].maxLevel}`,
+    price: 40,
+    currency: 'coin',
+  },
+  {
     id: EnumMaterialId.PROTECT_SCROLL,
     name: 'ใบกันแตก',
     emoji: '📜',
