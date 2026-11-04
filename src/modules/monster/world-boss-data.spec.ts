@@ -7,7 +7,7 @@ import {
   SET_DEFINITIONS,
 } from './equipment-data'
 import { createEgg } from './monster-engine'
-import { WORLD_BOSS_ROUNDS } from './monster-rules'
+import { WORLD_BOSS_MAX_ROUNDS } from './monster-rules'
 import { simulateTeamBattle } from './team-battle'
 import {
   calcWorldBossReward,
@@ -140,17 +140,17 @@ describe('world boss balance', () => {
   }
   const LINES = [EnumMonsterLine.FLAME, EnumMonsterLine.TIDE, EnumMonsterLine.LEAF]
 
-  // Average damage of one hit by a well-cared monster of the form, over the three lines.
-  // `gear` scales every stat (equipment and passives); `elements` turns the triangle on, as the
-  // World Boss service does.
-  const averageHit = (
+  // Average hit (damage and rounds lasted) of a well-cared monster of the form, over the three
+  // lines. `gear` scales every stat (equipment and passives); `elements` turns the triangle on, as
+  // the World Boss service does. The boss has plenty of HP, so the fight ends when the pet falls.
+  const measure = (
     stage: EnumMonsterStage,
     boss = WORLD_BOSS_ROTATION[0],
     gear = 1,
-    elements = false
+    elements = true
   ) => {
-    let total = 0
-    let fights = 0
+    const rounds: number[] = []
+    let damage = 0
     for (const line of LINES) {
       const base = toFighter({
         ...createEgg(line, NOW),
@@ -170,26 +170,45 @@ describe('world boss balance', () => {
         },
       }
       for (let seed = 1; seed <= 100; seed++) {
-        total += simulateTeamBattle(
+        const result = simulateTeamBattle(
           [fighter],
-          getWorldBossFighter(boss, boss.hp),
+          getWorldBossFighter(boss, 10_000_000),
           seed,
-          WORLD_BOSS_ROUNDS,
+          WORLD_BOSS_MAX_ROUNDS,
           { ignoreElements: !elements }
-        ).damageDealt
-        fights += 1
+        )
+        damage += result.damageDealt
+        rounds.push(result.rounds)
       }
     }
-    return total / fights
+    return {
+      damage: damage / rounds.length,
+      rounds: rounds.sort((a, b) => a - b)[rounds.length >> 1],
+    }
   }
 
   it('deals more damage with a stronger form', () => {
-    const adult = averageHit(EnumMonsterStage.ADULT)
-    const perfect = averageHit(EnumMonsterStage.PERFECT)
-    const ultimate = averageHit(EnumMonsterStage.ULTIMATE)
+    const adult = measure(EnumMonsterStage.ADULT).damage
+    const perfect = measure(EnumMonsterStage.PERFECT).damage
+    const ultimate = measure(EnumMonsterStage.ULTIMATE).damage
     expect(adult).toBeGreaterThan(10)
     expect(perfect).toBeGreaterThan(adult * 2)
     expect(ultimate).toBeGreaterThan(perfect * 1.5)
+  })
+
+  it('lasts about 30 rounds for a top pet and about 12 for an adult, never near the safety limit', () => {
+    const bosses = WORLD_BOSS_ROTATION.map(boss => ({
+      top: measure(EnumMonsterStage.ULTIMATE, boss, 1.3),
+      adult: measure(EnumMonsterStage.ADULT, boss),
+    }))
+    const average = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length
+    expect(average(bosses.map(entry => entry.top.rounds))).toBeGreaterThanOrEqual(25)
+    expect(average(bosses.map(entry => entry.top.rounds))).toBeLessThanOrEqual(35)
+    expect(average(bosses.map(entry => entry.adult.rounds))).toBeGreaterThanOrEqual(8)
+    expect(average(bosses.map(entry => entry.adult.rounds))).toBeLessThanOrEqual(16)
+    for (const entry of bosses) {
+      expect(entry.top.rounds).toBeLessThan(WORLD_BOSS_MAX_ROUNDS / 2)
+    }
   })
 
   // Design: 10 top players (ultimate form, +30% stats from gear), two sessions a day. A session is
@@ -200,7 +219,7 @@ describe('world boss balance', () => {
     '%s dies in 3-5 days to ten top players',
     (_id, boss) => {
       const perDay =
-        averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3, true) * TOP_PLAYERS * HITS_PER_DAY
+        measure(EnumMonsterStage.ULTIMATE, boss, 1.3).damage * TOP_PLAYERS * HITS_PER_DAY
       expect(boss.hp / perDay).toBeGreaterThanOrEqual(3)
       expect(boss.hp / perDay).toBeLessThanOrEqual(5)
     }
@@ -208,7 +227,7 @@ describe('world boss balance', () => {
 
   it('is not defeated by one ultimate player alone in a week, even at the hit cap', () => {
     for (const boss of WORLD_BOSS_ROTATION) {
-      const hit = averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3, true)
+      const hit = measure(EnumMonsterStage.ULTIMATE, boss, 1.3).damage
       expect(hit * 24 * 7).toBeLessThan(boss.hp)
     }
   })
@@ -247,8 +266,53 @@ describe('world boss mechanics', () => {
     })
   const plain: IWorldBoss = { ...WORLD_BOSS_ROTATION[0], enrage: undefined, shield: undefined }
 
-  it('gives no mods to a boss without a shield or enrage', () => {
-    expect(getWorldBossFighter(plain, 1000).bossMods).toBeUndefined()
+  // A pet that cannot fall or win, to watch the boss alone over a long fight.
+  const rock = () => {
+    const base = hero()
+    return { ...base, stats: { ...base.stats, hp: 1e12, atk: 1 } }
+  }
+
+  it('scales the boss every 10 rounds and says so in the replay', () => {
+    const result = simulateTeamBattle([rock()], getWorldBossFighter(plain, 1e12), 3, 35)
+    const scales = result.events.filter(event => event.kind === 'scale')
+    expect(scales.map(event => [event.round, event.scaleLevel])).toEqual([
+      [11, 1],
+      [21, 2],
+      [31, 3],
+    ])
+    // Plain boss hits (no crit, skill, dodge) get harder block by block.
+    const hits = (from: number, to: number) =>
+      result.events
+        .filter(
+          event =>
+            event.actor === 'enemy' &&
+            !event.kind &&
+            !event.isSkill &&
+            !event.isCritical &&
+            event.round >= from &&
+            event.round <= to
+        )
+        .map(event => event.damage)
+    const average = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length
+    expect(average(hits(11, 20))).toBeGreaterThan(average(hits(1, 10)) * 1.2)
+    expect(average(hits(21, 30))).toBeGreaterThan(average(hits(11, 20)) * 1.2)
+  })
+
+  it('does not scale the first 10 rounds', () => {
+    const result = simulateTeamBattle([rock()], getWorldBossFighter(plain, 1e12), 3, 10)
+    expect(result.events.some(event => event.kind === 'scale')).toBe(false)
+  })
+
+  it('stops at the safety limit when nobody can win, keeping the damage dealt so far', () => {
+    const result = simulateTeamBattle(
+      [rock()],
+      getWorldBossFighter(plain, 1e12),
+      3,
+      WORLD_BOSS_MAX_ROUNDS
+    )
+    expect(result.rounds).toBe(WORLD_BOSS_MAX_ROUNDS)
+    expect(result.bossDefeated).toBe(false)
+    expect(result.damageDealt).toBeGreaterThan(0)
   })
 
   it('a shield eats the first damage of every fight without touching the shared HP', () => {

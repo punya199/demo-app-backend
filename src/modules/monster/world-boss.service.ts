@@ -38,7 +38,7 @@ import {
   RENTAL_OWNER_DAILY_CAP,
   WORLD_BOSS_HITS,
   WORLD_BOSS_RESET_HOURS,
-  WORLD_BOSS_ROUNDS,
+  WORLD_BOSS_MAX_ROUNDS,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import { calcRentalFee, orderPair } from './social-data'
@@ -218,7 +218,7 @@ export class WorldBossService {
       const rental = supportId ? await this.rentAlly(userId, supportId, now, etm) : null
       const team = rental ? [player, rental.ally] : [player]
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_ROUNDS, {
+      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_MAX_ROUNDS, {
         ignoreElements: false,
       })
       // The renter's ranking counts only their own damage; the ally's still empties the boss.

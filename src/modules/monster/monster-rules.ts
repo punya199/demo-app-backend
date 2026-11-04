@@ -167,7 +167,13 @@ export const RAID_BOSS_TOKENS_PER_WIN = 1
 export const WORLD_BOSS_HITS = 3
 export const WORLD_BOSS_RESET_HOURS = 3
 // A hit lasts this many rounds (or until the team is wiped out).
-export const WORLD_BOSS_ROUNDS = 10
+// A fight has no round limit: it ends when the boss falls or the whole team does. Every
+// SCALE_EVERY_ROUNDS the boss's atk and def multiply (compounding) so it always ends; MAX_ROUNDS is
+// only a safety stop (the fight ends there with the damage dealt so far).
+export const WORLD_BOSS_MAX_ROUNDS = 100
+export const WORLD_BOSS_SCALE_EVERY_ROUNDS = 10
+export const WORLD_BOSS_SCALE_ATK = 1.4
+export const WORLD_BOSS_SCALE_DEF = 1.2
 
 // Friends and rental (phase 5c).
 export const FRIEND_LIMIT = 30

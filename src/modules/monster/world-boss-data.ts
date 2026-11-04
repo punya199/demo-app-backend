@@ -2,6 +2,11 @@ import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.ent
 import { createRng } from './battle-engine'
 import { IFighter } from './battle-stats'
 import { EnumEquipmentGrade, EnumEquipmentSlot, EnumMaterialId } from './equipment-data'
+import {
+  WORLD_BOSS_SCALE_ATK,
+  WORLD_BOSS_SCALE_DEF,
+  WORLD_BOSS_SCALE_EVERY_ROUNDS,
+} from './monster-rules'
 import { scaleStats, STAGE_BASE_STATS } from './species-data'
 
 // One world boss per Thai ISO week, shared by every player: they all chip away at one HP pool.
@@ -36,7 +41,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '⚡',
     setId: 'swift_thunder',
     element: EnumMonsterLine.LIGHTNING,
-    hp: 111_000,
+    hp: 375_000,
     skillName: 'พายุสายฟ้า',
     enrage: { round: 6, mult: 1.5 },
   },
@@ -46,7 +51,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '🔥',
     setId: 'blazing',
     element: EnumMonsterLine.FLAME,
-    hp: 114_000,
+    hp: 383_000,
     skillName: 'ลมหายใจเพลิง',
     strength: 1.1,
     enrage: { round: 5, mult: 1.5 },
@@ -57,7 +62,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '🌊',
     setId: 'tidal_guard',
     element: EnumMonsterLine.TIDE,
-    hp: 98_000,
+    hp: 499_000,
     skillName: 'คลื่นยักษ์',
     shield: 120,
   },
@@ -67,7 +72,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '🌳',
     setId: 'deep_root',
     element: EnumMonsterLine.EARTH,
-    hp: 107_000,
+    hp: 594_000,
     skillName: 'รากพันธนาการ',
     shield: 150,
   },
@@ -77,7 +82,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '✨',
     setId: 'radiant',
     element: EnumMonsterLine.HOLY,
-    hp: 126_000,
+    hp: 498_000,
     skillName: 'แสงชำระ',
     skillPower: 1.1,
   },
@@ -87,7 +92,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '🌑',
     setId: 'nightfall',
     element: EnumMonsterLine.DARK,
-    hp: 106_000,
+    hp: 408_000,
     skillName: 'ราตรีกาล',
     shield: 80,
     enrage: { round: 7, mult: 1.4 },
@@ -98,16 +103,16 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     emoji: '👻',
     setId: 'shadow_veil',
     element: EnumMonsterLine.SHADOW,
-    hp: 102_000,
+    hp: 487_000,
     skillName: 'ม่านมายา',
     shield: 100,
   },
 ]
 
-// Stat multiplier on the ultimate form's base stats, tuned (world-boss-data.spec.ts) so a hit from
-// a well-cared perfect form deals a few hundred and an ultimate form can take most of the 10
-// rounds, while adults still contribute a little.
-export const WORLD_BOSS_STRENGTH = 0.8
+// Stat multiplier on the ultimate form's base stats. Tuned (world-boss-data.spec.ts) together with
+// the scaling in monster-rules.ts: the boss starts weak, so a fight with no round limit is decided
+// by the scaling. A top pet (ultimate, +30% gear) lasts about 30 rounds, an adult about 12.
+export const WORLD_BOSS_STRENGTH = 0.2
 export const WORLD_BOSS_SKILL_POWER = 1.8
 
 export const findWorldBoss = (bossId: string) =>
@@ -126,7 +131,15 @@ export const getWorldBossFighter = (boss: IWorldBoss, hp: number): IFighter => (
     hp,
   },
   skill: { name: boss.skillName, power: WORLD_BOSS_SKILL_POWER * (boss.skillPower ?? 1) },
-  ...((boss.shield || boss.enrage) && { bossMods: { shield: boss.shield, enrage: boss.enrage } }),
+  bossMods: {
+    shield: boss.shield,
+    enrage: boss.enrage,
+    scaling: {
+      everyRounds: WORLD_BOSS_SCALE_EVERY_ROUNDS,
+      atkMult: WORLD_BOSS_SCALE_ATK,
+      defMult: WORLD_BOSS_SCALE_DEF,
+    },
+  },
 })
 
 // 32-bit FNV-1a, enough to turn an id into a seed.

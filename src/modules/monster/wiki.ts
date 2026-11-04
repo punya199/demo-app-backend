@@ -236,7 +236,10 @@ export const buildWiki = () => ({
   worldBoss: {
     hits: rules.WORLD_BOSS_HITS,
     resetHours: rules.WORLD_BOSS_RESET_HOURS,
-    rounds: rules.WORLD_BOSS_ROUNDS,
+    maxRounds: rules.WORLD_BOSS_MAX_ROUNDS,
+    scaleEveryRounds: rules.WORLD_BOSS_SCALE_EVERY_ROUNDS,
+    scaleAtk: rules.WORLD_BOSS_SCALE_ATK,
+    scaleDef: rules.WORLD_BOSS_SCALE_DEF,
     bosses: WORLD_BOSS_ROTATION,
     perHit: WORLD_BOSS_PARTICIPATION_PER_HIT,
     defeatedBonus: WORLD_BOSS_DEFEATED_BONUS,
