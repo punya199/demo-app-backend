@@ -131,8 +131,6 @@ export const EQUIPMENT_BOX_PRICE = 120
 export const EQUIPMENT_DROP_CHANCE_BP = 800
 // Shop materials.
 export const ENHANCE_STONE_PRICE = 40
-// Expeditions bring home one enhance stone per this many minutes explored.
-export const EXPEDITION_STONE_EVERY_MINUTES = 60
 
 // Async PvP (phase 4). ELO constants live in elo.ts, season rewards in pvp-data.ts.
 export const PVP_DAILY_ATTEMPTS = 10
