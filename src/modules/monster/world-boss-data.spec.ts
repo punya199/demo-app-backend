@@ -17,6 +17,7 @@ import {
   getWorldBossFighter,
   getWorldBossOfWeek,
   WORLD_BOSS_RANK_REWARDS,
+  IWorldBoss,
   WORLD_BOSS_ROTATION,
 } from './world-boss-data'
 
@@ -140,12 +141,18 @@ describe('world boss balance', () => {
   const LINES = [EnumMonsterLine.FLAME, EnumMonsterLine.TIDE, EnumMonsterLine.LEAF]
 
   // Average damage of one hit by a well-cared monster of the form, over the three lines.
-  const averageHit = (stage: EnumMonsterStage) => {
-    const boss = WORLD_BOSS_ROTATION[0]
+  // `gear` scales every stat (equipment and passives); `elements` turns the triangle on, as the
+  // World Boss service does.
+  const averageHit = (
+    stage: EnumMonsterStage,
+    boss = WORLD_BOSS_ROTATION[0],
+    gear = 1,
+    elements = false
+  ) => {
     let total = 0
     let fights = 0
     for (const line of LINES) {
-      const fighter = toFighter({
+      const base = toFighter({
         ...createEgg(line, NOW),
         speciesId: `${line}_${SUFFIX[stage]}`,
         stage,
@@ -153,13 +160,22 @@ describe('world boss balance', () => {
         strength: 4,
         weight: 40,
       })
+      const fighter = {
+        ...base,
+        stats: {
+          hp: base.stats.hp * gear,
+          atk: base.stats.atk * gear,
+          def: base.stats.def * gear,
+          spd: base.stats.spd * gear,
+        },
+      }
       for (let seed = 1; seed <= 100; seed++) {
-        const hp = boss.hp
         total += simulateTeamBattle(
           [fighter],
-          getWorldBossFighter(boss, hp),
+          getWorldBossFighter(boss, boss.hp),
           seed,
-          WORLD_BOSS_ROUNDS
+          WORLD_BOSS_ROUNDS,
+          { ignoreElements: !elements }
         ).damageDealt
         fights += 1
       }
@@ -176,14 +192,86 @@ describe('world boss balance', () => {
     expect(ultimate).toBeGreaterThan(perfect * 1.5)
   })
 
-  it('takes several strong players a whole week to defeat, not one day and not impossible', () => {
-    const hp = WORLD_BOSS_ROTATION[0].hp
-    const hit = averageHit(EnumMonsterStage.ULTIMATE)
-    const hitsPerWeek = 3 * 7
-    // One ultimate player alone can't do it; a handful of them can inside the week.
-    expect(hit * hitsPerWeek).toBeLessThan(hp)
-    expect(hit * hitsPerWeek * 5).toBeGreaterThan(hp)
-    // Nobody can empty it in a single day.
-    expect(hit * 3 * 10).toBeLessThan(hp)
+  // Design: 10 top players (ultimate form, +30% stats from gear), two sessions a day. A session is
+  // WORLD_BOSS_HITS hits, so 6 hits a day each (the cap is 3 hits per 3 hours, 24 a day).
+  const TOP_PLAYERS = 10
+  const HITS_PER_DAY = 6
+  it.each(WORLD_BOSS_ROTATION.map(boss => [boss.id, boss] as const))(
+    '%s dies in 3-5 days to ten top players',
+    (_id, boss) => {
+      const perDay =
+        averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3, true) * TOP_PLAYERS * HITS_PER_DAY
+      expect(boss.hp / perDay).toBeGreaterThanOrEqual(3)
+      expect(boss.hp / perDay).toBeLessThanOrEqual(5)
+    }
+  )
+
+  it('is not defeated by one ultimate player alone in a week, even at the hit cap', () => {
+    for (const boss of WORLD_BOSS_ROTATION) {
+      const hit = averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3, true)
+      expect(hit * 24 * 7).toBeLessThan(boss.hp)
+    }
+  })
+})
+
+describe('world boss rotation', () => {
+  it('has one boss per equipment set, with unique ids', () => {
+    const sets = WORLD_BOSS_ROTATION.map(boss => boss.setId)
+    expect(new Set(sets).size).toBe(sets.length)
+    expect(new Set(sets)).toEqual(new Set(Object.keys(SET_DEFINITIONS)))
+    expect(new Set(WORLD_BOSS_ROTATION.map(boss => boss.id)).size).toBe(WORLD_BOSS_ROTATION.length)
+  })
+
+  it('picks the same boss for the same week, and every boss turns up over a year', () => {
+    const picks = Array.from({ length: 52 }, (_, index) =>
+      getWorldBossOfWeek(getWeek(new Date(Date.UTC(2026, 0, 5 + index * 7, 5))))
+    )
+    expect(picks).toEqual(
+      Array.from({ length: 52 }, (_, index) =>
+        getWorldBossOfWeek(getWeek(new Date(Date.UTC(2026, 0, 5 + index * 7, 5))))
+      )
+    )
+    expect(new Set(picks).size).toBe(WORLD_BOSS_ROTATION.length)
+  })
+})
+
+describe('world boss mechanics', () => {
+  const hero = () =>
+    toFighter({
+      ...createEgg(EnumMonsterLine.FLAME, new Date('2026-01-01T03:00:00Z')),
+      speciesId: 'flame_ultimate',
+      stage: EnumMonsterStage.ULTIMATE,
+      fullness: 4,
+      strength: 4,
+      weight: 40,
+    })
+  const plain: IWorldBoss = { ...WORLD_BOSS_ROTATION[0], enrage: undefined, shield: undefined }
+
+  it('gives no mods to a boss without a shield or enrage', () => {
+    expect(getWorldBossFighter(plain, 1000).bossMods).toBeUndefined()
+  })
+
+  it('a shield eats the first damage of every fight without touching the shared HP', () => {
+    const shielded = { ...plain, shield: 200 }
+    const without = simulateTeamBattle([hero()], getWorldBossFighter(plain, 100_000), 7, 10)
+    const withShield = simulateTeamBattle([hero()], getWorldBossFighter(shielded, 100_000), 7, 10)
+    expect(withShield.damageDealt).toBeLessThan(without.damageDealt)
+    expect(without.damageDealt - withShield.damageDealt).toBeLessThanOrEqual(200)
+    expect(withShield.events.some(event => (event.absorbed ?? 0) > 0)).toBe(true)
+  })
+
+  it('enrage raises the boss hits from its round and not before', () => {
+    const enraged = { ...plain, enrage: { round: 4, mult: 3 } }
+    const bossHits = (boss: IWorldBoss) =>
+      simulateTeamBattle([hero()], getWorldBossFighter(boss, 100_000), 11, 10).events.filter(
+        event =>
+          event.actor === 'enemy' && !event.isDodged && !event.isSkill && event.kind === undefined
+      )
+    const calm = bossHits(plain)
+    const angry = bossHits(enraged)
+    const before = (hits: typeof calm) => hits.filter(hit => hit.round < 4).map(hit => hit.damage)
+    expect(before(angry)).toEqual(before(calm))
+    const after = (hits: typeof calm) => hits.filter(hit => hit.round >= 4).map(hit => hit.damage)
+    expect(Math.max(...after(angry))).toBeGreaterThan(Math.max(...after(calm)))
   })
 })

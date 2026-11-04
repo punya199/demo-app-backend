@@ -20,6 +20,7 @@ import {
   EnumEquipmentGrade,
   EnumEquipmentSlot,
   findSetPieceTemplate,
+  SET_DEFINITIONS,
 } from './equipment-data'
 import {
   grantItem,
@@ -163,6 +164,10 @@ export class WorldBossService {
         name: definition.name,
         emoji: definition.emoji,
         setId: definition.setId,
+        setName: SET_DEFINITIONS[definition.setId].name,
+        element: definition.element,
+        shield: definition.shield ?? 0,
+        enrage: definition.enrage ?? null,
         hp: boss.hp,
         maxHp: boss.maxHp,
         isDefeated: !!boss.defeatedAt,
@@ -213,7 +218,9 @@ export class WorldBossService {
       const rental = supportId ? await this.rentAlly(userId, supportId, now, etm) : null
       const team = rental ? [player, rental.ally] : [player]
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_ROUNDS)
+      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_ROUNDS, {
+        ignoreElements: false,
+      })
       // The renter's ranking counts only their own damage; the ally's still empties the boss.
       const ownDamage = result.damageByMember[0]
       const allyDamage = result.damageByMember[1] ?? 0

@@ -12,20 +12,95 @@ export interface IWorldBoss {
   name: string
   emoji: string
   setId: string
+  // Real element: World Boss fights use the element triangle both ways.
+  element: EnumMonsterLine
   // Total HP for the week, shared by all players.
   hp: number
   skillName: string
+  // Multipliers on WORLD_BOSS_STRENGTH / WORLD_BOSS_SKILL_POWER; default 1.
+  strength?: number
+  skillPower?: number
+  // Flat shield every hit has to chew through first (not shared; each fight starts fresh).
+  shield?: number
+  // From `round` on, the boss's attack is multiplied by `mult` within each fight.
+  enrage?: { round: number; mult: number }
 }
 
-// Rotation by week; one boss for now, so it repeats. Add more entries to rotate.
+// Rotation by week: getWorldBossOfWeek picks one at random (seeded by the week, so every player
+// sees the same boss). One boss per equipment set, so the exchange shop covers every set.
+// HP is tuned in world-boss-data.spec.ts so ten strong players kill each in 3-5 days.
 export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
   {
     id: 'storm_golem',
     name: 'จักรกลพายุ',
     emoji: '⚡',
     setId: 'swift_thunder',
-    hp: 30_000,
+    element: EnumMonsterLine.LIGHTNING,
+    hp: 111_000,
     skillName: 'พายุสายฟ้า',
+    enrage: { round: 6, mult: 1.5 },
+  },
+  {
+    id: 'flame_dragon',
+    name: 'มังกรเพลิงกัลป์',
+    emoji: '🔥',
+    setId: 'blazing',
+    element: EnumMonsterLine.FLAME,
+    hp: 114_000,
+    skillName: 'ลมหายใจเพลิง',
+    strength: 1.1,
+    enrage: { round: 5, mult: 1.5 },
+  },
+  {
+    id: 'tide_tortoise',
+    name: 'เต่ายักษ์วารี',
+    emoji: '🌊',
+    setId: 'tidal_guard',
+    element: EnumMonsterLine.TIDE,
+    hp: 98_000,
+    skillName: 'คลื่นยักษ์',
+    shield: 120,
+  },
+  {
+    id: 'ancient_tree',
+    name: 'ต้นไม้โบราณ',
+    emoji: '🌳',
+    setId: 'deep_root',
+    element: EnumMonsterLine.EARTH,
+    hp: 107_000,
+    skillName: 'รากพันธนาการ',
+    shield: 150,
+  },
+  {
+    id: 'radiant_angel',
+    name: 'เทวทูตรัศมี',
+    emoji: '✨',
+    setId: 'radiant',
+    element: EnumMonsterLine.HOLY,
+    hp: 126_000,
+    skillName: 'แสงชำระ',
+    skillPower: 1.1,
+  },
+  {
+    id: 'night_lord',
+    name: 'จอมราตรี',
+    emoji: '🌑',
+    setId: 'nightfall',
+    element: EnumMonsterLine.DARK,
+    hp: 106_000,
+    skillName: 'ราตรีกาล',
+    shield: 80,
+    enrage: { round: 7, mult: 1.4 },
+  },
+  {
+    id: 'shadow_king',
+    name: 'ราชาม่านเงา',
+    emoji: '👻',
+    setId: 'shadow_veil',
+    element: EnumMonsterLine.SHADOW,
+    hp: 102_000,
+    skillName: 'ม่านมายา',
+    shield: 100,
   },
 ]
 
@@ -38,18 +113,30 @@ export const WORLD_BOSS_SKILL_POWER = 1.8
 export const findWorldBoss = (bossId: string) =>
   WORLD_BOSS_ROTATION.find(boss => boss.id === bossId)
 
-// The boss as a fighter with `hp` left. The element is a placeholder: World Boss fights ignore the
-// element triangle, like Boss Raid.
+// The boss as a fighter with `hp` left.
 export const getWorldBossFighter = (boss: IWorldBoss, hp: number): IFighter => ({
   name: boss.name,
   emoji: boss.emoji,
-  element: EnumMonsterLine.FLAME,
+  element: boss.element,
   stats: {
-    ...scaleStats(STAGE_BASE_STATS[EnumMonsterStage.ULTIMATE], WORLD_BOSS_STRENGTH),
+    ...scaleStats(
+      STAGE_BASE_STATS[EnumMonsterStage.ULTIMATE],
+      WORLD_BOSS_STRENGTH * (boss.strength ?? 1)
+    ),
     hp,
   },
-  skill: { name: boss.skillName, power: WORLD_BOSS_SKILL_POWER },
+  skill: { name: boss.skillName, power: WORLD_BOSS_SKILL_POWER * (boss.skillPower ?? 1) },
+  ...((boss.shield || boss.enrage) && { bossMods: { shield: boss.shield, enrage: boss.enrage } }),
 })
+
+// 32-bit FNV-1a, enough to turn an id into a seed.
+const fnv1a = (text: string) => {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < text.length; index++) {
+    hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193)
+  }
+  return hash >>> 0
+}
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -83,8 +170,9 @@ export const getWeek = (now: Date): IWeek => {
   }
 }
 
+// Random but the same for everyone: the week key is the seed. The same boss can come twice in a row.
 export const getWorldBossOfWeek = (week: IWeek) =>
-  WORLD_BOSS_ROTATION[week.index % WORLD_BOSS_ROTATION.length]
+  WORLD_BOSS_ROTATION[fnv1a(week.key) % WORLD_BOSS_ROTATION.length]
 
 export const WORLD_BOSS_PARTICIPATION_PER_HIT = { coin: 50, raidToken: 1 }
 // Everyone who took part, when the boss is defeated before the week ends.
@@ -186,15 +274,6 @@ export const calcWorldBossReward = (
         }
       : tier.refineStones,
   }
-}
-
-// 32-bit FNV-1a, enough to turn an id into a seed.
-const fnv1a = (text: string) => {
-  let hash = 0x811c9dc5
-  for (let index = 0; index < text.length; index++) {
-    hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193)
-  }
-  return hash >>> 0
 }
 
 // The random rolls of one player's claim for one boss. Derived from ids, not from the clock, so
