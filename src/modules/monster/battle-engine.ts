@@ -23,7 +23,7 @@ export type Effectiveness = 'strong' | 'weak' | 'normal'
 
 // What a set effect did, for the replay: burn ticks and regen happen at the start of the affected
 // fighter's turn, a double strike is the extra hit right after an attack.
-export type BattleEventKind = 'burn' | 'regen' | 'double'
+export type BattleEventKind = 'burn' | 'regen' | 'double' | 'scale'
 
 export interface IBattleEvent {
   round: number
@@ -47,6 +47,8 @@ export interface IBattleEvent {
   healed?: number
   reflected?: number
   actorHp?: number
+  // World Boss scaling step reached (kind 'scale' only): 1 = first time the boss grew stronger.
+  scaleLevel?: number
 }
 
 export interface IBattleResult {

@@ -56,6 +56,38 @@ const makeCombatant = (
   burn: null,
 })
 
+// How many times a boss's scaling has stepped up by `round` (rounds 1..N are level 0).
+export const bossScaleLevel = (fighter: IFighter, round: number) => {
+  const scaling = fighter.bossMods?.scaling
+  return scaling ? Math.floor((round - 1) / scaling.everyRounds) : 0
+}
+
+// The fighter as it fights in `round`: a boss's atk and def with enrage and scaling applied. Pure
+// maths, no RNG, and the same object back for anyone without boss mods.
+const withBossMods = (combatant: ICombatant, round: number): IFighter => {
+  const { fighter } = combatant
+  const mods = fighter.bossMods
+  if (!mods) {
+    return fighter
+  }
+  const level = bossScaleLevel(fighter, round)
+  const atk =
+    (mods.enrage && round >= mods.enrage.round ? mods.enrage.mult : 1) *
+    (mods.scaling ? mods.scaling.atkMult ** level : 1)
+  const def = mods.scaling ? mods.scaling.defMult ** level : 1
+  if (atk === 1 && def === 1) {
+    return fighter
+  }
+  return {
+    ...fighter,
+    stats: {
+      ...fighter.stats,
+      atk: Math.round(fighter.stats.atk * atk),
+      def: Math.round(fighter.stats.def * def),
+    },
+  }
+}
+
 export const simulateTeamBattle = (
   team: IFighter[],
   boss: IFighter,
@@ -103,21 +135,9 @@ export const simulateTeamBattle = (
     isSkill: boolean,
     kind?: 'double'
   ) => {
-    // Enraged boss: same fighter with a stronger attack, no extra RNG.
-    const enrage = attacker.fighter.bossMods?.enrage
-    const attackerFighter =
-      enrage && round >= enrage.round
-        ? {
-            ...attacker.fighter,
-            stats: {
-              ...attacker.fighter.stats,
-              atk: Math.round(attacker.fighter.stats.atk * enrage.mult),
-            },
-          }
-        : attacker.fighter
     const { damage, isCritical, effectiveness, isDodged } = rollHit(
-      attackerFighter,
-      target.fighter,
+      withBossMods(attacker, round),
+      withBossMods(target, round),
       isSkill,
       rng,
       options.ignoreElements
@@ -175,6 +195,23 @@ export const simulateTeamBattle = (
           b.fighter.stats.spd - a.fighter.stats.spd
       )
     const isSkill = round % TEAM_BATTLE_SKILL_EVERY_ROUNDS === 0
+    // The boss grows stronger at the start of every `everyRounds`-th round after the first block.
+    const scaleLevel = bossScaleLevel(boss, round)
+    if (scaleLevel > 0 && (round - 1) % (boss.bossMods?.scaling?.everyRounds ?? 1) === 0) {
+      events.push({
+        round,
+        actor: 'enemy',
+        member: 0,
+        moveName: 'บอสแข็งแกร่งขึ้น',
+        isSkill: false,
+        damage: 0,
+        isCritical: false,
+        effectiveness: 'normal',
+        targetHp: bossCombatant.hp,
+        kind: 'scale',
+        scaleLevel,
+      })
+    }
 
     for (const actor of order) {
       if (actor.hp === 0) {

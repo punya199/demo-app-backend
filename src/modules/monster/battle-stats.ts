@@ -47,6 +47,9 @@ export interface IBossMods {
   shield?: number
   // From this round on its attack is multiplied.
   enrage?: { round: number; mult: number }
+  // Every `everyRounds` rounds its atk and def are multiplied again (compounding), so a fight
+  // with no round limit always ends. Rounds 1..everyRounds are unscaled.
+  scaling?: { everyRounds: number; atkMult: number; defMult: number }
 }
 
 export interface IFighter {
