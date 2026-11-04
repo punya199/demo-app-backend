@@ -19,6 +19,10 @@ export class SupportUnitEntity extends BaseModelEntity {
   @Column({ name: 'fighter', type: 'jsonb' })
   fighter: Record<string, unknown>
 
+  // IArenaFighterSpec, with the skill loadout. Null on units set before fights moved to the arena.
+  @Column({ name: 'arena_fighter', type: 'jsonb', nullable: true })
+  arenaFighter: Record<string, unknown> | null
+
   @Column({ name: 'stage', type: 'varchar' })
   stage: string
 

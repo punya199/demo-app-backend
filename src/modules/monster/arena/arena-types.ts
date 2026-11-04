@@ -67,6 +67,20 @@ export interface IArenaPassive {
   lastStand?: { belowPct: number; shield: number; immuneSec: number }
   enrage?: { belowPct: number; atk: number }
   afterDodge?: { critNext: boolean; bonus: number }
+  // From gear and the trainer tree, never from a skill (see toArenaFighter).
+  // Added to the crit multiplier, in percent points.
+  critDamage?: number
+  noCrit?: boolean
+  // Chance % that a basic attack strikes again.
+  doubleStrike?: number
+  // % of max HP, kept until it is broken.
+  startShield?: number
+  // The basic attack and every skill are ready when the fight starts.
+  firstStrike?: boolean
+  // % of the HP lost to a hit that goes back to the attacker.
+  thorns?: number
+  // % cut to attack timing (basic attack and shared skill delay).
+  attackSpeed?: number
 }
 
 export interface IArenaDodge {

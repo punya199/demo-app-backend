@@ -1,4 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
+import { arenaBossSpec } from './arena/arena-fighter'
+import { ARENA_HP_SCALE } from './arena/arena-rules'
 import { createRng } from './battle-engine'
 import { IFighter } from './battle-stats'
 import { EnumEquipmentGrade, EnumEquipmentSlot, EnumMaterialId } from './equipment-data'
@@ -15,6 +17,8 @@ export interface IWorldBoss {
   // Total HP for the week, shared by all players.
   hp: number
   skillName: string
+  // Its two skills in the arena.
+  arenaSkills: [string, string]
 }
 
 // Rotation by week; one boss for now, so it repeats. Add more entries to rotate.
@@ -26,6 +30,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     setId: 'swift_thunder',
     hp: 30_000,
     skillName: 'พายุสายฟ้า',
+    arenaSkills: ['e_fan', 'e_thunderdive'],
   },
 ]
 
@@ -50,6 +55,30 @@ export const getWorldBossFighter = (boss: IWorldBoss, hp: number): IFighter => (
   },
   skill: { name: boss.skillName, power: WORLD_BOSS_SKILL_POWER },
 })
+
+// A fight lasts up to a minute in the arena and deals about this many times what the old ten rounds
+// did at every form, so one point of the week's HP is this much arena HP. The week's total stays
+// a week's work (world-boss-data.spec.ts).
+export const WORLD_BOSS_ARENA_HP_SCALE = 2.4
+
+export const getWorldBossArena = (boss: IWorldBoss, hp: number) => ({
+  ...arenaBossSpec(getWorldBossFighter(boss, hp), boss.arenaSkills),
+  hp: (hp * WORLD_BOSS_ARENA_HP_SCALE) / ARENA_HP_SCALE,
+})
+
+// Arena damage back in the week's HP. It always adds up to the HP the boss really loses: all of it
+// when the fight killed the boss, and never all of it when it did not.
+export const splitWorldBossDamage = (hp: number, dealt: number[], isDefeated: boolean) => {
+  const toPool = (damage = 0) => Math.round(damage / WORLD_BOSS_ARENA_HP_SCALE)
+  const limit = isDefeated ? hp : hp - 1
+  const own = Math.min(limit, toPool(dealt[0]))
+  const ally = Math.min(limit - own, toPool(dealt[1]))
+  return {
+    own: isDefeated ? hp - ally : own,
+    ally,
+    hpAfter: isDefeated ? 0 : hp - own - ally,
+  }
+}
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000

@@ -1,13 +1,19 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { ADVENTURE_AREAS } from './adventure-data'
+import { ARENA_STAGES } from './arena/arena-data'
+import { simulateArena } from './arena/arena-engine'
+import { arenaEnemyOf, toArenaFighter } from './arena/arena-fighter'
 import { simulateBattle } from './battle-engine'
 import { IFighter } from './battle-stats'
+import { NO_EQUIPMENT_BONUS } from './equipment-data'
+import { createEgg } from './monster-engine'
 import { capEffects } from './monster-potential'
 import {
   calcPassiveBonus,
   IPassiveEffects,
   IPassiveNode,
   MasteryPicks,
+  mergeCombatBonus,
   PASSIVE_HUB,
   PASSIVE_MAX_POINTS,
   PASSIVE_NODES,
@@ -158,6 +164,49 @@ describe('passive tree balance', () => {
     expect(winRate(EnumMonsterStage.PERFECT, bonus, 2)).toBeGreaterThan(
       winRate(EnumMonsterStage.PERFECT, none, 2)
     )
+  })
+
+  // Adventure fights run in the real-time arena, where these effects behave differently from the
+  // turn engine above. Without gear, so these are the tree's own share of the win.
+  describe('in the arena', () => {
+    const ARENA_SEEDS = 30
+    const arenaWinRate = (bonus: ReturnType<typeof calcPassiveBonus>, stageId: string) => {
+      const me = toArenaFighter(
+        {
+          ...createEgg(EnumMonsterLine.FLAME, new Date('2026-01-01T03:00:00Z')),
+          speciesId: 'flame_ultimate',
+          stage: EnumMonsterStage.ULTIMATE,
+          fullness: 4,
+          strength: 3,
+          weight: 40,
+        },
+        mergeCombatBonus(NO_EQUIPMENT_BONUS, bonus.combat),
+        { s1: 'flame_lava', s2: 'n_tackle', dodge: 'dg_step' }
+      )
+      const boss = arenaEnemyOf(ARENA_STAGES[stageId])
+      let wins = 0
+      for (let seed = 1; seed <= ARENA_SEEDS; seed++) {
+        if (simulateArena([[me], [boss]], seed).winner === 0) {
+          wins++
+        }
+      }
+      return wins / ARENA_SEEDS
+    }
+
+    it.each(builds)('a full %s build cannot simply outlast the cavern boss', (_name, bonus) => {
+      expect(arenaWinRate(bonus, 'cavern_boss')).toBeLessThanOrEqual(0.85)
+    })
+
+    it('lets a full speed build keep up with a full attack build on the cavern boss', () => {
+      const rates = Object.fromEntries(
+        builds.map(([name, bonus]) => [name, arenaWinRate(bonus, 'cavern_boss')])
+      )
+      expect(rates.speed).toBeGreaterThanOrEqual(rates.attack - 0.25)
+    })
+
+    it.each(builds)('a full %s build still needs gear for the final boss', (_name, bonus) => {
+      expect(arenaWinRate(bonus, 'storm_boss')).toBeLessThanOrEqual(0.1)
+    })
   })
 
   it('keeps every total stat penalty within the -90% clamp', () => {

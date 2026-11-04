@@ -2,7 +2,8 @@ import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.ent
 import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
 import { createEgg } from './monster-engine'
-import { PVP_NPCS, PVP_STAGES } from './pvp-data'
+import { arenaWinRate, wellCaredArenaFighter } from './arena/arena-test-helpers'
+import { getNpcArena, PVP_NPCS, PVP_STAGES } from './pvp-data'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
 const SPECIES: Record<string, string> = {
@@ -30,6 +31,27 @@ const winRate = (player: IFighter, enemy: IFighter, fights = 300) => {
   }
   return wins / fights
 }
+
+describe('arena rivals', () => {
+  it.each(PVP_STAGES)('climb from about 75% to about 25%: %s', stage => {
+    const rates = PVP_NPCS.filter(npc => npc.stage === stage).map(npc => {
+      const perLine = LINES.map(line =>
+        arenaWinRate(wellCaredArenaFighter(line, stage), getNpcArena(npc), 40)
+      )
+      return perLine.reduce((sum, rate) => sum + rate, 0) / perLine.length
+    })
+    ;[0.75, 0.5, 0.25].forEach((target, index) => {
+      expect(Math.abs(rates[index] - target)).toBeLessThanOrEqual(0.2)
+    })
+  })
+
+  it.each(PVP_STAGES)('keep a mirror match even: %s', stage => {
+    const fighter = wellCaredArenaFighter(EnumMonsterLine.FLAME, stage)
+    const rate = arenaWinRate(fighter, fighter, 100)
+    expect(rate).toBeGreaterThan(0.35)
+    expect(rate).toBeLessThan(0.65)
+  })
+})
 
 describe('PvP balance', () => {
   it('lets equal monsters of the same form win about half the time', () => {

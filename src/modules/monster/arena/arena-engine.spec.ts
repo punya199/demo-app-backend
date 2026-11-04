@@ -1,5 +1,7 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
 import { ADVENTURE_AREAS } from '../adventure-data'
+import { IFighterEffects } from '../battle-stats'
+import { NO_EQUIPMENT_BONUS } from '../equipment-data'
 import { createEgg } from '../monster-engine'
 import { ARENA_SKILLS, ARENA_STAGES } from './arena-data'
 import { ARENA_SKILL_BY_ID, canEquipArenaSkill, simulateArena } from './arena-engine'
@@ -10,7 +12,8 @@ import {
   toArenaFighter,
   unlockedArenaSkillIds,
 } from './arena-fighter'
-import { IArenaFighterSpec } from './arena-types'
+import { ARENA_ATTACK_SPEED_CAP, ARENA_BURN_CHANCE, LINE_EVA } from './arena-rules'
+import { IArenaFighterSpec, IArenaPassive } from './arena-types'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
 
@@ -83,6 +86,122 @@ describe('arena engine', () => {
         'leaf_ent',
       ])
     ).toBe(false)
+  })
+})
+
+describe('gear and trainer-tree effects', () => {
+  const plain = (passive?: IArenaPassive) =>
+    fighter({ skills: [], dodge: null, ...(passive && { passive }) })
+  const dummy = (passive?: IArenaPassive) =>
+    fighter({
+      name: 'b',
+      element: 'tide',
+      hp: 4000,
+      skills: [],
+      dodge: null,
+      ...(passive && { passive }),
+    })
+  const fight = (a: IArenaFighterSpec, b: IArenaFighterSpec, seed = 7) =>
+    simulateArena([[a], [b]], seed, { record: true })
+  const hitsBy = (result: ReturnType<typeof fight>, who: number) =>
+    result.events.filter(event => event.kind === 'hit' && event.who === who)
+
+  it('carries every fighter effect into the arena', () => {
+    const effects: Required<IFighterEffects> = {
+      burnTurns: 2,
+      shieldPct: 0.1,
+      regenPct: 0.12,
+      doubleStrikeChance: 0.2,
+      critChance: 0.05,
+      critDamage: 0.5,
+      evasion: 0.04,
+      lifesteal: 0.1,
+      thorns: 0.15,
+      firstStrike: 1,
+      noCrit: 1,
+    }
+    const spec = toArenaFighter(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT), {
+      ...NO_EQUIPMENT_BONUS,
+      effects,
+    })
+    expect(spec.passive).toEqual({
+      onBasic: { st: 'burn', dur: 2, ch: ARENA_BURN_CHANCE },
+      startShield: 10,
+      regenPct: 0.36,
+      doubleStrike: 20,
+      critDamage: 50,
+      basicLifesteal: 10,
+      thorns: 15,
+      firstStrike: true,
+      noCrit: true,
+    })
+    expect(spec.crit).toBeGreaterThanOrEqual(5)
+    expect(spec.eva).toBeGreaterThanOrEqual(LINE_EVA.flame + 4)
+  })
+
+  it('turns an SPD bonus from gear and the tree into attack speed, up to the cap', () => {
+    const attackSpeed = (spd: number) =>
+      toArenaFighter(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT), {
+        ...NO_EQUIPMENT_BONUS,
+        pct: { ...NO_EQUIPMENT_BONUS.pct, spd },
+      }).passive?.attackSpeed
+    expect(attackSpeed(0.4)).toBe(20)
+    expect(attackSpeed(2)).toBe(ARENA_ATTACK_SPEED_CAP)
+    expect(attackSpeed(-0.3)).toBeUndefined()
+    expect(attackSpeed(0)).toBeUndefined()
+  })
+
+  it('attacks more often with attack speed', () => {
+    const basics = (passive?: IArenaPassive) => {
+      const hits = hitsBy(fight(plain(passive), dummy()), 0)
+      return hits[hits.length - 1].t / hits.length
+    }
+    expect(basics({ attackSpeed: 30 })).toBeLessThan(basics())
+  })
+
+  it('starts with a shield that has no timer', () => {
+    const result = fight(plain({ startShield: 25 }), dummy())
+    const maxHp = result.fighters[0].maxHp
+    expect(result.frames[0].f[0][8]).toBe(Math.trunc(maxHp / 4))
+    expect(fight(plain(), dummy()).frames[0].f[0][8]).toBe(0)
+  })
+
+  it('adds crit damage to the multiplier and lets noCrit stop every crit', () => {
+    const firstCrit = (passive?: IArenaPassive) =>
+      hitsBy(fight(plain(passive), dummy()), 0).find(event => event.crit)
+    expect(firstCrit({ critDamage: 100 })?.dmg).toBeGreaterThan(firstCrit()?.dmg ?? Infinity)
+    const noCrit = fight(plain({ noCrit: true }), dummy())
+    expect(hitsBy(noCrit, 0).length).toBeGreaterThan(0)
+    expect(hitsBy(noCrit, 0).some(event => event.crit)).toBe(false)
+  })
+
+  it('strikes twice on a basic attack', () => {
+    const ticks = hitsBy(fight(plain({ doubleStrike: 100 }), dummy()), 0).map(event => event.t)
+    expect(ticks.length).toBeGreaterThan(1)
+    expect(ticks[0]).toBe(ticks[1])
+  })
+
+  it('has its skills ready at the start with first strike', () => {
+    const firstCast = (passive?: IArenaPassive) =>
+      fight(fighter({ dodge: null, ...(passive && { passive }) }), dummy()).events.find(
+        event => event.kind === 'skill' && event.who === 0
+      )?.t ?? Infinity
+    expect(firstCast({ firstStrike: true })).toBeLessThan(firstCast())
+  })
+
+  it('sends a share of the HP lost back to the attacker', () => {
+    const result = fight(plain(), dummy({ thorns: 50 }))
+    const thorns = result.events.filter(event => event.kind === 'thorns')
+    expect(thorns.length).toBeGreaterThan(0)
+    expect(thorns[0]).toMatchObject({ who: 0, by: 1 })
+    expect(thorns[0].dmg).toBe(Math.max(1, Math.trunc((hitsBy(result, 0)[0].dmg ?? 0) / 2)))
+  })
+
+  it('adds tree regen to a passive skill instead of losing it', () => {
+    const healed = (passive?: IArenaPassive) =>
+      fight(fighter({ skills: ['leaf_ent'], dodge: null, ...(passive && { passive }) }), foe())
+        .fighters[0].healed
+    expect(healed({ regenPct: 3 })).toBeGreaterThan(healed())
   })
 })
 

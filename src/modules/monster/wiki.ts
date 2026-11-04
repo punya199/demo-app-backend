@@ -1,6 +1,10 @@
 import { ARENA_STATUS, ARENA_STATUS_NUMBERS } from './arena/arena-data'
 import {
+  ARENA_ATTACK_SPEED_CAP,
+  ARENA_ATTACK_SPEED_PCT,
+  ARENA_BURN_CHANCE,
   ARENA_HP_SCALE,
+  ARENA_REGEN_PER_SEC_PCT,
   ARENA_STRONG,
   ARENA_WEAK,
   BOSS_RES,
@@ -269,6 +273,10 @@ export const buildWiki = () => ({
     winsPerPoint: PASSIVE_WINS_PER_POINT,
     winMaxPoints: PASSIVE_WIN_MAX_POINTS,
     pvpSeasonPoints: PVP_SEASON_POINTS,
+    arenaRegenPerSecPct: ARENA_REGEN_PER_SEC_PCT,
+    arenaBurnChance: ARENA_BURN_CHANCE,
+    arenaAttackSpeedPct: ARENA_ATTACK_SPEED_PCT,
+    arenaAttackSpeedCap: ARENA_ATTACK_SPEED_CAP,
   },
   worldBoss: {
     hits: rules.WORLD_BOSS_HITS,

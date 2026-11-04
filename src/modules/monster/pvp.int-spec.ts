@@ -107,11 +107,20 @@ describe('async PvP arena', () => {
     expect(battles[0]).toMatchObject({ role: 'defender', won: !won })
     expect(JSON.stringify(battles)).not.toContain(a)
     expect(JSON.stringify(battles)).not.toContain('username')
-    expect((await pvp.getReplay(b, battles[0].id)).attackerWon).toBe(won)
+    expect(await pvp.getReplay(b, battles[0].id)).toMatchObject({ kind: 'arena', attackerWon: won })
+    // A fight from before the arena has no arena snapshots: it replays on the turn engine.
+    await sql(`UPDATE pvp_battles SET arena_attacker = NULL, arena_defender = NULL WHERE id = $1`, [
+      battles[0].id,
+    ])
+    const turnReplay = await pvp.getReplay(b, battles[0].id)
+    expect(turnReplay).toHaveProperty('events')
+    expect(turnReplay).not.toHaveProperty('kind')
     await expect(pvp.getReplay(c, battles[0].id)).rejects.toThrow(/not found/i)
   })
 
   it('lets one real defender be challenged at most twice a day', async () => {
+    // A defense set before the arena has no snapshot of its own and still fights.
+    await sql(`UPDATE pvp_defenses SET arena_fighter = NULL WHERE user_id = $1`, [b])
     await pvp.battle(a, aVsB)
     await expect(pvp.battle(a, aVsB)).rejects.toThrow(/not available/)
   })

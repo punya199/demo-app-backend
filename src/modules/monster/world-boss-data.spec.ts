@@ -1,4 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
+import { simulateArena } from './arena/arena-engine'
+import { wellCaredArenaFighter, wellCaredState } from './arena/arena-test-helpers'
 import { toFighter } from './battle-stats'
 import {
   EnumEquipmentGrade,
@@ -14,11 +16,63 @@ import {
   claimRolls,
   findRankTier,
   getWeek,
+  getWorldBossArena,
   getWorldBossFighter,
   getWorldBossOfWeek,
   WORLD_BOSS_RANK_REWARDS,
+  splitWorldBossDamage,
+  WORLD_BOSS_ARENA_HP_SCALE,
   WORLD_BOSS_ROTATION,
 } from './world-boss-data'
+
+describe('the world boss in the arena', () => {
+  const boss = WORLD_BOSS_ROTATION[0]
+  const stages = [EnumMonsterStage.ADULT, EnumMonsterStage.PERFECT, EnumMonsterStage.ULTIMATE]
+
+  // A boss that cannot fall, so the fight shows what one hit is worth.
+  it.each(stages)('takes about the same share of the week as before: %s', stage => {
+    const line = EnumMonsterLine.FLAME
+    const hp = 3_000_000
+    let arena = 0
+    let turns = 0
+    for (let seed = 1; seed <= 20; seed++) {
+      const result = simulateArena(
+        [[wellCaredArenaFighter(line, stage)], [getWorldBossArena(boss, hp)]],
+        seed
+      )
+      arena += splitWorldBossDamage(hp, [result.fighters[0].dealt], false).own
+      turns += simulateTeamBattle(
+        [toFighter(wellCaredState(line, stage))],
+        getWorldBossFighter(boss, hp),
+        seed,
+        WORLD_BOSS_ROUNDS
+      ).damageByMember[0]
+    }
+    expect(arena / turns).toBeGreaterThan(0.7)
+    expect(arena / turns).toBeLessThan(1.4)
+  })
+
+  it('adds the damage up to exactly the HP the boss loses', () => {
+    const scale = WORLD_BOSS_ARENA_HP_SCALE
+    expect(splitWorldBossDamage(1000, [100 * scale, 50 * scale], false)).toEqual({
+      own: 100,
+      ally: 50,
+      hpAfter: 850,
+    })
+    // Killed: rounding never leaves HP behind, and the killer takes what is left.
+    expect(splitWorldBossDamage(1000, [900 * scale, 80 * scale], true)).toEqual({
+      own: 920,
+      ally: 80,
+      hpAfter: 0,
+    })
+    // Alive: rounding up never empties the pool without a kill.
+    expect(splitWorldBossDamage(100, [100 * scale, 20 * scale], false)).toEqual({
+      own: 99,
+      ally: 0,
+      hpAfter: 1,
+    })
+  })
+})
 
 describe('world boss weeks', () => {
   it('numbers ISO weeks including the year boundaries', () => {

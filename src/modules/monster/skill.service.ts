@@ -26,6 +26,13 @@ export const loadUnlockedArenaSkills = async (userId: string, etm: EntityManager
   return new Set(unlockedArenaSkillIds(rows.map(row => row.speciesId)))
 }
 
+// A pet's slots as they stand now: picks it can no longer use are dropped.
+export const loadArenaLoadout = async (
+  userId: string,
+  pet: Pick<MonsterEntity, 'line' | 'speciesId' | 'stage' | 'skillLoadout'>,
+  etm: EntityManager
+) => cleanArenaLoadout(pet, pet.skillLoadout, await loadUnlockedArenaSkills(userId, etm))
+
 const petView = (pet: MonsterEntity, unlocked: Set<string>) => ({
   id: pet.id,
   speciesId: pet.speciesId,

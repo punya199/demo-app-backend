@@ -12,7 +12,10 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
-import { IFighter, toFighter } from './battle-stats'
+import { simulateArena } from './arena/arena-engine'
+import { arenaBattleView, arenaSpecOfFighter, toArenaFighter } from './arena/arena-fighter'
+import { IArenaFighterSpec } from './arena/arena-types'
+import { IFighter } from './battle-stats'
 import { countFightsInWindow, getWindow } from './daily-fights'
 import { defaultDisplayName } from './display-name'
 import {
@@ -37,19 +40,19 @@ import {
   RENTAL_OWNER_DAILY_CAP,
   WORLD_BOSS_HITS,
   WORLD_BOSS_RESET_HOURS,
-  WORLD_BOSS_ROUNDS,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import { calcRentalFee, orderPair } from './social-data'
 import { getQuestDayStart } from './quest-data'
 import { bossTokenItemId, isStageAtLeast, RAID_EXCHANGE_COST } from './raid-data'
-import { simulateTeamBattle } from './team-battle'
+import { loadArenaLoadout } from './skill.service'
 import {
   calcWorldBossReward,
   claimRolls,
   findWorldBoss,
   getWeek,
-  getWorldBossFighter,
+  getWorldBossArena,
+  splitWorldBossDamage,
   getWorldBossOfWeek,
 } from './world-boss-data'
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
@@ -208,18 +211,31 @@ export class WorldBossService {
       }
       const definition = findWorldBoss(boss.bossId)!
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
-      const enemy = getWorldBossFighter(definition, boss.hp)
+      const player = toArenaFighter(
+        monster,
+        await loadEquipmentBonus(userId, monster.id, etm),
+        await loadArenaLoadout(userId, monster, etm)
+      )
+      const enemy = getWorldBossArena(definition, boss.hp)
       const rental = supportId ? await this.rentAlly(userId, supportId, now, etm) : null
       const team = rental ? [player, rental.ally] : [player]
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateTeamBattle(team, enemy, seed, WORLD_BOSS_ROUNDS)
+      const arena = simulateArena([team, [enemy]], seed, { record: true })
+      const battle = arenaBattleView(arena, player, enemy)
+      const bossDefeated = arena.fighters[team.length].hp === 0
       // The renter's ranking counts only their own damage; the ally's still empties the boss.
-      const ownDamage = result.damageByMember[0]
-      const allyDamage = result.damageByMember[1] ?? 0
+      const {
+        own: ownDamage,
+        ally: allyDamage,
+        hpAfter,
+      } = splitWorldBossDamage(
+        boss.hp,
+        team.map((_, index) => arena.fighters[index].dealt),
+        bossDefeated
+      )
 
-      boss.hp = result.bossHpAfter
-      if (result.bossDefeated) {
+      boss.hp = hpAfter
+      if (bossDefeated) {
         boss.defeatedAt = now
         boss.killedByUserId = userId
       }
@@ -246,8 +262,8 @@ export class WorldBossService {
       const outcome = withRuleErrors(() =>
         applyPvpOutcome(
           monster,
-          result.bossDefeated,
-          { week: boss.week, damage: ownDamage, seed, rounds: result.rounds },
+          bossDefeated,
+          { week: boss.week, damage: ownDamage, seed, rounds: battle.rounds },
           now,
           'world_boss'
         )
@@ -258,16 +274,7 @@ export class WorldBossService {
       const used = await countFightsInWindow(userId, 'world_boss', WORLD_BOSS_RESET_HOURS, now, etm)
       return {
         monster: toMonsterView(saved),
-        battle: {
-          rounds: result.rounds,
-          events: result.events,
-          player,
-          // Everyone who fought on the player's side, the player first.
-          team,
-          enemy,
-          damage: ownDamage,
-          survived: result.survivors.includes(0),
-        },
+        battle: { ...battle, damage: ownDamage, survived: arena.fighters[0].hp > 0 },
         damage: ownDamage,
         ally: rental
           ? {
@@ -279,7 +286,7 @@ export class WorldBossService {
           : null,
         bossHp: boss.hp,
         maxHp: boss.maxHp,
-        isKillingBlow: result.bossDefeated,
+        isKillingBlow: bossDefeated,
         hitsLeft: Math.max(0, WORLD_BOSS_HITS - used),
         resetsAt: getWindow(now, WORLD_BOSS_RESET_HOURS).resetsAt,
       }
@@ -333,7 +340,10 @@ export class WorldBossService {
       friendship.id,
       FRIEND_POINTS_RENTAL,
     ])
-    return { ally: unit.fighter as unknown as IFighter, ownerId: unit.userId, unitId: unit.id, fee }
+    const ally =
+      (unit.arenaFighter as unknown as IArenaFighterSpec | null) ??
+      arenaSpecOfFighter(unit.fighter as unknown as IFighter)
+    return { ally, ownerId: unit.userId, unitId: unit.id, fee }
   }
 
   // Top damage dealers of a week. Players appear by their arena name only; ids never leave.

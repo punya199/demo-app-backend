@@ -161,7 +161,13 @@ const ARENA_ENGINE = (() => {
     const slots = (spec.skills || [m.innate]).filter(Boolean).map((id) => tuned(SKILL_BY_ID[id], tuning))
     const actives = slots.filter((s) => s.slot === 'active')
     const passives = slots.filter((s) => s.slot === 'passive').map((s) => s.passive)
-    const passive = Object.assign({}, ...passives)
+    const passive = Object.assign({}, spec.passive || {}, ...passives)
+    // The tree's healing adds to a passive skill's instead of being replaced by it.
+    for (const key of ['regenPct', 'basicLifesteal']) {
+      if (spec.passive && spec.passive[key]) {
+        passive[key] = passives.reduce((sum, p) => sum + ((p && p[key]) || 0), spec.passive[key])
+      }
+    }
     const dodge = spec.dodge ? tuned(SKILL_BY_ID[spec.dodge], tuning) : null
     // Gear adds flat stats, the trainer tree scales them (as in the game's toFighter).
     const maxHp = Math.round(((m.hp + gear.hp) * (100 + tree.hp) * HP_SCALE * hpMul) / 10000)
@@ -184,15 +190,16 @@ const ARENA_ENGINE = (() => {
       y: pos[1] * S,
       hp: maxHp,
       maxHp,
-      shield: 0,
+      // A start shield has no timer: it stays until it is broken.
+      shield: Math.trunc((maxHp * (passive.startShield || 0)) / 100),
       shieldT: 0,
       skills: actives,
       allSlots: slots,
       passive,
       dodge,
       baseStep: Math.trunc(((70 + m.spd * 5) * S) / TICK),
-      basicCd: 10 + idx * 3,
-      cds: actives.map((s, i) => sec(1) + i * sec(1.25)),
+      basicCd: passive.firstStrike ? 0 : 10 + idx * 3,
+      cds: actives.map((s, i) => (passive.firstStrike ? 0 : sec(1) + i * sec(1.25))),
       dodgeCd: 0,
       gcd: 0,
       act: ACT.MOVE,
@@ -252,7 +259,7 @@ const ARENA_ENGINE = (() => {
     return Math.trunc((f.baseStep * pct) / 100)
   }
   const attackTimePct = (f) => {
-    let pct = 100
+    let pct = 100 - (f.passive.attackSpeed || 0)
     if (has(f, 'haste')) pct -= N.hasteAttack
     if (has(f, 'slow')) pct += N.slowAttack
     return pct
@@ -426,8 +433,8 @@ const ARENA_ENGINE = (() => {
       const reduced = Math.floor((raw * (10000 - cut)) / 10000)
       const variance = VAR_MIN + roll(VAR_SPAN)
       const critRoll = roll(100)
-      const crit = a.critNext || critRoll < CRIT_CHANCE + a.crit + (has(a, 'focus') ? Math.trunc((N.focusCrit * a.st.focus.mag) / 100) : 0)
-      let mul = crit ? CRIT_MUL : 100
+      const crit = !a.passive.noCrit && (a.critNext || critRoll < CRIT_CHANCE + a.crit + (has(a, 'focus') ? Math.trunc((N.focusCrit * a.st.focus.mag) / 100) : 0))
+      let mul = crit ? CRIT_MUL + (a.passive.critDamage || 0) : 100
       if (a.critNext) {
         mul = Math.trunc((mul * (100 + a.critBonus)) / 100)
         a.critNext = false
@@ -455,6 +462,13 @@ const ARENA_ENGINE = (() => {
       let healed = 0
       const ls = skill ? skill.lifesteal || 0 : a.passive.basicLifesteal || 0
       if (ls && lost > 0) healed = heal(a, Math.max(1, Math.trunc((lost * ls) / 100)))
+      if (d.passive.thorns && lost > 0 && !opt.isRetort) {
+        const back = Math.min(a.hp, Math.max(1, Math.trunc((lost * d.passive.thorns) / 100)))
+        a.hp -= back
+        a.taken += back
+        d.dealt += back
+        log({ kind: 'thorns', who: a.idx, by: d.idx, dmg: back, x: a.x, y: a.y })
+      }
       // Knockback flinch on hits that don't interrupt a wind-up or a charge.
       // At most one flinch per half second, so a volley of small hits can't lock a target in place.
       if (d.act === ACT.MOVE && d.hp > 0 && tick >= d.flinchReady) {
@@ -603,6 +617,7 @@ const ARENA_ENGINE = (() => {
       if (sk.kind === 'melee' || sk.kind === 'multi') {
         if (d <= ((sk.range || BASIC_RANGE) + 16) * S) {
           for (let i = 0; i < (sk.hits || 1); i++) hit(me, target, sk.power, sk === BASIC ? null : sk, { melee: true })
+          if (sk === BASIC && me.passive.doubleStrike && roll(100) < me.passive.doubleStrike) hit(me, target, sk.power, null, { melee: true })
         } else log({ kind: 'miss', who: me.idx, target: target.idx })
       } else if (sk.kind === 'shot' || sk.kind === 'spread') {
         fire(me, target, sk)

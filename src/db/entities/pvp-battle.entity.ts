@@ -42,6 +42,14 @@ export class PvpBattleEntity extends BaseModelEntity {
   @Column({ name: 'defender', type: 'jsonb' })
   defender: Record<string, unknown>
 
+  // IArenaFighterSpec of each side. Set for arena fights; older rows replay on the turn engine from
+  // attacker/defender above.
+  @Column({ name: 'arena_attacker', type: 'jsonb', nullable: true })
+  arenaAttacker: Record<string, unknown> | null
+
+  @Column({ name: 'arena_defender', type: 'jsonb', nullable: true })
+  arenaDefender: Record<string, unknown> | null
+
   // From the attacker's point of view.
   @Column({ name: 'won', type: 'boolean' })
   won: boolean

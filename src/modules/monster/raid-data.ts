@@ -1,10 +1,11 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
+import { arenaBossSpec } from './arena/arena-fighter'
 import { IFighter } from './battle-stats'
 import { EnumEquipmentGrade, EnumMaterialId } from './equipment-data'
 import { scaleStats, STAGE_BASE_STATS } from './species-data'
 
-// Boss Raid: a solo fight (the normal 1-vs-1 engine, win within 20 rounds) against an element
-// boss. Winning always drops one piece of that boss's set.
+// Boss Raid: a solo real-time arena fight against an element boss. Winning always drops one piece
+// of that boss's set.
 
 export enum EnumRaidDifficulty {
   NORMAL = 'normal',
@@ -21,7 +22,7 @@ export interface IRaidDifficulty {
   minStage: EnumMonsterStage
   // Stat multiplier on that form's base stats, tuned (raid-data.spec.ts) so a well-cared monster
   // of minStage wins about 70% / 50% / 30% of the time (averaged over the three lines), with no
-  // set. Raid fights ignore the element triangle, otherwise a boss would be unbeatable for the
+  // set, both on the arena and on the turn engine. Raid fights ignore the element triangle, otherwise a boss would be unbeatable for the
   // line it counters and every line could only collect two of the three sets.
   strength: number
   // Grade of the set piece a win drops.
@@ -73,6 +74,8 @@ export interface IRaidBoss {
   // The set whose pieces this boss drops (see SET_DEFINITIONS).
   setId: string
   skillName: string
+  // Its two skills in the arena.
+  arenaSkills: [string, string]
 }
 
 export const RAID_BOSSES: IRaidBoss[] = [
@@ -83,6 +86,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.FLAME,
     setId: 'blazing',
     skillName: 'ลาวาถล่ม',
+    arenaSkills: ['e_lavacoil', 'e_volcano'],
   },
   {
     id: 'deep_dweller',
@@ -91,6 +95,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.TIDE,
     setId: 'tidal_guard',
     skillName: 'คลื่นกลืนกิน',
+    arenaSkills: ['e_whirlpool', 'e_mistbite'],
   },
   {
     id: 'ancient_flora',
@@ -99,6 +104,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.LEAF,
     setId: 'deep_root',
     skillName: 'รากพันธนาการ',
+    arenaSkills: ['e_stomp', 'e_stormclaw'],
   },
   {
     id: 'radiant_seraph',
@@ -107,6 +113,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.HOLY,
     setId: 'radiant',
     skillName: 'แสงพิพากษา',
+    arenaSkills: ['e_fan', 'e_plumes'],
   },
   {
     id: 'void_sovereign',
@@ -115,6 +122,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.DARK,
     setId: 'nightfall',
     skillName: 'ราตรีกลืนกิน',
+    arenaSkills: ['e_dragontail', 'e_orebite'],
   },
   {
     id: 'nameless_phantom',
@@ -123,6 +131,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.SHADOW,
     setId: 'shadow_veil',
     skillName: 'คมเงาเงียบ',
+    arenaSkills: ['e_sparktail', 'e_mistbite'],
   },
 ]
 
@@ -135,6 +144,9 @@ export const getRaidBossFighter = (boss: IRaidBoss, difficulty: IRaidDifficulty)
   stats: scaleStats(STAGE_BASE_STATS[difficulty.minStage], difficulty.strength),
   skill: { name: boss.skillName, power: RAID_BOSS_SKILL_POWER },
 })
+
+export const getRaidBossArena = (boss: IRaidBoss, difficulty: IRaidDifficulty) =>
+  arenaBossSpec(getRaidBossFighter(boss, difficulty), boss.arenaSkills)
 
 // Boss tokens to exchange for a chosen piece of the boss's set; the grade can only be bought
 // once the difficulty that drops it has been cleared.

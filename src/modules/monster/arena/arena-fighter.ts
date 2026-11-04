@@ -1,12 +1,30 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
-import { toFighter } from '../battle-stats'
+import { IFighter, IFighterEffects, toFighter } from '../battle-stats'
 import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from '../equipment-data'
 import { IMonsterState } from '../monster-engine'
 import { getSpecies, STAGE_BASE_STATS } from '../species-data'
 import { ARENA_SKILLS, ARENA_STAGES, ARENA_TUNING } from './arena-data'
-import { ARENA_SKILL_BY_ID, canEquipArenaSkill } from './arena-engine'
-import { BOSS_RES, LINE_ACC, LINE_EVA, LINE_RES } from './arena-rules'
-import { ArenaLine, IArenaFighterSpec, IArenaStage } from './arena-types'
+import { ARENA_SKILL_BY_ID, canEquipArenaSkill, getArenaSkill } from './arena-engine'
+import {
+  ARENA_ATTACK_SPEED_CAP,
+  ARENA_ATTACK_SPEED_PCT,
+  ARENA_BURN_CHANCE,
+  ARENA_HP_SCALE,
+  ARENA_REGEN_PER_SEC_PCT,
+  ARENA_TICK,
+  BOSS_RES,
+  LINE_ACC,
+  LINE_EVA,
+  LINE_RES,
+} from './arena-rules'
+import { toArenaReplay } from './arena-replay'
+import {
+  ArenaLine,
+  IArenaFighterSpec,
+  IArenaPassive,
+  IArenaResult,
+  IArenaStage,
+} from './arena-types'
 
 // Bridges the game's monsters to the arena: which skills a form has, which a player may equip,
 // and a fighter spec built from the monster's real stats (care, gear and trainer tree included).
@@ -87,8 +105,34 @@ export const cleanArenaLoadout = (
 const stageKeyOf = (stage: EnumMonsterStage) =>
   stage === EnumMonsterStage.FUSED ? EnumMonsterStage.ULTIMATE : stage
 
+// Gear and trainer-tree effects as arena passives, so each one counts in a real-time fight too.
+const effectsToPassive = (effects: IFighterEffects, spdBonus: number): IArenaPassive => {
+  const percent = (share = 0) => Math.round(share * 100)
+  const passive: IArenaPassive = {}
+  if (spdBonus > 0) {
+    passive.attackSpeed = Math.min(
+      ARENA_ATTACK_SPEED_CAP,
+      Math.round(spdBonus * ARENA_ATTACK_SPEED_PCT)
+    )
+  }
+  if (effects.lifesteal) passive.basicLifesteal = percent(effects.lifesteal)
+  if (effects.critDamage) passive.critDamage = percent(effects.critDamage)
+  if (effects.noCrit) passive.noCrit = true
+  if (effects.doubleStrikeChance) passive.doubleStrike = percent(effects.doubleStrikeChance)
+  if (effects.shieldPct) passive.startShield = percent(effects.shieldPct)
+  if (effects.firstStrike) passive.firstStrike = true
+  if (effects.thorns) passive.thorns = percent(effects.thorns)
+  if (effects.regenPct) {
+    passive.regenPct = Math.round(effects.regenPct * 100 * ARENA_REGEN_PER_SEC_PCT) / 100
+  }
+  if (effects.burnTurns) {
+    passive.onBasic = { st: 'burn', dur: effects.burnTurns, ch: ARENA_BURN_CHANCE }
+  }
+  return passive
+}
+
 // The monster as an arena fighter: stats from toFighter (care, gear, trainer tree), the line's
-// EVA/ACC/RES and arena HP lean, and gear/trainer effects the arena understands.
+// EVA/ACC/RES and arena HP lean, and gear/trainer effects as passives.
 export const toArenaFighter = (
   state: IMonsterState,
   equipment: IEquipmentBonus = NO_EQUIPMENT_BONUS,
@@ -116,11 +160,98 @@ export const toArenaFighter = (
     crit: Math.round((effects.critChance ?? 0) * 100),
     skills: [innate, loadout.s1, loadout.s2].filter((id): id is string => !!id),
     dodge: hasArenaSkills(state.stage) ? loadout.dodge : null,
-    ...(effects.lifesteal && {
-      passive: { basicLifesteal: Math.round(effects.lifesteal * 100) },
-    }),
+    passive: effectsToPassive(effects, equipment.pct.spd),
   }
 }
+
+// Two active skills of a line, for fighters that were never given a loadout.
+const lineSkillIds = (line: ArenaLine) =>
+  ARENA_SKILLS.filter(skill => skill.el === line && skill.slot === 'active')
+    .slice(0, 2)
+    .map(skill => skill.id)
+
+// An NPC, or a snapshot stored before snapshots carried a loadout, as an arena fighter.
+export const arenaSpecOfFighter = (fighter: IFighter): IArenaFighterSpec => {
+  const line = fighter.element as ArenaLine
+  const effects = fighter.effects ?? {}
+  return {
+    name: fighter.nickname ?? fighter.name,
+    emoji: fighter.emoji,
+    element: line,
+    hp: fighter.stats.hp,
+    atk: fighter.stats.atk,
+    def: fighter.stats.def,
+    spd: fighter.stats.spd,
+    eva: LINE_EVA[line] + Math.round((effects.evasion ?? 0) * 100),
+    acc: LINE_ACC[line],
+    res: LINE_RES[line],
+    crit: Math.round((effects.critChance ?? 0) * 100),
+    skills: lineSkillIds(line),
+    dodge: 'dg_step',
+    passive: effectsToPassive(effects, 0),
+  }
+}
+
+// HP/ATK x k%, DEF x sqrt(k%), the way adventure stages are tuned.
+export const scaleArenaSpec = (spec: IArenaFighterSpec, k: number): IArenaFighterSpec => ({
+  ...spec,
+  hp: Math.round((spec.hp * k) / 100),
+  atk: Math.round((spec.atk * k) / 100),
+  def: Math.round(spec.def * Math.sqrt(k / 100)),
+})
+
+// A raid or world boss from its stats. Bosses get extra RES and ignore elements (see the engine).
+export const arenaBossSpec = (fighter: IFighter, skills: string[]): IArenaFighterSpec => {
+  const line = fighter.element as ArenaLine
+  return {
+    name: fighter.name,
+    emoji: fighter.emoji,
+    element: line,
+    hp: fighter.stats.hp,
+    atk: fighter.stats.atk,
+    def: fighter.stats.def,
+    spd: fighter.stats.spd,
+    eva: LINE_EVA[line],
+    acc: LINE_ACC[line],
+    res: LINE_RES[line] + BOSS_RES,
+    skills,
+    dodge: null,
+    boss: true,
+  }
+}
+
+// What the battle screen shows of an opponent; HP as it is in the fight.
+export const arenaEnemyViewOf = (spec: IArenaFighterSpec) => ({
+  name: spec.name,
+  emoji: spec.emoji,
+  element: spec.element,
+  isBoss: !!spec.boss,
+  stats: {
+    hp: Math.round(spec.hp * ARENA_HP_SCALE),
+    atk: spec.atk,
+    def: spec.def,
+    spd: spec.spd,
+  },
+  eva: spec.eva,
+  acc: spec.acc,
+  res: spec.res,
+  skills: spec.skills.map(getArenaSkill),
+})
+
+// A recorded fight for the battle screen.
+export const arenaBattleView = (
+  arena: IArenaResult,
+  player: IArenaFighterSpec,
+  enemy: IArenaFighterSpec
+) => ({
+  kind: 'arena' as const,
+  won: arena.winner === 0,
+  // Seconds the fight lasted.
+  rounds: Math.ceil(arena.ticks / ARENA_TICK),
+  replay: toArenaReplay(arena),
+  player: { name: player.name, emoji: player.emoji, element: player.element },
+  enemy: arenaEnemyViewOf(enemy),
+})
 
 const LEVEL_STAGE: Record<IArenaStage['level'], EnumMonsterStage> = {
   baby1: EnumMonsterStage.BABY_1,
