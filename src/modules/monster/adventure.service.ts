@@ -14,8 +14,17 @@ import {
   FIRST_CLEAR_MULTIPLIER,
   isStageUnlocked,
 } from './adventure-data'
-import { simulateBattle } from './battle-engine'
-import { toFighter } from './battle-stats'
+import { ARENA_HP_SCALE, ARENA_TICK } from './arena/arena-rules'
+import { getArenaSkill, simulateArena } from './arena/arena-engine'
+import {
+  arenaEnemyOf,
+  cleanArenaLoadout,
+  findArenaStage,
+  toArenaFighter,
+} from './arena/arena-fighter'
+import { toArenaReplay } from './arena/arena-replay'
+import { IArenaStage } from './arena/arena-types'
+import { loadUnlockedArenaSkills } from './skill.service'
 import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
 import { calcAutoBattleReward } from './idle-data'
@@ -29,6 +38,31 @@ import {
 } from './monster-rules'
 import { getQuestResetAt } from './quest-data'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
+
+// A stage's arena enemy for screens: final stats and its skills with tuned numbers.
+const arenaEnemyView = (stage: IArenaStage | undefined) => {
+  if (!stage) {
+    return null
+  }
+  const fighter = arenaEnemyOf(stage)
+  return {
+    name: fighter.name,
+    emoji: fighter.emoji,
+    element: fighter.element,
+    isBoss: stage.boss,
+    // HP as it is in the fight (the arena triples every HP pool).
+    stats: {
+      hp: Math.round(fighter.hp * ARENA_HP_SCALE),
+      atk: fighter.atk,
+      def: fighter.def,
+      spd: fighter.spd,
+    },
+    eva: fighter.eva,
+    acc: fighter.acc,
+    res: fighter.res,
+    skills: stage.skills.map(id => getArenaSkill(id)),
+  }
+}
 
 @Injectable()
 export class AdventureService {
@@ -54,7 +88,7 @@ export class AdventureService {
         stages: area.stages.map(stage => ({
           id: stage.id,
           isBoss: stage.isBoss,
-          enemy: stage.enemy,
+          enemy: arenaEnemyView(findArenaStage(stage.id)),
           reward: stage.reward,
           firstClearReward: stage.reward * FIRST_CLEAR_MULTIPLIER,
           firstClearGems: stage.firstClearGems,
@@ -112,10 +146,23 @@ export class AdventureService {
         }
       }
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
-      const enemy = entry.stage.enemy
+      // Adventure fights run in the real-time arena with the pet's skill loadout. Auto-battles skip
+      // recording the replay (nobody watches them).
+      const arenaStage = findArenaStage(stageId)
+      if (!arenaStage) {
+        throw new NotFoundException('Stage not found')
+      }
+      const unlocked = await loadUnlockedArenaSkills(userId, etm)
+      const loadout = cleanArenaLoadout(monster, monster.skillLoadout, unlocked)
+      const player = toArenaFighter(
+        monster,
+        await loadEquipmentBonus(userId, monster.id, etm),
+        loadout
+      )
+      const enemy = arenaEnemyOf(arenaStage)
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateBattle(player, enemy, seed)
+      const arena = simulateArena([[player], [enemy]], seed, { record: !isAuto })
+      const result = { won: arena.winner === 0, rounds: Math.ceil(arena.ticks / ARENA_TICK) }
 
       const isFirstClear = result.won && !cleared.has(stageId)
       let reward = 0
@@ -203,12 +250,14 @@ export class AdventureService {
       return {
         monster: toMonsterView(saved),
         battle: {
+          kind: 'arena' as const,
           stageId,
           won: result.won,
+          // Seconds the fight lasted.
           rounds: result.rounds,
-          events: result.events,
-          player,
-          enemy,
+          replay: isAuto ? null : toArenaReplay(arena),
+          player: { name: player.name, emoji: player.emoji, element: player.element },
+          enemy: arenaEnemyView(arenaStage),
           reward,
           gemReward,
           isFirstClear,

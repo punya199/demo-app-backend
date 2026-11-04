@@ -1,0 +1,166 @@
+import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
+import { ADVENTURE_AREAS } from '../adventure-data'
+import { createEgg } from '../monster-engine'
+import { ARENA_SKILLS, ARENA_STAGES } from './arena-data'
+import { ARENA_SKILL_BY_ID, canEquipArenaSkill, simulateArena } from './arena-engine'
+import {
+  arenaEnemyOf,
+  arenaInnateOf,
+  cleanArenaLoadout,
+  toArenaFighter,
+  unlockedArenaSkillIds,
+} from './arena-fighter'
+import { IArenaFighterSpec } from './arena-types'
+
+const NOW = new Date('2026-01-01T03:00:00Z')
+
+const pet = (line: EnumMonsterLine, suffix: string, stage: EnumMonsterStage) => ({
+  ...createEgg(line, NOW),
+  speciesId: `${line}_${suffix}`,
+  stage,
+  fullness: 4,
+  strength: 3,
+  weight: 40,
+})
+
+const fighter = (overrides: Partial<IArenaFighterSpec> = {}): IArenaFighterSpec => ({
+  name: 'a',
+  emoji: '🦎',
+  element: 'flame',
+  hp: 80,
+  atk: 16,
+  def: 10,
+  spd: 12,
+  eva: 5,
+  acc: 8,
+  res: 8,
+  skills: ['flame_tail', 'flame_lava', 'n_tackle'],
+  dodge: 'dg_step',
+  ...overrides,
+})
+const foe = () =>
+  fighter({
+    name: 'b',
+    element: 'tide',
+    skills: ['tide_sword', 'tide_ink', 'n_guard'],
+    dodge: 'dg_parry',
+  })
+
+describe('arena engine', () => {
+  it('replays a fight exactly from its seed, recorded or not', () => {
+    const recorded = simulateArena([[fighter()], [foe()]], 42, { record: true })
+    const plain = simulateArena([[fighter()], [foe()]], 42)
+    expect(plain.checksum).toBe(recorded.checksum)
+    expect(plain.winner).toBe(recorded.winner)
+    expect(recorded.frames.length).toBe(recorded.ticks + 1)
+    expect(simulateArena([[fighter()], [foe()]], 43).checksum).not.toBe(recorded.checksum)
+  })
+
+  // Pinned: the engine is a port of the demo the balance was tuned on. If this changes, every
+  // tuned number may be off; re-run the balance harness before updating it.
+  it('keeps producing the pinned fight', () => {
+    const result = simulateArena([[fighter()], [foe()]], 20261104)
+    expect({ winner: result.winner, ticks: result.ticks, checksum: result.checksum }).toEqual(
+      PINNED
+    )
+  })
+
+  it('only lets a monster equip its own element, neutral skills and one passive', () => {
+    const owner = { elements: ['flame' as const], innate: 'flame_tail' }
+    const skill = (id: string) => ARENA_SKILL_BY_ID[id]
+    expect(canEquipArenaSkill(owner, skill('flame_lava'))).toBe(true)
+    expect(canEquipArenaSkill(owner, skill('n_tackle'))).toBe(true)
+    expect(canEquipArenaSkill(owner, skill('tide_ink'))).toBe(false)
+    expect(canEquipArenaSkill(owner, skill('flame_tail'))).toBe(false)
+    expect(canEquipArenaSkill(owner, skill('dg_vanish'))).toBe(true)
+    expect(canEquipArenaSkill(owner, skill('e_stomp'))).toBe(false)
+    expect(canEquipArenaSkill(owner, skill('flame_phoenix'))).toBe(true)
+    // Ent's innate is a passive: no second passive anywhere in the loadout.
+    const ent = { elements: ['leaf' as const], innate: 'leaf_ent' }
+    expect(canEquipArenaSkill(ent, skill('shd_sting'))).toBe(false)
+    expect(
+      canEquipArenaSkill({ elements: ['leaf'], innate: 'leaf_antler' }, skill('leaf_ent'), [
+        'leaf_ent',
+      ])
+    ).toBe(false)
+  })
+})
+
+describe('arena skills in the game', () => {
+  it('unlocks a skill for every species in the Dex', () => {
+    const ids = unlockedArenaSkillIds(['flame_adultGood', 'tide_baby2', 'leaf_baby1'])
+    expect(ids.sort()).toEqual(['dg_step', 'flame_tail', 'n_breath'].sort())
+  })
+
+  it('gives skills from Adult up only, and a fused form its base line Ultimate skill', () => {
+    expect(arenaInnateOf(pet(EnumMonsterLine.FLAME, 'baby2', EnumMonsterStage.BABY_2))).toBeNull()
+    expect(arenaInnateOf(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT))).toBe(
+      'flame_tail'
+    )
+    expect(
+      arenaInnateOf({
+        speciesId: 'fused_flame_tide',
+        line: EnumMonsterLine.TIDE,
+        stage: EnumMonsterStage.FUSED,
+      })
+    ).toBe('tide_trident')
+  })
+
+  it('drops loadout picks that are no longer legal', () => {
+    const adult = pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT)
+    const unlocked = new Set(['flame_lava', 'tide_ink', 'dg_step', 'flame_tail'])
+    expect(
+      cleanArenaLoadout(adult, { s1: 'flame_lava', s2: 'tide_ink', dodge: 'dg_step' }, unlocked)
+    ).toEqual({ s1: 'flame_lava', s2: null, dodge: 'dg_step' })
+    // Not unlocked, or the pet's own innate (after evolving into that form).
+    expect(
+      cleanArenaLoadout(
+        adult,
+        { s1: 'flame_claw', s2: 'flame_tail', dodge: 'flame_lava' },
+        unlocked
+      )
+    ).toEqual({ s1: null, s2: null, dodge: null })
+    const baby = pet(EnumMonsterLine.FLAME, 'baby2', EnumMonsterStage.BABY_2)
+    expect(
+      cleanArenaLoadout(baby, { s1: 'flame_lava', s2: null, dodge: 'dg_step' }, unlocked)
+    ).toEqual({
+      s1: null,
+      s2: null,
+      dodge: null,
+    })
+  })
+
+  it('builds a fighter from the real monster with its innate and slots', () => {
+    const spec = toArenaFighter(
+      pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT),
+      undefined,
+      { s1: 'flame_lava', s2: null, dodge: 'dg_flip' }
+    )
+    expect(spec.skills).toEqual(['flame_tail', 'flame_lava'])
+    expect(spec.dodge).toBe('dg_flip')
+    expect(spec.element).toBe('flame')
+    const baby = toArenaFighter(pet(EnumMonsterLine.TIDE, 'baby1', EnumMonsterStage.BABY_1))
+    expect(baby.skills).toEqual([])
+    expect(baby.dodge).toBeNull()
+  })
+
+  it('has an arena enemy for every adventure stage: 1 skill, bosses 2', () => {
+    for (const area of ADVENTURE_AREAS) {
+      for (const stage of area.stages) {
+        const arena = ARENA_STAGES[stage.id]
+        expect(arena).toBeDefined()
+        expect(arena.boss).toBe(stage.isBoss)
+        expect(arena.skills).toHaveLength(stage.isBoss ? 2 : 1)
+        for (const id of arena.skills) expect(ARENA_SKILL_BY_ID[id]).toBeDefined()
+        const enemy = arenaEnemyOf(arena)
+        expect(enemy.hp).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('has a source species for every player skill', () => {
+    for (const skill of ARENA_SKILLS) expect(skill.src).toMatch(/^[a-z]+_[A-Za-z0-9]+$/)
+  })
+})
+
+const PINNED = { winner: 1, ticks: 659, checksum: '35b053ce' }

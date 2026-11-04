@@ -1,0 +1,409 @@
+{
+ "flame_smoke": {
+  "pow": 60
+ },
+ "flame_slash": {
+  "pow": 52
+ },
+ "flame_lava": {
+  "pow": 42
+ },
+ "flame_breath": {
+  "pow": 41
+ },
+ "flame_phoenix": {
+  "pow": 25
+ },
+ "n_breath": {
+  "pow": 65
+ },
+ "n_whip": {
+  "pow": 68
+ },
+ "n_guard": {
+  "pow": 64
+ },
+ "n_tackle": {
+  "pow": 48
+ },
+ "n_rock": {
+  "pow": 39
+ },
+ "flame_tail": {
+  "pow": 48
+ },
+ "tide_jelly": {
+  "pow": 22
+ },
+ "tide_fang": {
+  "pow": 50
+ },
+ "tide_ink": {
+  "pow": 39
+ },
+ "tide_whirl": {
+  "pow": 55
+ },
+ "tide_eternal": {
+  "pow": 44
+ },
+ "tide_sword": {
+  "pow": 48
+ },
+ "leaf_spore": {
+  "pow": 136
+ },
+ "leaf_fang": {
+  "pow": 57
+ },
+ "leaf_root": {
+  "pow": 70
+ },
+ "leaf_trunk": {
+  "pow": 62
+ },
+ "leaf_antler": {
+  "pow": 58
+ },
+ "earth_horn": {
+  "pow": 37
+ },
+ "earth_paw": {
+  "pow": 45
+ },
+ "earth_quake": {
+  "pow": 67
+ },
+ "earth_shell": {
+  "pow": 40,
+  "cd": 199
+ },
+ "ltn_cat": {
+  "pow": 102
+ },
+ "ltn_hoof": {
+  "pow": 38
+ },
+ "ltn_roar": {
+  "pow": 46
+ },
+ "ltn_bolt": {
+  "pow": 38,
+  "cd": 161
+ },
+ "ltn_wing": {
+  "pow": 37,
+  "cd": 106
+ },
+ "holy_lull": {
+  "pow": 101
+ },
+ "holy_blade": {
+  "pow": 41,
+  "cd": 186
+ },
+ "holy_arrow": {
+  "pow": 36,
+  "cd": 140
+ },
+ "holy_bell": {
+  "pow": 115
+ },
+ "holy_seraph": {
+  "pow": 54
+ },
+ "holy_sun": {
+  "pow": 44
+ },
+ "holy_judge": {
+  "pow": 43
+ },
+ "holy_wing": {
+  "pow": 44
+ },
+ "dark_bite": {
+  "pow": 50
+ },
+ "dark_fang": {
+  "pow": 46
+ },
+ "dark_eye": {
+  "pow": 44
+ },
+ "dark_wrath": {
+  "pow": 67
+ },
+ "dark_end": {
+  "pow": 51
+ },
+ "dark_curse": {
+  "pow": 49
+ },
+ "dark_web": {
+  "pow": 52
+ },
+ "shd_snake": {
+  "pow": 50
+ },
+ "shd_sting": {
+  "pow": 169
+ },
+ "shd_end": {
+  "pow": 58
+ },
+ "flame_sun": {
+  "pow": 54
+ },
+ "n_chomp": {
+  "pow": 60
+ },
+ "dark_undead": {
+  "pow": 53
+ },
+ "shd_arrow": {
+  "pow": 62
+ },
+ "earth_crawl": {
+  "pow": 56
+ },
+ "shd_mist": {
+  "pow": 58
+ },
+ "line:flame": {
+  "hp": 102
+ },
+ "line:tide": {
+  "hp": 92
+ },
+ "line:leaf": {
+  "hp": 103
+ },
+ "line:earth": {
+  "hp": 89
+ },
+ "line:lightning": {
+  "hp": 104
+ },
+ "line:holy": {
+  "hp": 97
+ },
+ "line:dark": {
+  "hp": 104
+ },
+ "dg_step": {
+  "cd": 63
+ },
+ "dg_veil": {
+  "cd": 50
+ },
+ "dg_parry": {
+  "cd": 220
+ },
+ "dg_blink": {
+  "cd": 50
+ },
+ "dg_flash": {
+  "cd": 120
+ },
+ "dg_counter": {
+  "cd": 201
+ },
+ "dg_vanish": {
+  "cd": 96
+ },
+ "dg_flip": {
+  "cd": 133
+ },
+ "line:shadow": {
+  "hp": 106
+ },
+ "n_rally": {
+  "pow": 149
+ },
+ "n_hawk": {
+  "pow": 179
+ },
+ "tide_armor": {
+  "pow": 38,
+  "cd": 164
+ },
+ "leaf_ent": {
+  "pow": 35
+ },
+ "earth_crystal": {
+  "pow": 101
+ },
+ "shd_flee": {
+  "pow": 162
+ },
+ "shd_void": {
+  "pow": 291
+ },
+ "earth_boulder": {
+  "pow": 85
+ },
+ "ltn_tail": {
+  "pow": 77
+ },
+ "line:flame:adult": {
+  "hp": 105
+ },
+ "line:tide:adult": {
+  "hp": 99
+ },
+ "line:leaf:adult": {
+  "hp": 110
+ },
+ "line:earth:adult": {
+  "hp": 98
+ },
+ "line:lightning:adult": {
+  "hp": 105
+ },
+ "line:holy:adult": {
+  "hp": 98
+ },
+ "line:dark:adult": {
+  "hp": 102
+ },
+ "line:shadow:adult": {
+  "hp": 110
+ },
+ "line:flame:perfect": {
+  "hp": 103
+ },
+ "line:tide:perfect": {
+  "hp": 93
+ },
+ "line:leaf:perfect": {
+  "hp": 102
+ },
+ "line:earth:perfect": {
+  "hp": 87
+ },
+ "line:lightning:perfect": {
+  "hp": 100
+ },
+ "line:holy:perfect": {
+  "hp": 96
+ },
+ "line:dark:perfect": {
+  "hp": 106
+ },
+ "line:shadow:perfect": {
+  "hp": 102
+ },
+ "line:flame:ultimate": {
+  "hp": 107
+ },
+ "line:tide:ultimate": {
+  "hp": 94
+ },
+ "line:leaf:ultimate": {
+  "hp": 105
+ },
+ "line:earth:ultimate": {
+  "hp": 94
+ },
+ "line:lightning:ultimate": {
+  "hp": 111
+ },
+ "line:holy:ultimate": {
+  "hp": 104
+ },
+ "line:dark:ultimate": {
+  "hp": 116
+ },
+ "line:shadow:ultimate": {
+  "hp": 110
+ },
+ "flame_claw": {
+  "pow": 42
+ },
+ "tide_trident": {
+  "pow": 35,
+  "cd": 135
+ },
+ "leaf_claw": {
+  "pow": 43
+ },
+ "leaf_wrath": {
+  "pow": 35,
+  "cd": 127
+ },
+ "earth_quill": {
+  "pow": 35,
+  "cd": 110
+ },
+ "ltn_claw": {
+  "pow": 49
+ },
+ "ltn_vajra": {
+  "pow": 35,
+  "cd": 102
+ },
+ "shd_kunai": {
+  "pow": 35,
+  "cd": 148
+ },
+ "adv:meadow_1": {
+  "k": 136
+ },
+ "adv:meadow_2": {
+  "k": 103
+ },
+ "adv:meadow_3": {
+  "k": 96
+ },
+ "adv:meadow_boss": {
+  "k": 65
+ },
+ "adv:coast_1": {
+  "k": 186
+ },
+ "adv:coast_2": {
+  "k": 167
+ },
+ "adv:coast_3": {
+  "k": 151
+ },
+ "adv:coast_boss": {
+  "k": 101
+ },
+ "adv:volcano_1": {
+  "k": 200
+ },
+ "adv:volcano_2": {
+  "k": 178
+ },
+ "adv:volcano_3": {
+  "k": 151
+ },
+ "adv:volcano_boss": {
+  "k": 112
+ },
+ "adv:cavern_1": {
+  "k": 299
+ },
+ "adv:cavern_2": {
+  "k": 275
+ },
+ "adv:cavern_3": {
+  "k": 266
+ },
+ "adv:cavern_boss": {
+  "k": 193
+ },
+ "adv:storm_1": {
+  "k": 297
+ },
+ "adv:storm_2": {
+  "k": 285
+ },
+ "adv:storm_3": {
+  "k": 254
+ },
+ "adv:storm_boss": {
+  "k": 159
+ }
+}

@@ -1,3 +1,20 @@
+import { ARENA_STATUS, ARENA_STATUS_NUMBERS } from './arena/arena-data'
+import {
+  ARENA_HP_SCALE,
+  ARENA_STRONG,
+  ARENA_WEAK,
+  BOSS_RES,
+  CRIT_CHANCE as ARENA_CRIT_CHANCE,
+  CRIT_MULTIPLIER,
+  DODGE_BASE,
+  DODGE_MAX,
+  DODGE_MIN_CD,
+  LINE_ACC,
+  LINE_EVA,
+  LINE_RES,
+  MAX_BUFF_UPTIME,
+  MAX_RESIST,
+} from './arena/arena-rules'
 import { ADVENTURE_AREAS, FIRST_CLEAR_MULTIPLIER } from './adventure-data'
 import {
   BEATS,
@@ -165,6 +182,25 @@ export const buildWiki = () => ({
     damageVariance: DAMAGE_VARIANCE,
     weightLoss: rules.BATTLE_WEIGHT_LOSS,
     beats: BEATS,
+  },
+  // The real-time arena used by adventure fights (skills, dodging, statuses).
+  arena: {
+    hpScale: ARENA_HP_SCALE,
+    strongMultiplier: ARENA_STRONG / 100,
+    weakMultiplier: ARENA_WEAK / 100,
+    dodgeBase: DODGE_BASE,
+    dodgeMax: DODGE_MAX,
+    dodgeMinCooldown: DODGE_MIN_CD,
+    critChance: ARENA_CRIT_CHANCE,
+    critMultiplier: CRIT_MULTIPLIER / 100,
+    maxResist: MAX_RESIST,
+    maxBuffUptimePct: MAX_BUFF_UPTIME,
+    bossRes: BOSS_RES,
+    lineEva: LINE_EVA,
+    lineAcc: LINE_ACC,
+    lineRes: LINE_RES,
+    statusNumbers: ARENA_STATUS_NUMBERS,
+    statuses: ARENA_STATUS,
   },
   adventure: {
     firstClearMultiplier: FIRST_CLEAR_MULTIPLIER,
