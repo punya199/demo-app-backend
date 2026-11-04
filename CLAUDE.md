@@ -88,6 +88,10 @@ Distinct from the rest of the app: it treats a specific Google Sheet as the prim
 
 ## Agent skills
 
+### Project skills
+
+Shared skills live in `.claude/skills/` and are committed (only `.claude/skills/` is un-ignored — personal `.claude/settings.local.json` etc. stay local), so every developer's Claude follows the same checklist. Skills here: `new-monster-endpoint` (any change in `src/modules/monster/`), `battle-golden-check` (any combat-code change or golden failure), `add-env-var` (config/env/secrets), `release-commit` (every commit/PR/push). The frontend repo has `new-frontend-page`, `add-env-var` and `release-commit` for its side.
+
 ### Issue tracker
 
 Issues live in this repo's GitHub Issues (via `gh` CLI). See `docs/agents/issue-tracker.md`.

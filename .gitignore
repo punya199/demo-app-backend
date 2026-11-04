@@ -71,4 +71,5 @@ private/secret/*
 package-lock.json
 VERSION
 
-.claude/
+.claude/*
+!.claude/skills/
