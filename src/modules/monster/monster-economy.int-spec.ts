@@ -107,6 +107,13 @@ describe('monster economy (inventory, quests, expedition)', () => {
     expect((await wallet.getBalance(owner)).coin).toBe(coinsBefore + reward * 2)
   })
 
+  it('returns a replay the screen can draw for an adventure fight', async () => {
+    const owner = await createUserWithMonster(monsters, 'ultimate', 'flame_ultimate', 'econ')
+    const { battle } = await adventure.battle(owner, 'meadow_1')
+    expect(battle.replay.frames.length).toBeGreaterThan(1)
+    expect(battle.replay.events.length).toBeGreaterThan(0)
+  })
+
   it('spends adventure stamina exactly once per fight under a race', async () => {
     const owner = await createUserWithMonster(monsters, 'ultimate', 'flame_ultimate', 'econ')
     await sql(`UPDATE monsters SET stamina=25 WHERE owner_id=$1`, [owner])
