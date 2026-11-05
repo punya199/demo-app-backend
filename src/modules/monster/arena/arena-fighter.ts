@@ -42,7 +42,7 @@ export interface IArenaLoadout {
 
 export const EMPTY_LOADOUT: IArenaLoadout = { s1: null, s2: null, dodge: null }
 
-const SKILLED_STAGES = [
+export const SKILLED_STAGES = [
   EnumMonsterStage.ADULT,
   EnumMonsterStage.PERFECT,
   EnumMonsterStage.ULTIMATE,

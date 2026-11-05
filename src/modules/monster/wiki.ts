@@ -1,4 +1,5 @@
 import { ARENA_STATUS, ARENA_STATUS_NUMBERS } from './arena/arena-data'
+import { SKILLED_STAGES } from './arena/arena-fighter'
 import { DEFENSE_K as ARENA_DEFENSE_K, MAX_DEF_CUT, VAR_MIN, VAR_SPAN } from './arena/arena-engine'
 import {
   ARENA_ATTACK_SPEED_CAP,
@@ -21,6 +22,7 @@ import {
   LINE_RES,
   MAX_BUFF_UPTIME,
   MAX_RESIST,
+  SKILL_DELAY_TICKS,
 } from './arena/arena-rules'
 import { ADVENTURE_AREAS, FIRST_CLEAR_MULTIPLIER } from './adventure-data'
 import {
@@ -207,6 +209,10 @@ export const buildWiki = () => ({
     hpScale: ARENA_HP_SCALE,
     // A fight ends when a side is down, or at this time limit (more HP share left wins).
     timeLimitSec: ARENA_MAX_TICKS / ARENA_TICK,
+    // Forms that fight with skills (babies and eggs only attack normally).
+    skilledStages: SKILLED_STAGES,
+    // After a cast every skill waits this long (self skills half of it), on top of its own cooldown.
+    skillDelaySec: SKILL_DELAY_TICKS / ARENA_TICK,
     defenseK: ARENA_DEFENSE_K,
     maxDefenseReduction: MAX_DEF_CUT / 10000,
     // Each hit lands at a random share of its damage between these (VAR_SPAN values, from VAR_MIN %).
