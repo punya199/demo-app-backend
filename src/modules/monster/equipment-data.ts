@@ -349,55 +349,57 @@ export interface ISetDefinition {
   bonuses: ISetBonus[]
 }
 
-// Boss sets: pieces drop from the boss named in raid-data.ts.
+// Boss sets: pieces drop from the boss named in raid-data.ts. The 4-piece effects are made for the
+// real-time arena and tuned so the sets win 45-55% against each other (epic +10, Ultimates);
+// the 2-piece bonuses are kept small so a full set beats the same gear without one ~80-85%.
 export const SET_DEFINITIONS: Record<string, ISetDefinition> = {
   blazing: {
     name: 'ชุดเพลิงกัลป์',
     bonuses: [
-      { pieces: 2, pct: { atk: 0.15 } },
-      { pieces: 4, effect: { burnTurns: 3 } },
+      { pieces: 2, pct: { atk: 0.08 } },
+      { pieces: 4, effect: { burnTurns: 1.6, burnBonus: 0.1 } },
     ],
   },
   tidal_guard: {
     name: 'ชุดวารีพิทักษ์',
     bonuses: [
-      { pieces: 2, pct: { def: 0.2 } },
-      { pieces: 4, effect: { shieldPct: 0.15 } },
+      { pieces: 2, pct: { def: 0.1 } },
+      { pieces: 4, effect: { shieldPct: 0.04, shieldRefresh: 0.04 } },
     ],
   },
   deep_root: {
     name: 'ชุดรากแก้ว',
     bonuses: [
-      { pieces: 2, pct: { hp: 0.2 } },
-      { pieces: 4, effect: { regenPct: 0.05 } },
+      { pieces: 2, pct: { hp: 0.1 } },
+      { pieces: 4, effect: { regenPct: 0.045 } },
     ],
   },
   swift_thunder: {
     name: 'ชุดสายฟ้าเร็ว',
     bonuses: [
-      { pieces: 2, pct: { spd: 0.15 } },
-      { pieces: 4, effect: { doubleStrikeChance: 0.2 } },
+      { pieces: 2, pct: { spd: 0.08 } },
+      { pieces: 4, effect: { doubleStrikeChance: 0.15, cooldownCut: 0.18 } },
     ],
   },
   radiant: {
     name: 'ชุดรัศมีสวรรค์',
     bonuses: [
-      { pieces: 2, pct: { hp: 0.15 } },
-      { pieces: 4, effect: { shieldPct: 0.1, regenPct: 0.02 } },
+      { pieces: 2, pct: { hp: 0.08 } },
+      { pieces: 4, effect: { lastStandShield: 0.14 } },
     ],
   },
   nightfall: {
     name: 'ชุดราตรีทมิฬ',
     bonuses: [
-      { pieces: 2, pct: { atk: 0.2 } },
-      { pieces: 4, effect: { critChance: 0.1, critDamage: 0.2 } },
+      { pieces: 2, pct: { atk: 0.1 } },
+      { pieces: 4, effect: { critChance: 0.06, critDamage: 0.12 } },
     ],
   },
   shadow_veil: {
     name: 'ชุดม่านเงา',
     bonuses: [
-      { pieces: 2, pct: { spd: 0.15 } },
-      { pieces: 4, effect: { evasion: 0.1 } },
+      { pieces: 2, pct: { spd: 0.08 } },
+      { pieces: 4, effect: { evasion: 0.15, dodgeCdCutSec: 4, afterDodgeBonus: 0.85 } },
     ],
   },
 }

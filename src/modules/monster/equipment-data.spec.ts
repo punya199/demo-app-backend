@@ -250,31 +250,53 @@ describe('boss sets', () => {
     }
   })
 
-  it('applies the roadmap bonuses: percent at 2 pieces, a battle effect at 4', () => {
-    expect(calcEquipmentBonus(wearSet('blazing', 2)).pct.atk).toBeCloseTo(0.15)
+  it('applies the arena set bonuses: percent at 2 pieces, a battle effect at 4', () => {
+    expect(calcEquipmentBonus(wearSet('blazing', 2)).pct.atk).toBeCloseTo(0.08)
     expect(calcEquipmentBonus(wearSet('blazing', 2)).effects).toEqual({})
-    expect(calcEquipmentBonus(wearSet('blazing', 4)).effects).toEqual({ burnTurns: 3 })
-    expect(calcEquipmentBonus(wearSet('tidal_guard', 2)).pct.def).toBeCloseTo(0.2)
-    expect(calcEquipmentBonus(wearSet('tidal_guard', 4)).effects.shieldPct).toBe(0.15)
-    expect(calcEquipmentBonus(wearSet('deep_root', 2)).pct.hp).toBeCloseTo(0.2)
-    expect(calcEquipmentBonus(wearSet('deep_root', 4)).effects.regenPct).toBe(0.05)
-    expect(calcEquipmentBonus(wearSet('swift_thunder', 2)).pct.spd).toBeCloseTo(0.15)
-    expect(calcEquipmentBonus(wearSet('swift_thunder', 4)).effects.doubleStrikeChance).toBe(0.2)
+    expect(calcEquipmentBonus(wearSet('blazing', 4)).effects).toEqual({
+      burnTurns: 1.6,
+      burnBonus: 0.1,
+    })
+    expect(calcEquipmentBonus(wearSet('tidal_guard', 2)).pct.def).toBeCloseTo(0.1)
+    expect(calcEquipmentBonus(wearSet('tidal_guard', 4)).effects).toEqual({
+      shieldPct: 0.04,
+      shieldRefresh: 0.04,
+    })
+    expect(calcEquipmentBonus(wearSet('deep_root', 2)).pct.hp).toBeCloseTo(0.1)
+    expect(calcEquipmentBonus(wearSet('deep_root', 4)).effects.regenPct).toBe(0.045)
+    expect(calcEquipmentBonus(wearSet('swift_thunder', 2)).pct.spd).toBeCloseTo(0.08)
+    expect(calcEquipmentBonus(wearSet('swift_thunder', 4)).effects).toEqual({
+      doubleStrikeChance: 0.15,
+      cooldownCut: 0.18,
+    })
+    expect(calcEquipmentBonus(wearSet('radiant', 4)).effects).toEqual({ lastStandShield: 0.14 })
+    expect(calcEquipmentBonus(wearSet('nightfall', 4)).effects).toEqual({
+      critChance: 0.06,
+      critDamage: 0.12,
+    })
+    expect(calcEquipmentBonus(wearSet('shadow_veil', 4)).effects).toEqual({
+      evasion: 0.15,
+      dodgeCdCutSec: 4,
+      afterDodgeBonus: 0.85,
+    })
   })
 
   it('multiplies the percent bonus by 1.5 only when every worn piece is +10 or more', () => {
-    expect(calcEquipmentBonus(wearSet('blazing', 2, 10)).pct.atk).toBeCloseTo(0.15 * 1.5)
+    expect(calcEquipmentBonus(wearSet('blazing', 2, 10)).pct.atk).toBeCloseTo(0.08 * 1.5)
     const mixed = [...wearSet('blazing', 2, 10).slice(0, 1), ...wearSet('blazing', 2, 9).slice(1)]
-    expect(calcEquipmentBonus(mixed).pct.atk).toBeCloseTo(0.15)
+    expect(calcEquipmentBonus(mixed).pct.atk).toBeCloseTo(0.08)
     // the battle effect is never boosted
-    expect(calcEquipmentBonus(wearSet('blazing', 4, 15)).effects).toEqual({ burnTurns: 3 })
+    expect(calcEquipmentBonus(wearSet('blazing', 4, 15)).effects).toEqual({
+      burnTurns: 1.6,
+      burnBonus: 0.1,
+    })
   })
 
   it('combines effects from different sets and mixes 2+2', () => {
     const mixed = [...wearSet('blazing', 4).slice(0, 2), ...wearSet('deep_root', 4).slice(2)]
     const bonus = calcEquipmentBonus(mixed)
-    expect(bonus.pct.atk).toBeCloseTo(0.15)
-    expect(bonus.pct.hp).toBeCloseTo(0.2)
+    expect(bonus.pct.atk).toBeCloseTo(0.08)
+    expect(bonus.pct.hp).toBeCloseTo(0.1)
     expect(bonus.effects).toEqual({})
   })
 })
