@@ -5,6 +5,7 @@ import {
   SET_ENHANCE_THRESHOLD,
   SET_PIECE_MAIN_MULTIPLIER,
 } from './monster-rules'
+import { CRAFT_MATERIAL_DEFS } from './craft-materials'
 import { CRAFT_SETS } from './craft-sets'
 import { IBattleStats, isStageAtLeast } from './species-data'
 
@@ -35,6 +36,19 @@ export enum EnumMaterialId {
   REFINE_RARE = 'refine_stone_rare',
   REFINE_EPIC = 'refine_stone_epic',
   REFINE_LEGENDARY = 'refine_stone_legendary',
+  // Craft materials (see craft-materials.ts): drop only.
+  CRAFT_ESSENCE_FLAME = 'craft_essence_flame',
+  CRAFT_ESSENCE_TIDE = 'craft_essence_tide',
+  CRAFT_ESSENCE_LEAF = 'craft_essence_leaf',
+  CRAFT_ESSENCE_EARTH = 'craft_essence_earth',
+  CRAFT_ESSENCE_LIGHTNING = 'craft_essence_lightning',
+  CRAFT_ESSENCE_HOLY = 'craft_essence_holy',
+  CRAFT_FORGE_CORE = 'craft_forge_core',
+  CRAFT_RUNE_SHARD = 'craft_rune_shard',
+  CRAFT_UNIQUE_VERDANT_HEART = 'craft_unique_verdant_heart',
+  CRAFT_UNIQUE_REAPER_EDGE = 'craft_unique_reaper_edge',
+  CRAFT_UNIQUE_STORM_SIGIL = 'craft_unique_storm_sigil',
+  CRAFT_CATALYST = 'craft_catalyst',
 }
 
 export type StatKey = keyof IBattleStats
@@ -330,6 +344,8 @@ export interface IMaterial {
   description: string
   price: number
   currency: 'coin' | 'gem' | 'raid_token'
+  // False = drop only: never for sale, whatever the price says.
+  sellable: boolean
 }
 
 export const MATERIALS: IMaterial[] = [
@@ -340,6 +356,7 @@ export const MATERIALS: IMaterial[] = [
     description: 'วัตถุดิบตีบวกอุปกรณ์',
     price: 40,
     currency: 'coin',
+    sellable: true,
   },
   {
     // The common refine stone is sold like the enhance stone; rare, epic and legendary ones only
@@ -350,6 +367,7 @@ export const MATERIALS: IMaterial[] = [
     description: `รีไฟน์ค่ารองของชิ้นที่ตีบวกไม่เกิน +${REFINE_TIERS[0].maxLevel}`,
     price: 40,
     currency: 'coin',
+    sellable: true,
   },
   {
     id: EnumMaterialId.PROTECT_SCROLL,
@@ -358,7 +376,17 @@ export const MATERIALS: IMaterial[] = [
     description: 'ตีบวก +10 ขึ้นไปล้มเหลวแล้วไม่ลดระดับและไม่แตก',
     price: 6,
     currency: 'raid_token',
+    sellable: true,
   },
+  ...CRAFT_MATERIAL_DEFS.map(def => ({
+    id: def.id as EnumMaterialId,
+    name: def.name,
+    emoji: def.emoji,
+    description: def.description,
+    price: 0,
+    currency: 'coin' as const,
+    sellable: false,
+  })),
 ]
 
 export const findMaterial = (materialId: string) =>

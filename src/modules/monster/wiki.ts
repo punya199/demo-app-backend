@@ -74,6 +74,18 @@ import {
   SUB_STAT_COUNT_BY_GRADE,
   SUB_STAT_ROLL,
 } from './equipment-data'
+import {
+  CRAFT_ADVENTURE_ESSENCE,
+  CRAFT_AREA_ELEMENT,
+  CRAFT_CATALYST_CHANCE,
+  CRAFT_PITY_AFTER_FAILS,
+  CRAFT_RAID_CORES,
+  CRAFT_SKIP_COIN_MULTIPLIER,
+  CRAFT_TIERS,
+  CRAFT_WORLD_BOSS,
+} from './craft-data'
+import { CRAFT_MATERIAL_DEFS } from './craft-materials'
+import { CRAFT_SETS } from './craft-sets'
 import { ENHANCE_STEPS, MAX_ENHANCE_LEVEL, PITY_MAX, PITY_PER_FAIL } from './enhance-engine'
 import {
   WORLD_BOSS_DEFEATED_BONUS,
@@ -243,7 +255,8 @@ export const buildWiki = () => ({
     dismantleStoneLevelStep: DISMANTLE_STONE_LEVEL_STEP,
     refineTiers: REFINE_TIERS,
     subStatRoll: SUB_STAT_ROLL,
-    materials: MATERIALS,
+    // Shop materials only; the drop-only craft ones are under `craft.materials`.
+    materials: MATERIALS.filter(material => material.sellable),
     sets: SET_DEFINITIONS,
     enhance: {
       maxLevel: MAX_ENHANCE_LEVEL,
@@ -334,5 +347,25 @@ export const buildWiki = () => ({
     dailyQuests: DAILY_QUESTS,
     weeklyQuests: WEEKLY_QUESTS,
     dexDiscoveryGems: rules.DEX_DISCOVERY_GEM_REWARD,
+  },
+  craft: {
+    tiers: CRAFT_TIERS,
+    catalystChance: CRAFT_CATALYST_CHANCE,
+    pityAfterFails: CRAFT_PITY_AFTER_FAILS,
+    skipCoinMultiplier: CRAFT_SKIP_COIN_MULTIPLIER,
+    adventureEssence: { ...CRAFT_ADVENTURE_ESSENCE, areaElement: CRAFT_AREA_ELEMENT },
+    raidCores: CRAFT_RAID_CORES,
+    worldBoss: CRAFT_WORLD_BOSS,
+    materials: CRAFT_MATERIAL_DEFS,
+    sets: CRAFT_SETS.map(set => ({
+      id: set.id,
+      name: set.name,
+      style: set.style,
+      flagship: set.flagship,
+      care: !!set.care,
+      essence: set.essence,
+      rare: set.rare,
+      unique: set.unique ?? null,
+    })),
   },
 })

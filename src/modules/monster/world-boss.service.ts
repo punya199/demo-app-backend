@@ -43,6 +43,7 @@ import {
   WORLD_BOSS_RESET_HOURS,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
+import { worldBossCraftDrops } from './craft-data'
 import { isCraftSetId } from './craft-sets'
 import { calcRentalFee, orderPair } from './social-data'
 import { getQuestDayStart } from './quest-data'
@@ -454,6 +455,11 @@ export class WorldBossService {
       for (const [materialId, quantity] of Object.entries(reward.refineStones)) {
         await this.inventoryService.add(userId, materialId, etm, quantity)
       }
+      // A unique craft material (kind fixed by claimRolls) and Catalysts; ranks 1-3 get more.
+      const craftDrops = worldBossCraftDrops(rank, claimRolls(boss.id, userId).craftKindRoll)
+      for (const material of craftDrops) {
+        await this.inventoryService.add(userId, material.itemId, etm, material.qty)
+      }
 
       let drop: ReturnType<typeof toEquipmentView> | null = null
       if (reward.pieceGrade) {
@@ -468,7 +474,7 @@ export class WorldBossService {
         )
         drop = piece ? toEquipmentView(piece) : null
       }
-      return { week, rank, reward, drop, wallet }
+      return { week, rank, reward, craftDrops, drop, wallet }
     })
   }
 

@@ -1,4 +1,5 @@
 import { ADVENTURE_AREAS, IAdventureArea } from './adventure-data'
+import { CRAFT_ESSENCE_ID } from './craft-materials'
 import {
   EXPEDITION_DROP_EVERY_MINUTES,
   EXPEDITION_POWER_MULTIPLIER_MAX,
@@ -17,7 +18,12 @@ const EXPEDITION_COINS_PER_HOUR: Record<string, number> = {
 }
 
 // Consumables an expedition can bring home, one random pick per drop.
-export const EXPEDITION_DROP_ITEMS = [EnumShopItemId.PREMIUM_MEAT, EnumShopItemId.PROTEIN]
+export const EXPEDITION_DROP_ITEMS: string[] = [
+  EnumShopItemId.PREMIUM_MEAT,
+  EnumShopItemId.PROTEIN,
+  // The six craft essences (see craft.md): an expedition drop is one random pick of all eight.
+  ...Object.values(CRAFT_ESSENCE_ID),
+]
 
 const power = (stats: IBattleStats) => stats.hp / 5 + stats.atk + stats.def + stats.spd
 

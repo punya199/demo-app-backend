@@ -350,5 +350,7 @@ export const claimRolls = (worldBossId: string, userId: string) => {
   const pieceRoll = rng()
   const slots = Object.values(EnumEquipmentSlot)
   // `rng` carries on for the piece's own stat rolls, so those are fixed per claim too.
-  return { pieceRoll, slot: slots[Math.floor(rng() * slots.length)], rng }
+  // The craft unique's kind has its own stream, so the piece rolls above stay exactly as they were.
+  const craftKindRoll = createRng(fnv1a(`${worldBossId}:${userId}:craft`))()
+  return { pieceRoll, slot: slots[Math.floor(rng() * slots.length)], rng, craftKindRoll }
 }

@@ -24,8 +24,10 @@ import {
 import { toArenaReplay } from './arena/arena-replay'
 import { IArenaStage } from './arena/arena-types'
 import { loadUnlockedArenaSkills } from './skill.service'
+import { ICraftMaterialNeed, rollAdventureEssence } from './craft-data'
 import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
+import { InventoryService } from './inventory.service'
 import { loadPassiveBonus } from './passive.service'
 import { loadSpecialBonus } from './special-bonus'
 import { applyAdventureSkip, applyBattleOutcome, assertCanAdventure } from './monster-engine'
@@ -62,7 +64,8 @@ export class AdventureService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly monsterService: MonsterService,
-    private readonly walletService: WalletService
+    private readonly walletService: WalletService,
+    private readonly inventoryService: InventoryService
   ) {}
 
   async getAdventure(userId: string) {
@@ -188,6 +191,7 @@ export class AdventureService {
       // A win may drop a piece for the area's grades.
       let drop: ReturnType<typeof toEquipmentView> | null = null
       let dropBagFull = false
+      let essence: ICraftMaterialNeed[] = []
       if (result.won) {
         const rolled = await this.rollDrops(
           userId,
@@ -199,6 +203,7 @@ export class AdventureService {
         )
         drop = rolled.drops[0] ?? null
         dropBagFull = rolled.lost > 0
+        essence = await this.rollEssence(userId, entry.area.id, 1, etm)
       }
 
       return {
@@ -217,6 +222,8 @@ export class AdventureService {
           isFirstClear,
           drop,
           dropBagFull,
+          // Craft essences this win dropped (itemId + qty), usually none.
+          essence,
         },
         wallet,
       }
@@ -275,13 +282,31 @@ export class AdventureService {
         special.dropMultiplier,
         etm
       )
+      const essence = await this.rollEssence(userId, entry.area.id, runs, etm)
 
       return {
         monster: toMonsterView(saved),
-        skip: { stageId, runs, coins: reward * runs, drops, dropsLost: lost },
+        skip: { stageId, runs, coins: reward * runs, drops, dropsLost: lost, essence },
         wallet,
       }
     })
+  }
+
+  // One essence roll per won run (6% each), paid into the inventory; totals per essence.
+  private async rollEssence(userId: string, areaId: string, runs: number, etm: EntityManager) {
+    const totals = new Map<string, number>()
+    for (let run = 0; run < runs; run++) {
+      const found = rollAdventureEssence(areaId, () => randomInt(0, 1_000_000) / 1_000_000)
+      if (found) {
+        totals.set(found.itemId, (totals.get(found.itemId) ?? 0) + found.qty)
+      }
+    }
+    const essence: ICraftMaterialNeed[] = []
+    for (const [itemId, qty] of totals) {
+      await this.inventoryService.add(userId, itemId, etm, qty)
+      essence.push({ itemId, qty })
+    }
+    return essence
   }
 
   private staminaCost(multiplier: number) {
