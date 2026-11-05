@@ -1,3 +1,15 @@
+# [1.37.0](https://github.com/punya199/demo-app-backend/compare/v1.36.0...v1.37.0) (2026-11-05)
+
+
+### New
+
+* replace auto-battle with adventure skip and reset adventure progress ([816c5d6](https://github.com/punya199/demo-app-backend/commit/816c5d64f236853577c1dccfdfea8559e832e10c))
+* support arena-native boss-set effects in the engine ([a7abfd6](https://github.com/punya199/demo-app-backend/commit/a7abfd6f4a7e9f085148fa316d47294b6b48af48))
+
+### Update
+
+* rebalance boss sets for the real-time arena ([1ebf4b7](https://github.com/punya199/demo-app-backend/commit/1ebf4b70fdbf2a64651b4691bcf94910e228ec6f))
+
 # [1.36.0](https://github.com/punya199/demo-app-backend/compare/v1.35.0...v1.36.0) (2026-11-05)
 
 
