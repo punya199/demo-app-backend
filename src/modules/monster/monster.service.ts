@@ -32,7 +32,6 @@ import {
   tick,
 } from './monster-engine'
 import {
-  AUTO_BATTLE_COOLDOWN_MS,
   DEX_DISCOVERY_GEM_REWARD,
   MAX_LIVING_MONSTERS,
   RARE_EGG_RAID_TOKEN_PRICE,
@@ -103,7 +102,6 @@ export const toMonsterView = (monster: MonsterEntity) => {
     // What collecting the expedition would pay right now (0 when not out).
     expeditionPendingCoins: calcExpeditionCoins(monster.expeditionMinutes, monster.expeditionRate),
     expeditionPendingDrops: calcExpeditionDrops(monster.expeditionMinutes),
-    autoBattleReadyAt: readyAt(monster.lastAutoBattleAt, AUTO_BATTLE_COOLDOWN_MS),
     minigameReadyAt: readyAt(monster.lastMinigameAt, MINIGAME_COOLDOWN_MS),
     evolution: {
       ...evolution,

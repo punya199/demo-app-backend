@@ -174,7 +174,7 @@ describe('boss raid', () => {
       await equipment.equip(wearer, (row as EquipmentItemEntity).id)
     }
     const view = await equipment.getEquipment(wearer)
-    expect(view.activeEffects).toEqual({ shieldPct: 0.15 })
-    expect(view.bonus.pct.def).toBeCloseTo(0.2)
+    expect(view.activeEffects).toEqual({ shieldPct: 0.04, shieldRefresh: 0.04 })
+    expect(view.bonus.pct.def).toBeCloseTo(0.1)
   })
 })

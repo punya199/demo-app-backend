@@ -73,16 +73,38 @@ describe('monster economy (inventory, quests, expedition)', () => {
     ).rejects.toThrow()
   })
 
-  it("sums today's auto-battle coins", async () => {
-    await dataSource.transaction(etm =>
-      wallet.change(userId, 'coin' as never, 7, 'auto_battle_reward' as never, 'x', etm)
+  it('skips only a cleared stage, paying every run and charging stamina once under a race', async () => {
+    const owner = await createUserWithMonster(monsters, 'ultimate', 'flame_ultimate', 'econ')
+    await expect(adventure.skip(owner, 'meadow_1', 3)).rejects.toThrow(/Clear this stage once/)
+    await sql(
+      `INSERT INTO adventure_progress (user_id, stage_id, clear_count, first_cleared_at)
+       VALUES ($1, 'meadow_1', 1, now())`,
+      [owner]
     )
-    const sum = await (
-      adventure as unknown as {
-        getAutoCoinsEarnedToday: (u: string, n: Date, e: unknown) => Promise<number>
-      }
-    ).getAutoCoinsEarnedToday(userId, new Date(), dataSource.manager)
-    expect(sum).toBe(7)
+    await sql(`UPDATE monsters SET stamina=65 WHERE owner_id=$1`, [owner])
+    const coinsBefore = (await wallet.getBalance(owner)).coin
+    const skips = await Promise.allSettled(
+      Array.from({ length: 4 }, () => adventure.skip(owner, 'meadow_1', 3))
+    )
+    expect(succeeded(skips)).toBe(2)
+    const [row] = await sql<{ stamina: number; wins: number }[]>(
+      `SELECT stamina, wins FROM monsters WHERE owner_id=$1`,
+      [owner]
+    )
+    expect(row.stamina).toBeGreaterThanOrEqual(5)
+    expect(row.stamina).toBeLessThan(6)
+    expect(row.wins).toBe(6)
+    const [progress] = await sql<{ clear_count: number }[]>(
+      `SELECT clear_count FROM adventure_progress WHERE user_id=$1 AND stage_id='meadow_1'`,
+      [owner]
+    )
+    expect(progress.clear_count).toBe(7)
+    const reward = (
+      skips.find(r => r.status === 'fulfilled') as PromiseFulfilledResult<{
+        skip: { coins: number }
+      }>
+    ).value.skip.coins
+    expect((await wallet.getBalance(owner)).coin).toBe(coinsBefore + reward * 2)
   })
 
   it('spends adventure stamina exactly once per fight under a race', async () => {

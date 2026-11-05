@@ -6,11 +6,11 @@ import {
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import {
   applyAction,
+  applyAdventureSkip,
   applyBattleOutcome,
   applyMinigame,
   applyPvpOutcome,
   applyShopItem,
-  assertAutoBattleReady,
   assertCanAdventure,
   assertCanBattle,
   claimExpedition,
@@ -24,7 +24,7 @@ import {
   tick,
 } from './monster-engine'
 import {
-  AUTO_BATTLE_COOLDOWN_MS,
+  ADVENTURE_SKIP_MAX_RUNS,
   EXPEDITION_DRAIN_MULTIPLIER,
   EXPEDITION_MAX_MINUTES,
   LIFESPAN_MINUTES,
@@ -397,7 +397,7 @@ describe('adventure stamina cost', () => {
   it('uses a custom cost for the check and the charge', () => {
     expect(() => assertCanAdventure(monster({ stamina: 7 }), 7)).not.toThrow()
     expect(() => assertCanAdventure(monster({ stamina: 6 }), 7)).toThrow('Not enough stamina')
-    const { state } = applyBattleOutcome(monster({ stamina: 50 }), true, {}, NOW, false, 7)
+    const { state } = applyBattleOutcome(monster({ stamina: 50 }), true, {}, NOW, 7)
     expect(state.stamina).toBe(43)
   })
 })
@@ -556,13 +556,38 @@ describe('expedition', () => {
   })
 })
 
-describe('auto-battle', () => {
-  it('is rate-limited', () => {
-    const { state } = applyBattleOutcome(monster(), true, {}, NOW, true)
-    expect(() => assertAutoBattleReady(state, minutesAfter(NOW, 0))).toThrow('not ready')
+describe('adventure skip', () => {
+  it('pays the stamina of every run up front and counts each run as a won fight', () => {
+    const start = monster({ stamina: 50, wins: 2, weight: 30 })
+    const { state, events } = applyAdventureSkip(start, 'meadow_1', 3, 12, NOW, 10)
+    expect(state.stamina).toBe(20)
+    expect(state.wins).toBe(5)
+    expect(state.losses).toBe(start.losses)
+    expect(state.weight).toBeLessThan(30)
+    expect(events).toHaveLength(3)
+    expect(events[0].payload).toEqual({ stageId: 'meadow_1', won: true, skip: true, reward: 12 })
+  })
+
+  it('refuses without stamina for every run, or a run count out of range', () => {
+    expect(() => applyAdventureSkip(monster({ stamina: 29 }), 'meadow_1', 3, 12, NOW, 10)).toThrow(
+      'Not enough stamina'
+    )
+    expect(() => applyAdventureSkip(monster({ stamina: 100 }), 'meadow_1', 0, 12, NOW)).toThrow(
+      'runs at a time'
+    )
     expect(() =>
-      assertAutoBattleReady(state, new Date(NOW.getTime() + AUTO_BATTLE_COOLDOWN_MS))
-    ).not.toThrow()
+      applyAdventureSkip(
+        monster({ stamina: 100 }),
+        'meadow_1',
+        ADVENTURE_SKIP_MAX_RUNS + 1,
+        12,
+        NOW,
+        1
+      )
+    ).toThrow('runs at a time')
+    expect(() => applyAdventureSkip(monster({ stamina: 100 }), 'meadow_1', 1.5, 12, NOW)).toThrow(
+      'runs at a time'
+    )
   })
 })
 

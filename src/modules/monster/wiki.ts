@@ -90,7 +90,7 @@ import {
 } from './raid-data'
 import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from './elo'
 import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
-import { calcAutoBattleReward, getExpeditionBaseRate } from './idle-data'
+import { getExpeditionBaseRate } from './idle-data'
 import { DAILY_QUESTS, WEEKLY_QUESTS } from './quest-data'
 import { SHOP_ITEMS } from './shop-data'
 import {
@@ -209,6 +209,7 @@ export const buildWiki = () => ({
   adventure: {
     firstClearMultiplier: FIRST_CLEAR_MULTIPLIER,
     areas: ADVENTURE_AREAS,
+    skipMaxRuns: rules.ADVENTURE_SKIP_MAX_RUNS,
   },
   idle: {
     expeditionMaxMinutes: rules.EXPEDITION_MAX_MINUTES,
@@ -221,12 +222,7 @@ export const buildWiki = () => ({
       name: area.name,
       emoji: area.emoji,
       baseRatePerHour: getExpeditionBaseRate(area.id),
-      autoBattleRewards: area.stages
-        .filter(stage => !stage.isBoss)
-        .map(stage => ({ name: stage.enemy.name, coins: calcAutoBattleReward(stage) })),
     })),
-    autoBattleCooldownSeconds: rules.AUTO_BATTLE_COOLDOWN_MS / 1000,
-    autoBattleDailyCoinCap: rules.AUTO_BATTLE_DAILY_COIN_CAP,
   },
   equipment: {
     capacity: rules.EQUIPMENT_CAPACITY,

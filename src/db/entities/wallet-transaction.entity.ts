@@ -32,6 +32,7 @@ export enum EnumWalletTransactionReason {
   MONSTER_MERGE = 'monster_merge',
   RARE_EGG = 'rare_egg',
   COSTUME_PURCHASE = 'costume_purchase',
+  ADVENTURE_SKIP_REWARD = 'adventure_skip_reward',
 }
 
 @Entity({

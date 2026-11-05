@@ -117,11 +117,9 @@ export const EXPEDITION_DROP_EVERY_MINUTES = 4 * 60
 export const EXPEDITION_POWER_MULTIPLIER_MIN = 0.5
 export const EXPEDITION_POWER_MULTIPLIER_MAX = 1.5
 
-// Idle mode, online: auto-battle repeats an already-cleared normal stage. Each fight is cheap in
-// time and pays a fraction of the stage reward, with a per-day coin cap against scripts.
-export const AUTO_BATTLE_COOLDOWN_MS = 60 * 1000
-export const AUTO_BATTLE_REWARD_RATIO = 0.2
-export const AUTO_BATTLE_DAILY_COIN_CAP = 1500
+// Skip: a stage cleared once can be swept without fighting, paying stamina for each run and getting
+// a normal win's reward. Up to this many runs per request.
+export const ADVENTURE_SKIP_MAX_RUNS = 10
 
 // Equipment (phase 3). Slot/grade data lives in equipment-data.ts, the enhance table in
 // enhance-engine.ts.

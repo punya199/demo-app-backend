@@ -6,6 +6,7 @@ import {
 import { EnumMonsterLogType } from '../../db/entities/monster-log.entity'
 import { IPotential } from './monster-potential'
 import {
+  ADVENTURE_SKIP_MAX_RUNS,
   ADVENTURE_STAMINA_COST,
   BATTLE_WEIGHT_LOSS,
   DEATH_AFTER_HUNGRY_MINUTES,
@@ -25,7 +26,6 @@ import {
   MINIGAME_STAMINA_REWARDS,
   NEGLECT_FIRST_MISTAKE_MINUTES,
   NEGLECT_REPEAT_MISTAKE_MINUTES,
-  AUTO_BATTLE_COOLDOWN_MS,
   ONLINE_EVOLUTION_MULTIPLIER,
   ONLINE_GRACE_MINUTES,
   ONLINE_STAMINA_REGEN_MULTIPLIER,
@@ -86,6 +86,7 @@ export interface IMonsterState {
   // Last request from the owner; minutes shortly after it count as online.
   lastSeenAt: Date | null
   lastTrainedAt: Date | null
+  // Unused since skip replaced auto-battle; kept so the column stays in sync.
   lastAutoBattleAt: Date | null
   lastMinigameAt: Date | null
   expeditionAreaId: string | null
@@ -478,7 +479,7 @@ export const assertCanBattle = (state: IMonsterState) => {
   }
 }
 
-// Adventure fights (manual and auto) need one fight's worth of stamina; other modes don't use it.
+// Adventure fights (fought or skipped) need one fight's worth of stamina; other modes don't use it.
 export const assertCanAdventure = (state: IMonsterState, cost = ADVENTURE_STAMINA_COST) => {
   assertCanBattle(state)
   if (state.stamina < cost) {
@@ -493,15 +494,11 @@ export const applyBattleOutcome = (
   won: boolean,
   payload: Record<string, unknown>,
   now: Date,
-  isAuto = false,
   staminaCost = ADVENTURE_STAMINA_COST
 ): IMonsterStepResult => {
   assertCanAdventure(current, staminaCost)
   const state = { ...current }
   const species = getSpecies(state.speciesId)
-  if (isAuto) {
-    state.lastAutoBattleAt = now
-  }
   state.stamina = Math.max(0, state.stamina - staminaCost)
   state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS)
   if (won) {
@@ -515,9 +512,38 @@ export const applyBattleOutcome = (
       {
         type: EnumMonsterLogType.BATTLE,
         at: now,
-        payload: { ...payload, won, ...(isAuto && { isAuto }) },
+        payload: { ...payload, won },
       },
     ],
+  }
+}
+
+// Skip: `runs` wins of an already-cleared stage without fighting. Costs `staminaCost` per run (all
+// up front, or nothing) and counts like that many won fights: wins, weight, one event per run.
+export const applyAdventureSkip = (
+  current: IMonsterState,
+  stageId: string,
+  runs: number,
+  rewardPerRun: number,
+  now: Date,
+  staminaCost = ADVENTURE_STAMINA_COST
+): IMonsterStepResult => {
+  if (!Number.isInteger(runs) || runs < 1 || runs > ADVENTURE_SKIP_MAX_RUNS) {
+    throw new MonsterRuleError(`Skip 1 to ${ADVENTURE_SKIP_MAX_RUNS} runs at a time`)
+  }
+  assertCanAdventure(current, staminaCost * runs)
+  const state = { ...current }
+  const species = getSpecies(state.speciesId)
+  state.stamina -= staminaCost * runs
+  state.weight = Math.max(species.minWeight, state.weight - BATTLE_WEIGHT_LOSS * runs)
+  state.wins += runs
+  return {
+    state,
+    events: Array.from({ length: runs }, () => ({
+      type: EnumMonsterLogType.BATTLE,
+      at: now,
+      payload: { stageId, won: true, skip: true, reward: rewardPerRun },
+    })),
   }
 }
 
@@ -538,16 +564,6 @@ export const applyPvpOutcome = (
   return {
     state,
     events: [{ type: EnumMonsterLogType.BATTLE, at: now, payload: { ...payload, won, mode } }],
-  }
-}
-
-// Auto-battle is rate-limited here; the per-day coin cap needs the wallet history (AdventureService).
-export const assertAutoBattleReady = (state: IMonsterState, now: Date) => {
-  if (
-    state.lastAutoBattleAt &&
-    now.getTime() - state.lastAutoBattleAt.getTime() < AUTO_BATTLE_COOLDOWN_MS
-  ) {
-    throw new MonsterRuleError('Auto-battle is not ready yet')
   }
 }
 

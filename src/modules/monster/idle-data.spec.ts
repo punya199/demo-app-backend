@@ -1,31 +1,14 @@
 import { EnumMonsterStage } from '../../db/entities/monster.entity'
 import { ADVENTURE_AREAS } from './adventure-data'
 import {
-  calcAutoBattleReward,
   calcExpeditionCoins,
   calcExpeditionDrops,
   getExpeditionBaseRate,
   getExpeditionRate,
 } from './idle-data'
-import { AUTO_BATTLE_COOLDOWN_MS } from './monster-rules'
 import { STAGE_BASE_STATS } from './species-data'
 
 describe('idle rewards', () => {
-  it('pays auto-battle a little more per hour than an expedition in the same area', () => {
-    const fightsPerHour = 3_600_000 / AUTO_BATTLE_COOLDOWN_MS
-    for (const area of ADVENTURE_AREAS) {
-      const normalStages = area.stages.filter(stage => !stage.isBoss)
-      const autoPerHour =
-        (normalStages.reduce((sum, stage) => sum + calcAutoBattleReward(stage), 0) /
-          normalStages.length) *
-        fightsPerHour
-      const expeditionPerHour = getExpeditionRate(area, STAGE_BASE_STATS[area.recommendedStage])
-      expect(expeditionPerHour).toBe(getExpeditionBaseRate(area.id))
-      expect(autoPerHour).toBeGreaterThan(expeditionPerHour)
-      expect(autoPerHour).toBeLessThanOrEqual(expeditionPerHour * 1.5)
-    }
-  })
-
   it('scales the expedition rate with power, within bounds', () => {
     const area = ADVENTURE_AREAS[0]
     const base = getExpeditionBaseRate(area.id)
