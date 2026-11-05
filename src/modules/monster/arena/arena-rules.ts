@@ -92,3 +92,11 @@ export const ARENA_LAST_STAND_BELOW = 35
 // to the cap. Only a bonus does: a penalty slowed attacks too, and that only helped stalling builds.
 export const ARENA_ATTACK_SPEED_PCT = 50
 export const ARENA_ATTACK_SPEED_CAP = 30
+
+// Craft sets: the HP share under which the execute bonus applies, and what the on-basic statuses
+// and the retort do (seconds / percent of ATK).
+export const ARENA_CRAFT_EXECUTE_BELOW = 30
+export const ARENA_CRAFT_STATUS_SEC = { slow: 2, defDown: 3, poison: 4, curse: 3, stun: 1 }
+// The retort only blinds (power 0 = no counter hit): a counter hit on every melee hit made the
+// mirage set win ~75% at any chance.
+export const ARENA_CRAFT_RETORT = { power: 0, dur: 2 }

@@ -49,6 +49,21 @@ export interface IFighterEffects {
   // Seconds off the dodge cooldown, and the next hit after a dodge crits and deals this much more.
   dodgeCdCutSec?: number
   afterDodgeBonus?: number
+  // Craft-set effects, also arena only. Chances are percents (25 = 25%).
+  // Share cut from every hit taken (0.12 = -12%).
+  damageCut?: number
+  // Hits on a target below 30% HP deal this much more.
+  executeBonus?: number
+  // Chance that a basic attack slows / lowers DEF / poisons / curses / stuns the target.
+  slowOnBasic?: number
+  defDownOnBasic?: number
+  poisonOnBasic?: number
+  curseOnBasic?: number
+  stunOnBasic?: number
+  // Hits on a poisoned target deal this much more.
+  poisonBonus?: number
+  // Chance share (0.6 = 60%) that a melee hit taken is answered by blinding the attacker.
+  retort?: number
 }
 
 export interface IFighter {

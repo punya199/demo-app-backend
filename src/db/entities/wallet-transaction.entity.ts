@@ -33,6 +33,8 @@ export enum EnumWalletTransactionReason {
   RARE_EGG = 'rare_egg',
   COSTUME_PURCHASE = 'costume_purchase',
   ADVENTURE_SKIP_REWARD = 'adventure_skip_reward',
+  CRAFT = 'craft',
+  CRAFT_SKIP = 'craft_skip',
 }
 
 @Entity({

@@ -9,6 +9,9 @@ import {
   ARENA_ATTACK_SPEED_CAP,
   ARENA_ATTACK_SPEED_PCT,
   ARENA_BURN_CHANCE,
+  ARENA_CRAFT_EXECUTE_BELOW,
+  ARENA_CRAFT_RETORT,
+  ARENA_CRAFT_STATUS_SEC,
   ARENA_LAST_STAND_BELOW,
   ARENA_SHIELD_REFRESH_SEC,
   ARENA_HP_SCALE,
@@ -107,6 +110,41 @@ export const cleanArenaLoadout = (
 const stageKeyOf = (stage: EnumMonsterStage) =>
   stage === EnumMonsterStage.FUSED ? EnumMonsterStage.ULTIMATE : stage
 
+const ON_BASIC_EFFECTS = [
+  ['slowOnBasic', 'slow'],
+  ['defDownOnBasic', 'defDown'],
+  ['poisonOnBasic', 'poison'],
+  ['curseOnBasic', 'curse'],
+  ['stunOnBasic', 'stun'],
+] as const
+
+// Craft-set effects as passives (all absent for fighters without them).
+const craftPassive = (effects: IFighterEffects, passive: IArenaPassive) => {
+  const percent = (share = 0) => Math.round(share * 100)
+  if (effects.damageCut) passive.damageCut = percent(effects.damageCut)
+  if (effects.executeBonus) {
+    passive.executeVs = { belowPct: ARENA_CRAFT_EXECUTE_BELOW, pct: percent(effects.executeBonus) }
+  }
+  const extra = ON_BASIC_EFFECTS.filter(([key]) => effects[key]).map(([key, st]) => ({
+    st,
+    dur: ARENA_CRAFT_STATUS_SEC[st],
+    ch: effects[key] ?? 0,
+  }))
+  if (extra.length) passive.onBasicExtra = extra
+  // One bonus-vs-status slot: a burn bonus (boss set) keeps it.
+  if (effects.poisonBonus && !passive.bonusVsStatus) {
+    passive.bonusVsStatus = { st: 'poison', pct: percent(effects.poisonBonus) }
+  }
+  if (effects.retort) {
+    passive.meleeRetort = {
+      power: ARENA_CRAFT_RETORT.power,
+      st: 'blind',
+      dur: ARENA_CRAFT_RETORT.dur,
+      ch: percent(effects.retort),
+    }
+  }
+}
+
 // Gear and trainer-tree effects as arena passives, so each one counts in a real-time fight too.
 const effectsToPassive = (effects: IFighterEffects, spdBonus: number): IArenaPassive => {
   const percent = (share = 0) => Math.round(share * 100)
@@ -146,6 +184,7 @@ const effectsToPassive = (effects: IFighterEffects, spdBonus: number): IArenaPas
   if (effects.afterDodgeBonus) {
     passive.afterDodge = { critNext: true, bonus: percent(effects.afterDodgeBonus) }
   }
+  craftPassive(effects, passive)
   return passive
 }
 

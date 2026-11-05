@@ -1,6 +1,7 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
 import { simulateArena } from './arena/arena-engine'
 import { wellCaredArenaFighter } from './arena/arena-test-helpers'
+import { isCraftSetId } from './craft-sets'
 import {
   EnumEquipmentGrade,
   EnumEquipmentSlot,
@@ -206,7 +207,9 @@ describe('world boss rotation', () => {
   it('has one boss per equipment set, with unique ids and abilities', () => {
     const sets = WORLD_BOSS_ROTATION.map(boss => boss.setId)
     expect(new Set(sets).size).toBe(sets.length)
-    expect(new Set(sets)).toEqual(new Set(Object.keys(SET_DEFINITIONS)))
+    expect(new Set(sets)).toEqual(
+      new Set(Object.keys(SET_DEFINITIONS).filter(setId => !isCraftSetId(setId)))
+    )
     expect(new Set(WORLD_BOSS_ROTATION.map(boss => boss.id)).size).toBe(WORLD_BOSS_ROTATION.length)
     expect(new Set(WORLD_BOSS_ROTATION.map(boss => boss.ability)).size).toBe(
       WORLD_BOSS_ROTATION.length

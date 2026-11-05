@@ -1,4 +1,5 @@
 import { createRng } from './battle-engine'
+import { CRAFT_SETS } from './craft-sets'
 import {
   buildSetPiece,
   calcEquipmentBonus,
@@ -220,6 +221,7 @@ describe('boss sets', () => {
         'shadow_veil',
         'swift_thunder',
         'tidal_guard',
+        ...CRAFT_SETS.map(set => set.id),
       ].sort()
     )
   })
@@ -344,6 +346,92 @@ describe('grade rolls: sub stats and special options', () => {
     expect(has.rare / n).toBeCloseTo(0.15, 1)
     expect(has.epic / n).toBeCloseTo(0.5, 1)
     expect(has.second / n).toBeCloseTo(0.25, 1)
+  })
+})
+
+describe('mythic grade', () => {
+  const rollMythic = (seed: number) => {
+    const rand = createRng(seed)
+    return buildSetPiece('evergreen_weapon', EnumEquipmentGrade.MYTHIC, rand)
+  }
+
+  it('keeps the legendary main stat, and rolls 4-5 sub stats and 2-3 specials in 95-100%', () => {
+    const legendary = buildSetPiece('evergreen_weapon', EnumEquipmentGrade.LEGENDARY, createRng(1))
+    for (let seed = 1; seed <= 200; seed++) {
+      const piece = rollMythic(seed)
+      expect(piece.mainValue).toBe(legendary.mainValue)
+      expect(Object.keys(piece.subStats).length).toBeGreaterThanOrEqual(4)
+      expect(Object.keys(piece.subStats).length).toBeLessThanOrEqual(5)
+      const options = piece.specialOptions!
+      expect(options.length).toBeGreaterThanOrEqual(2)
+      expect(options.length).toBeLessThanOrEqual(3)
+      expect(new Set(options.map(option => option.key)).size).toBe(options.length)
+      for (const { key, value } of options) {
+        const { min, max } = SPECIAL_DEFINITIONS[key]
+        expect(value).toBeGreaterThanOrEqual(Math.round(min + (max - min) * 0.95))
+        expect(value).toBeLessThanOrEqual(max)
+      }
+    }
+  })
+
+  it('does not change what the older grades draw from the random stream', () => {
+    // A frozen draw: epic and legendary pieces from fixed seeds stay identical.
+    expect(rollEquipment(EnumEquipmentGrade.LEGENDARY, createRng(5))).toEqual(
+      rollEquipment(EnumEquipmentGrade.LEGENDARY, createRng(5))
+    )
+    const draws = (grade: EnumEquipmentGrade) => {
+      let count = 0
+      const rng = createRng(9)
+      buildSetPiece('blazing_weapon', grade, () => {
+        count++
+        return rng()
+      })
+      return count
+    }
+    // legendary: 1 chance + 1 bonus + sub stats and options; mythic draws more (an extra option).
+    expect(draws(EnumEquipmentGrade.MYTHIC)).toBeGreaterThan(draws(EnumEquipmentGrade.LEGENDARY))
+  })
+
+  it('may wear mythic from Perfect on, and dismantles like legendary', () => {
+    expect(canEquip(EnumMonsterStage.PERFECT, EnumEquipmentGrade.MYTHIC)).toBe(true)
+    expect(canEquip(EnumMonsterStage.ADULT, EnumEquipmentGrade.MYTHIC)).toBe(false)
+    expect(calcDismantleYield(EnumEquipmentGrade.MYTHIC, 0)).toEqual(
+      calcDismantleYield(EnumEquipmentGrade.LEGENDARY, 0)
+    )
+  })
+})
+
+describe('craft set effects and care', () => {
+  const wear = (setId: string, count: number) =>
+    Object.values(EnumEquipmentSlot)
+      .slice(0, count)
+      .map(slot => ({
+        ...buildSetPiece(`${setId}_${slot}`, EnumEquipmentGrade.EPIC, createRng(1)),
+        enhanceLevel: 0,
+      }))
+
+  it('merges every new effect key from a 4-piece set instead of dropping it', () => {
+    for (const set of CRAFT_SETS) {
+      const four = set.bonuses.find(bonus => bonus.pieces === 4)!.effect!
+      const merged = calcEquipmentBonus(wear(set.id, 4)).effects
+      for (const key of Object.keys(four) as (keyof typeof four)[]) {
+        expect(merged[key]).toBe(four[key])
+      }
+    }
+  })
+
+  it('gives the care perks of a 2-piece bonus to calcSpecialBonuses, under the 2x cap', () => {
+    expect(calcSpecialBonuses(wear('caretaker', 1)).hungerDrainMultiplier).toBe(1)
+    const two = calcSpecialBonuses(wear('caretaker', 2))
+    expect(two.hungerDrainMultiplier).toBeCloseTo(0.9)
+    expect(two.poopRateMultiplier).toBeCloseTo(0.85)
+    const piece = (value: number) => ({
+      setId: 'caretaker',
+      specialOptions: [{ key: 'slowHunger' as const, value }],
+    })
+    expect(
+      calcSpecialBonuses([piece(15), piece(15), piece(15), piece(15)]).hungerDrainMultiplier
+    ).toBeCloseTo(0.7)
   })
 })
 

@@ -90,6 +90,10 @@ export interface IArenaPassive {
   shieldEvery?: { pct: number; sec: number }
   // % off every skill cooldown.
   cdCut?: number
+  // Hits on a target below `belowPct` % HP deal pct % more (craft sets).
+  executeVs?: { belowPct: number; pct: number }
+  // More chance-based statuses on a basic attack, next to `onBasic` (craft sets).
+  onBasicExtra?: { st: StatusId; dur: number; ch: number }[]
 }
 
 export interface IArenaDodge {

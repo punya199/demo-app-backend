@@ -294,7 +294,8 @@ export class EquipmentService {
 
   async buyMaterial(userId: string, materialId: EnumMaterialId) {
     const material = findMaterial(materialId)
-    if (!material) {
+    // Drop-only materials (craft) are never for sale.
+    if (!material?.sellable) {
       throw new NotFoundException('Material not found')
     }
     return this.dataSource.transaction(async etm => {

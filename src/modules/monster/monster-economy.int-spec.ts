@@ -23,7 +23,7 @@ describe('monster economy (inventory, quests, expedition)', () => {
   const inventory = new InventoryService(dataSource, monsters)
   const quests = new QuestService(dataSource, wallet)
   const expedition = new ExpeditionService(dataSource, monsters, inventory, wallet)
-  const adventure = new AdventureService(dataSource, monsters, wallet)
+  const adventure = new AdventureService(dataSource, monsters, wallet, inventory)
   const feed = { type: EnumMonsterLogType.ACTION, at: new Date(), payload: { action: 'feed' } }
   let userId: string
 

@@ -41,6 +41,13 @@ export const THORNS_CAP = 0.5
 export const CRIT_RATE_CAP = 0.6
 export const CRIT_DAMAGE_CAP = 3
 export const EVASION_CAP = 0.3
+// Craft-set effects (arena only), see IFighterEffects.
+export const DAMAGE_CUT_CAP = 0.25
+export const EXECUTE_BONUS_CAP = 0.5
+export const ON_BASIC_CHANCE_CAP = 50
+export const STUN_ON_BASIC_CAP = 15
+export const POISON_BONUS_CAP = 0.3
+export const RETORT_CAP = 1
 
 // Grade from the average roll, best first.
 export const POTENTIAL_GRADES: [string, number][] = [
@@ -105,6 +112,18 @@ export const potentialEffects = (potential: IPotential): IFighterEffects => ({
   ...(potential.evasion > 0 && { evasion: potential.evasion * POTENTIAL_EVASION_MAX }),
 })
 
+const CRAFT_EFFECT_CAPS: [keyof IFighterEffects, number][] = [
+  ['damageCut', DAMAGE_CUT_CAP],
+  ['executeBonus', EXECUTE_BONUS_CAP],
+  ['slowOnBasic', ON_BASIC_CHANCE_CAP],
+  ['defDownOnBasic', ON_BASIC_CHANCE_CAP],
+  ['poisonOnBasic', ON_BASIC_CHANCE_CAP],
+  ['curseOnBasic', ON_BASIC_CHANCE_CAP],
+  ['stunOnBasic', STUN_ON_BASIC_CAP],
+  ['poisonBonus', POISON_BONUS_CAP],
+  ['retort', RETORT_CAP],
+]
+
 // Applies the stacking caps to effects that are already summed (potential + gear + passives).
 export const capEffects = (effects: IFighterEffects): IFighterEffects => {
   const capped = { ...effects }
@@ -122,6 +141,11 @@ export const capEffects = (effects: IFighterEffects): IFighterEffects => {
   }
   if (capped.thorns !== undefined) {
     capped.thorns = Math.min(capped.thorns, THORNS_CAP)
+  }
+  for (const [key, cap] of CRAFT_EFFECT_CAPS) {
+    if (capped[key] !== undefined) {
+      capped[key] = Math.min(capped[key], cap)
+    }
   }
   return capped
 }

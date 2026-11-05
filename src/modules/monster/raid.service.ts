@@ -10,6 +10,7 @@ import { WalletService } from '../wallet/wallet.service'
 import { simulateArena } from './arena/arena-engine'
 import { arenaBattleView, toArenaFighter } from './arena/arena-fighter'
 import { loadArenaLoadout } from './skill.service'
+import { raidCoreDrops } from './craft-data'
 import {
   buildSetPiece,
   EnumEquipmentGrade,
@@ -164,6 +165,8 @@ export class RaidService {
       let wallet = await this.walletService.getBalance(userId, etm)
       let drop: ReturnType<typeof toEquipmentView> | null = null
       let raidTokens = 0
+      // Craft cores a win pays (forge core / rune shard), by difficulty.
+      const craftCores = result.won ? raidCoreDrops(difficulty.difficulty) : []
       const existing = progress.get(`${boss.id}:${difficulty.difficulty}`)
       const isFirstClear = result.won && !existing
       if (result.won) {
@@ -199,6 +202,9 @@ export class RaidService {
         if (difficulty.refineStone) {
           await this.inventoryService.add(userId, difficulty.refineStone, etm)
         }
+        for (const core of craftCores) {
+          await this.inventoryService.add(userId, core.itemId, etm, core.qty)
+        }
 
         const slot = SLOTS[randomInt(0, SLOTS.length)]
         const template = findSetPieceTemplate(boss.setId, slot)!
@@ -218,6 +224,7 @@ export class RaidService {
         raidTokens,
         bossTokens: result.won ? RAID_BOSS_TOKENS_PER_WIN : 0,
         refineStone: result.won ? difficulty.refineStone : null,
+        craftCores,
         drop,
         attemptsLeft: Math.max(0, RAID_ATTEMPTS - attempts - 1),
         resetsAt: getWindow(now, RAID_RESET_HOURS).resetsAt,

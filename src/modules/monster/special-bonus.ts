@@ -8,5 +8,6 @@ export const loadSpecialBonus = async (monsterId: string, etm: EntityManager) =>
   calcSpecialBonuses(
     (await etm.find(EquipmentItemEntity, { where: { monsterId, equipped: true } })).map(row => ({
       specialOptions: row.specialOptions as ISpecialOption[],
+      setId: row.setId,
     }))
   )

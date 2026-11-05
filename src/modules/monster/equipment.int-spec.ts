@@ -11,6 +11,7 @@ import {
 } from './equipment-data'
 import { EquipmentService, grantEquipment } from './equipment.service'
 import { InventoryService } from './inventory.service'
+import { EQUIPMENT_CAPACITY } from './monster-rules'
 import {
   buildCore,
   createUser,
@@ -282,7 +283,7 @@ describe('equipment and enhancing', () => {
 
     await sql(
       `INSERT INTO equipment_items (user_id, template_id, slot, grade, main_value)
-       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, 100)`,
+       SELECT $1,'wooden_sword','weapon','common',4 FROM generate_series(1, ${EQUIPMENT_CAPACITY})`,
       [userId]
     )
     const coin = (await wallet.getBalance(userId)).coin

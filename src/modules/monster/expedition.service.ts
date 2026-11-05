@@ -113,7 +113,7 @@ export class ExpeditionService {
       // Rewards come from minutes the server counted, never from anything the client sends.
       const coins = calcExpeditionCoins(monster.expeditionMinutes, monster.expeditionRate)
       const items = Array.from({ length: calcExpeditionDrops(monster.expeditionMinutes) }, () => {
-        return EXPEDITION_DROP_ITEMS[randomInt(0, EXPEDITION_DROP_ITEMS.length)] as string
+        return EXPEDITION_DROP_ITEMS[randomInt(0, EXPEDITION_DROP_ITEMS.length)]
       })
       const result = withRuleErrors(() => claimExpedition(monster, { coins, items }, now))
       const saved = await this.monsterService.saveState(monster, result.state, etm)
