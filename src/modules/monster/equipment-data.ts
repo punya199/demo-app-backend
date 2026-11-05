@@ -523,8 +523,18 @@ const mergeEffects = (into: IFighterEffects, effect: IFighterEffects) => {
   if (effect.regenPct) {
     into.regenPct = (into.regenPct ?? 0) + effect.regenPct
   }
-  // Crit and evasion add up (capped later, where the fighter is built).
-  for (const key of ['critChance', 'critDamage', 'evasion'] as const) {
+  // Crit, evasion and the arena set effects add up (crit/evasion capped where the fighter is built).
+  for (const key of [
+    'critChance',
+    'critDamage',
+    'evasion',
+    'burnBonus',
+    'shieldRefresh',
+    'cooldownCut',
+    'lastStandShield',
+    'dodgeCdCutSec',
+    'afterDodgeBonus',
+  ] as const) {
     if (effect[key]) {
       into[key] = (into[key] ?? 0) + effect[key]
     }

@@ -85,6 +85,9 @@ export const EXECUTE_BELOW = 35
 export const ARENA_REGEN_PER_SEC_PCT = 3
 // Burn from gear and the tree: chance % on each basic attack, lasting its turns in seconds.
 export const ARENA_BURN_CHANCE = 30
+// Boss sets: how often the tide set's shield comes back, and when the holy set's last stand fires.
+export const ARENA_SHIELD_REFRESH_SEC = 12
+export const ARENA_LAST_STAND_BELOW = 35
 // SPD % from gear and the tree also quickens attacks: this % of it comes off the attack timing, up
 // to the cap. Only a bonus does: a penalty slowed attacks too, and that only helped stalling builds.
 export const ARENA_ATTACK_SPEED_PCT = 50

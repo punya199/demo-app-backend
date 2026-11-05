@@ -12,7 +12,13 @@ import {
   toArenaFighter,
   unlockedArenaSkillIds,
 } from './arena-fighter'
-import { ARENA_ATTACK_SPEED_CAP, ARENA_BURN_CHANCE, LINE_EVA } from './arena-rules'
+import {
+  ARENA_ATTACK_SPEED_CAP,
+  ARENA_BURN_CHANCE,
+  ARENA_LAST_STAND_BELOW,
+  ARENA_SHIELD_REFRESH_SEC,
+  LINE_EVA,
+} from './arena-rules'
 import { IArenaFighterSpec, IArenaPassive } from './arena-types'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
@@ -119,6 +125,12 @@ describe('gear and trainer-tree effects', () => {
       thorns: 0.15,
       firstStrike: 1,
       noCrit: 1,
+      burnBonus: 0.1,
+      shieldRefresh: 0.045,
+      cooldownCut: 0.22,
+      lastStandShield: 0.15,
+      dodgeCdCutSec: 4,
+      afterDodgeBonus: 1,
     }
     const spec = toArenaFighter(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT), {
       ...NO_EQUIPMENT_BONUS,
@@ -134,6 +146,12 @@ describe('gear and trainer-tree effects', () => {
       thorns: 15,
       firstStrike: true,
       noCrit: true,
+      bonusVsStatus: { st: 'burn', pct: 10 },
+      shieldEvery: { pct: 5, sec: ARENA_SHIELD_REFRESH_SEC },
+      cdCut: 22,
+      lastStand: { belowPct: ARENA_LAST_STAND_BELOW, shield: 15, immuneSec: 2 },
+      dodgeCdCut: 4,
+      afterDodge: { critNext: true, bonus: 100 },
     })
     expect(spec.crit).toBeGreaterThanOrEqual(5)
     expect(spec.eva).toBeGreaterThanOrEqual(LINE_EVA.flame + 4)
