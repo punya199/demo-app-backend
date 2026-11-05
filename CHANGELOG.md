@@ -1,3 +1,13 @@
+# [1.36.0](https://github.com/punya199/demo-app-backend/compare/v1.35.0...v1.36.0) (2026-11-05)
+
+
+### New
+
+* add a local seed script for trying the arena and skills ([1ba2ad7](https://github.com/punya199/demo-app-backend/commit/1ba2ad7610b7dc9e7dfc6cbdc89de47407d0c504))
+* bring out seven world bosses in order, each with its own ability ([e15dc2f](https://github.com/punya199/demo-app-backend/commit/e15dc2f875f369d9fde1e345c6af8409b18883cf))
+* run adventure fights in the real-time arena with skill loadouts ([51aa118](https://github.com/punya199/demo-app-backend/commit/51aa1186a52a388029706d35c44fbd85e3074369))
+* run raid, PvP and world boss fights in the arena ([a02a25d](https://github.com/punya199/demo-app-backend/commit/a02a25d0fae8ad0a48f389d6f947506b0be9a3fc))
+
 # [1.35.0](https://github.com/punya199/demo-app-backend/compare/v1.34.0...v1.35.0) (2026-11-04)
 
 
