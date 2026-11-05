@@ -7,8 +7,9 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
-import { simulateBattle } from './battle-engine'
-import { toFighter } from './battle-stats'
+import { simulateArena } from './arena/arena-engine'
+import { arenaBattleView, toArenaFighter } from './arena/arena-fighter'
+import { loadArenaLoadout } from './skill.service'
 import {
   buildSetPiece,
   EnumEquipmentGrade,
@@ -32,6 +33,7 @@ import {
   bossTokenItemId,
   findRaidBoss,
   findRaidDifficulty,
+  getRaidBossArena,
   getRaidBossFighter,
   isStageAtLeast,
   RAID_BOSSES,
@@ -135,11 +137,17 @@ export class RaidService {
         throw new BadRequestException('Equipment bag is full')
       }
 
-      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
-      const enemy = getRaidBossFighter(boss, difficulty)
+      const player = toArenaFighter(
+        monster,
+        await loadEquipmentBonus(userId, monster.id, etm),
+        await loadArenaLoadout(userId, monster, etm)
+      )
+      // Arena bosses ignore elements (see raid-data.ts): every line must be able to win.
+      const enemy = getRaidBossArena(boss, difficulty)
       const seed = randomInt(0, 2 ** 31)
-      // The element triangle is off here (see raid-data.ts): every line must be able to win.
-      const result = simulateBattle(player, enemy, seed, { ignoreElements: true })
+      const arena = simulateArena([[player], [enemy]], seed, { record: true })
+      const battle = arenaBattleView(arena, player, enemy)
+      const result = { won: battle.won, rounds: battle.rounds }
 
       const outcome = withRuleErrors(() =>
         applyPvpOutcome(
@@ -205,13 +213,7 @@ export class RaidService {
 
       return {
         monster: toMonsterView(saved),
-        battle: {
-          won: result.won,
-          rounds: result.rounds,
-          events: result.events,
-          player,
-          enemy,
-        },
+        battle,
         isFirstClear,
         raidTokens,
         bossTokens: result.won ? RAID_BOSS_TOKENS_PER_WIN : 0,

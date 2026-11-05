@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { EnumFriendshipStatus, FriendshipEntity } from '../../db/entities/friendship.entity'
 import { SupportUnitEntity } from '../../db/entities/support-unit.entity'
+import { toArenaFighter } from './arena/arena-fighter'
 import { IFighter, toFighter } from './battle-stats'
 import { loadPublicCostumes } from './costume.service'
 import { loadEquipmentBonus } from './equipment.service'
@@ -9,6 +10,7 @@ import { RENTAL_FEE, SUPPORT_COOLDOWN_MS } from './monster-rules'
 import { MonsterService } from './monster.service'
 import { isPvpStage } from './pvp-data'
 import { ProfileService } from './profile.service'
+import { loadArenaLoadout } from './skill.service'
 
 const toUnitView = (unit: SupportUnitEntity) => {
   const fighter = unit.fighter as unknown as IFighter
@@ -51,14 +53,21 @@ export class SupportService {
       if (existing && now.getTime() - existing.setAt.getTime() < SUPPORT_COOLDOWN_MS) {
         throw new BadRequestException('Support unit was changed recently')
       }
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
+      const bonus = await loadEquipmentBonus(userId, monster.id, etm)
+      const fighter = toFighter(monster, bonus)
+      const arenaFighter = toArenaFighter(
+        monster,
+        bonus,
+        await loadArenaLoadout(userId, monster, etm)
+      )
       await this.profileService.ensureProfile(userId, etm)
       await etm.query(
-        `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at")
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at", "arena_fighter")
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT ("user_id") WHERE deleted_at IS NULL
-         DO UPDATE SET "fighter" = $2, "stage" = $3, "set_at" = $4, "updated_at" = now()`,
-        [userId, JSON.stringify(fighter), monster.stage, now]
+         DO UPDATE SET "fighter" = $2, "stage" = $3, "set_at" = $4, "arena_fighter" = $5,
+                       "updated_at" = now()`,
+        [userId, JSON.stringify(fighter), monster.stage, now, JSON.stringify(arenaFighter)]
       )
     })
     return this.getMine(userId)

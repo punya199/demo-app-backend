@@ -1,10 +1,13 @@
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
+import { ARENA_SKILL_BY_ID } from './arena/arena-engine'
+import { arenaWinRate, wellCaredArenaFighter } from './arena/arena-test-helpers'
 import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
 import { EnumEquipmentSlot, findSetPieceTemplate, SET_DEFINITIONS } from './equipment-data'
 import { createEgg } from './monster-engine'
 import {
   EnumRaidDifficulty,
+  getRaidBossArena,
   getRaidBossFighter,
   isStageAtLeast,
   RAID_BOSSES,
@@ -39,6 +42,36 @@ const winRate = (player: IFighter, boss: IFighter, fights = 300) => {
   }
   return wins / fights
 }
+
+describe('raid bosses in the arena', () => {
+  it.each([
+    [0, 0.7],
+    [1, 0.5],
+    [2, 0.3],
+  ])('difficulty %i lands near its target win rate', (index, target) => {
+    const difficulty = RAID_DIFFICULTIES[index]
+    const rates = RAID_BOSSES.flatMap(boss =>
+      LINES.map(line =>
+        arenaWinRate(
+          wellCaredArenaFighter(line, difficulty.minStage),
+          getRaidBossArena(boss, difficulty),
+          20
+        )
+      )
+    )
+    const average = rates.reduce((sum, rate) => sum + rate, 0) / rates.length
+    expect(Math.abs(average - target)).toBeLessThanOrEqual(0.12)
+  })
+
+  it('gives every boss two skills the arena knows', () => {
+    for (const boss of RAID_BOSSES) {
+      expect(boss.arenaSkills).toHaveLength(2)
+      for (const id of boss.arenaSkills) {
+        expect(ARENA_SKILL_BY_ID[id]).toBeDefined()
+      }
+    }
+  })
+})
 
 describe('raid data', () => {
   it('has six bosses whose sets exist, with every slot as a piece', () => {

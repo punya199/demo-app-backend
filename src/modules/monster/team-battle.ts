@@ -50,9 +50,7 @@ const makeCombatant = (
   member,
   hp: fighter.stats.hp,
   maxHp: fighter.stats.hp,
-  shield:
-    Math.round(fighter.stats.hp * (fighter.effects?.shieldPct ?? 0)) +
-    (fighter.bossMods?.shield ?? 0),
+  shield: Math.round(fighter.stats.hp * (fighter.effects?.shieldPct ?? 0)),
   burn: null,
 })
 
@@ -103,20 +101,8 @@ export const simulateTeamBattle = (
     isSkill: boolean,
     kind?: 'double'
   ) => {
-    // Enraged boss: same fighter with a stronger attack, no extra RNG.
-    const enrage = attacker.fighter.bossMods?.enrage
-    const attackerFighter =
-      enrage && round >= enrage.round
-        ? {
-            ...attacker.fighter,
-            stats: {
-              ...attacker.fighter.stats,
-              atk: Math.round(attacker.fighter.stats.atk * enrage.mult),
-            },
-          }
-        : attacker.fighter
     const { damage, isCritical, effectiveness, isDodged } = rollHit(
-      attackerFighter,
+      attacker.fighter,
       target.fighter,
       isSkill,
       rng,

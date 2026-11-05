@@ -158,6 +158,11 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'costume', type: 'jsonb', default: () => `'{}'` })
   costume: Record<string, string>
 
+  // Arena skill slots (innate comes from the species): { s1, s2, dodge } skill ids, or null for none
+  // chosen yet. Cleaned against unlocks and equip rules on every read (see arena-fighter.ts).
+  @Column({ name: 'skill_loadout', type: 'jsonb', nullable: true })
+  skillLoadout: { s1: string | null; s2: string | null; dodge: string | null } | null
+
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null
 

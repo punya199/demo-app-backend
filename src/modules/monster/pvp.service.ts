@@ -11,6 +11,9 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { ProfileService } from './profile.service'
+import { simulateArena } from './arena/arena-engine'
+import { arenaBattleView, arenaSpecOfFighter, toArenaFighter } from './arena/arena-fighter'
+import { IArenaFighterSpec } from './arena/arena-types'
 import { simulateBattle } from './battle-engine'
 import { IFighter, toFighter } from './battle-stats'
 import { defaultDisplayName } from './display-name'
@@ -28,10 +31,11 @@ import {
   PVP_WIN_COIN,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
-import { findPvpNpc, getSeasonReward, isPvpStage, PVP_NPCS } from './pvp-data'
+import { findPvpNpc, getNpcArena, getSeasonReward, isPvpStage, PVP_NPCS } from './pvp-data'
 import { isEligibleOpponent, IPvpCandidate, pickOpponents } from './pvp-matchmaking'
 import { getSeason, getSeasonResetAt, isSeasonOver } from './pvp-season'
 import { getQuestResetAt } from './quest-data'
+import { loadArenaLoadout } from './skill.service'
 
 // Costume given to the top ranks of a finished season (a catalog id, never sold).
 const SEASON_COSTUME_ID = 'rainbow'
@@ -59,6 +63,11 @@ const toOpponentView = (candidate: IPvpCandidateFull, costume: ILoadout | null) 
 })
 
 const dayStart = (now: Date) => new Date(getQuestResetAt(now).getTime() - DAY_MS)
+
+// A defense set before snapshots carried a loadout fights with its line's default skills.
+const arenaDefenseOf = (defense: PvpDefenseEntity) =>
+  (defense.arenaFighter as unknown as IArenaFighterSpec | null) ??
+  arenaSpecOfFighter(defense.fighter as unknown as IFighter)
 
 @Injectable()
 export class PvpService {
@@ -183,7 +192,13 @@ export class PvpService {
         throw new BadRequestException('Defense team was changed recently')
       }
 
-      const fighter = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
+      const bonus = await loadEquipmentBonus(userId, monster.id, etm)
+      const fighter = toFighter(monster, bonus)
+      const arenaFighter = toArenaFighter(
+        monster,
+        bonus,
+        await loadArenaLoadout(userId, monster, etm)
+      )
       // The arena name is the player's profile name, shared with friends and the boss ranking.
       if (displayName?.trim()) {
         await this.profileService.setDisplayName(userId, displayName, etm)
@@ -191,12 +206,20 @@ export class PvpService {
         await this.profileService.ensureProfile(userId, etm)
       }
       await etm.query(
-        `INSERT INTO "pvp_defenses" ("user_id", "fighter", "stage", "species_id", "set_at")
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO "pvp_defenses"
+           ("user_id", "fighter", "stage", "species_id", "set_at", "arena_fighter")
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT ("user_id") WHERE deleted_at IS NULL
          DO UPDATE SET "fighter" = $2, "stage" = $3, "species_id" = $4,
-                       "set_at" = $5, "updated_at" = now()`,
-        [userId, JSON.stringify(fighter), monster.stage, monster.speciesId, now]
+                       "set_at" = $5, "arena_fighter" = $6, "updated_at" = now()`,
+        [
+          userId,
+          JSON.stringify(fighter),
+          monster.stage,
+          monster.speciesId,
+          now,
+          JSON.stringify(arenaFighter),
+        ]
       )
       // Joining the ladder: defenders show up in the standings even before their first fight.
       await this.ensureRating(userId, season, etm)
@@ -353,10 +376,19 @@ export class PvpService {
         defense ? [userId, defense.userId] : [userId],
         etm
       )
-      const player = toFighter(monster, await loadEquipmentBonus(userId, monster.id, etm))
+      const bonus = await loadEquipmentBonus(userId, monster.id, etm)
+      const player = toFighter(monster, bonus)
       const enemy = npc ? npc.fighter : (defense!.fighter as unknown as IFighter)
+      const arenaPlayer = toArenaFighter(
+        monster,
+        bonus,
+        await loadArenaLoadout(userId, monster, etm)
+      )
+      const arenaEnemy = npc ? getNpcArena(npc) : arenaDefenseOf(defense!)
       const seed = randomInt(0, 2 ** 31)
-      const result = simulateBattle(player, enemy, seed)
+      const arena = simulateArena([[arenaPlayer], [arenaEnemy]], seed, { record: true })
+      const battle = arenaBattleView(arena, arenaPlayer, arenaEnemy)
+      const result = { won: battle.won, rounds: battle.rounds }
       const elo = calcElo(attackerRow.rating, opponentRating, result.won)
 
       const outcome = withRuleErrors(() =>
@@ -396,6 +428,8 @@ export class PvpService {
         seed,
         attacker: player as unknown as Record<string, unknown>,
         defender: enemy as unknown as Record<string, unknown>,
+        arenaAttacker: arenaPlayer as unknown as Record<string, unknown>,
+        arenaDefender: arenaEnemy as unknown as Record<string, unknown>,
         won: result.won,
         attackerRatingBefore: ratingBefore,
         attackerRatingAfter: elo.attacker,
@@ -406,14 +440,7 @@ export class PvpService {
 
       return {
         monster: toMonsterView(saved),
-        battle: {
-          won: result.won,
-          rounds: result.rounds,
-          events: result.events,
-          player,
-          enemy,
-          reward,
-        },
+        battle: { ...battle, reward },
         rating: { before: ratingBefore, after: elo.attacker },
         attemptsLeft: Math.max(0, PVP_DAILY_ATTEMPTS - attempts - 1),
         wallet,
@@ -447,7 +474,8 @@ export class PvpService {
     }
   }
 
-  // Replays a fight exactly from its seed and the two stored fighters.
+  // Replays a fight exactly from its seed and the two stored fighters: arena fights in the arena,
+  // older ones on the turn engine they were fought on.
   async getReplay(userId: string, battleId: string) {
     const row = isUUID(battleId)
       ? await this.dataSource.manager.findOne(PvpBattleEntity, {
@@ -460,11 +488,22 @@ export class PvpService {
     if (!row) {
       throw new NotFoundException('Battle not found')
     }
+    const role = row.attackerId === userId ? 'attacker' : 'defender'
+    if (row.arenaAttacker && row.arenaDefender) {
+      const arenaAttacker = row.arenaAttacker as unknown as IArenaFighterSpec
+      const arenaDefender = row.arenaDefender as unknown as IArenaFighterSpec
+      const arena = simulateArena([[arenaAttacker], [arenaDefender]], row.seed, { record: true })
+      return {
+        role,
+        attackerWon: row.won,
+        ...arenaBattleView(arena, arenaAttacker, arenaDefender),
+      }
+    }
     const attacker = row.attacker as unknown as IFighter
     const defender = row.defender as unknown as IFighter
     const result = simulateBattle(attacker, defender, row.seed)
     return {
-      role: row.attackerId === userId ? 'attacker' : 'defender',
+      role,
       attackerWon: result.won,
       rounds: result.rounds,
       events: result.events,

@@ -39,16 +39,6 @@ export interface IFighterEffects {
   noCrit?: number
 }
 
-// World Boss mechanics, kept apart from IFighterEffects (equipment and passives merge those as plain
-// numbers). All optional; a fighter without them fights exactly as before.
-export interface IBossMods {
-  // Flat shield (HP) at the start of the fight. The boss's HP pool is shared, so a share-of-HP
-  // shield would swallow every hit; a flat one is a fixed tax on each hit.
-  shield?: number
-  // From this round on its attack is multiplied.
-  enrage?: { round: number; mult: number }
-}
-
 export interface IFighter {
   name: string
   // The owner's name for the pet, left out when it has none (see monster-name.ts).
@@ -58,7 +48,6 @@ export interface IFighter {
   stats: IBattleStats
   skill: ISkill
   effects?: IFighterEffects
-  bossMods?: IBossMods
 }
 
 const hearts = (value: number) => Math.min(MAX_HEARTS, Math.ceil(Math.round(value * 1000) / 1000))
