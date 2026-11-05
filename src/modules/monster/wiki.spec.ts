@@ -1,5 +1,6 @@
 import { DEFENSE_K, MAX_DEF_CUT, VAR_MIN, VAR_SPAN } from './arena/arena-engine'
-import { ARENA_MAX_TICKS, ARENA_TICK } from './arena/arena-rules'
+import { SKILLED_STAGES } from './arena/arena-fighter'
+import { ARENA_MAX_TICKS, ARENA_TICK, SKILL_DELAY_TICKS } from './arena/arena-rules'
 import { buildWiki } from './wiki'
 
 describe('buildWiki arena rules', () => {
@@ -12,6 +13,12 @@ describe('buildWiki arena rules', () => {
     expect(arena.maxDefenseReduction).toBe(MAX_DEF_CUT / 10000)
     expect(arena.damageVarianceMin).toBe(VAR_MIN / 100)
     expect(Math.round((arena.damageVarianceMax - arena.damageVarianceMin) * 100)).toBe(VAR_SPAN - 1)
+  })
+
+  it('publishes who fights with skills and the shared skill delay', () => {
+    const { arena } = buildWiki()
+    expect(arena.skilledStages).toEqual(SKILLED_STAGES)
+    expect(arena.skillDelaySec * ARENA_TICK).toBe(SKILL_DELAY_TICKS)
   })
 
   it('keeps the arena element multipliers apart from the old ones', () => {
