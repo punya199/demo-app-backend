@@ -131,6 +131,15 @@ describe('gear and trainer-tree effects', () => {
       lastStandShield: 0.15,
       dodgeCdCutSec: 4,
       afterDodgeBonus: 1,
+      damageCut: 0.1,
+      executeBonus: 0.3,
+      slowOnBasic: 20,
+      defDownOnBasic: 20,
+      poisonOnBasic: 20,
+      curseOnBasic: 20,
+      stunOnBasic: 10,
+      poisonBonus: 0.2,
+      retort: 0.5,
     }
     const spec = toArenaFighter(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT), {
       ...NO_EQUIPMENT_BONUS,
@@ -152,6 +161,16 @@ describe('gear and trainer-tree effects', () => {
       lastStand: { belowPct: ARENA_LAST_STAND_BELOW, shield: 15, immuneSec: 2 },
       dodgeCdCut: 4,
       afterDodge: { critNext: true, bonus: 100 },
+      damageCut: 10,
+      executeVs: { belowPct: 30, pct: 30 },
+      onBasicExtra: [
+        { st: 'slow', dur: 2, ch: 20 },
+        { st: 'defDown', dur: 3, ch: 20 },
+        { st: 'poison', dur: 4, ch: 20 },
+        { st: 'curse', dur: 3, ch: 20 },
+        { st: 'stun', dur: 1, ch: 10 },
+      ],
+      meleeRetort: { power: 0, st: 'blind', dur: 2, ch: 50 },
     })
     expect(spec.crit).toBeGreaterThanOrEqual(5)
     expect(spec.eva).toBeGreaterThanOrEqual(LINE_EVA.flame + 4)
@@ -213,6 +232,30 @@ describe('gear and trainer-tree effects', () => {
     expect(thorns.length).toBeGreaterThan(0)
     expect(thorns[0]).toMatchObject({ who: 0, by: 1 })
     expect(thorns[0].dmg).toBe(Math.max(1, Math.trunc((hitsBy(result, 0)[0].dmg ?? 0) / 2)))
+  })
+
+  it('hits a target under the execute line harder, only with the passive', () => {
+    const firstHit = (passive?: IArenaPassive) => hitsBy(fight(plain(passive), dummy()), 0)
+    // The dummy starts at full HP, so the bonus waits until it is below 30%.
+    const withBonus = firstHit({ executeVs: { belowPct: 30, pct: 100 } })
+    const without = firstHit()
+    expect(withBonus[0].dmg).toBe(without[0].dmg)
+    expect(withBonus.length).toBeLessThanOrEqual(without.length)
+    const low = fighter({
+      skills: [],
+      dodge: null,
+      passive: { executeVs: { belowPct: 101, pct: 100 } },
+    })
+    expect(hitsBy(fight(low, dummy()), 0)[0].dmg).toBeGreaterThan(without[0].dmg ?? Infinity)
+  })
+
+  it('applies extra statuses on basic attacks and leaves other fights untouched', () => {
+    const statuses = (passive?: IArenaPassive) =>
+      fight(plain(passive), dummy()).events.filter(event => event.kind === 'status')
+    expect(statuses()).toHaveLength(0)
+    const slowed = statuses({ onBasicExtra: [{ st: 'slow', dur: 2, ch: 100 }] })
+    expect(slowed.length).toBeGreaterThan(0)
+    expect(slowed.every(event => event.st === 'slow' && event.who === 1)).toBe(true)
   })
 
   it('adds tree regen to a passive skill instead of losing it', () => {

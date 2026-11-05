@@ -43,6 +43,7 @@ import {
   WORLD_BOSS_RESET_HOURS,
 } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
+import { isCraftSetId } from './craft-sets'
 import { calcRentalFee, orderPair } from './social-data'
 import { getQuestDayStart } from './quest-data'
 import { bossTokenItemId, isStageAtLeast, RAID_EXCHANGE_COST } from './raid-data'
@@ -481,7 +482,9 @@ export class WorldBossService {
   ) {
     const definition = findWorldBoss(bossId)
     const cost = RAID_EXCHANGE_COST[grade]
-    if (!definition || !cost || grade === EnumEquipmentGrade.LEGENDARY) {
+    // Legendary and mythic pieces, and anything of a craft set, are never for sale.
+    const sellable = grade !== EnumEquipmentGrade.LEGENDARY && grade !== EnumEquipmentGrade.MYTHIC
+    if (!definition || !cost || !sellable || isCraftSetId(definition.setId)) {
       throw new NotFoundException('Exchange not found')
     }
     const template = findSetPieceTemplate(definition.setId, slot)!

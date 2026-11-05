@@ -173,3 +173,35 @@ describe('evasion hook', () => {
     expect(onDodger.every(event => event.isDodged && event.damage === 0)).toBe(true)
   })
 })
+
+describe('craft effect caps', () => {
+  it('caps every craft-set effect and leaves lower values alone', () => {
+    expect(
+      capEffects({
+        damageCut: 0.9,
+        executeBonus: 2,
+        slowOnBasic: 90,
+        defDownOnBasic: 90,
+        poisonOnBasic: 90,
+        curseOnBasic: 90,
+        stunOnBasic: 90,
+        poisonBonus: 2,
+        retort: 3,
+      })
+    ).toEqual({
+      damageCut: 0.25,
+      executeBonus: 0.5,
+      slowOnBasic: 50,
+      defDownOnBasic: 50,
+      poisonOnBasic: 50,
+      curseOnBasic: 50,
+      stunOnBasic: 15,
+      poisonBonus: 0.3,
+      retort: 1,
+    })
+    expect(capEffects({ stunOnBasic: 8, damageCut: 0.1 })).toEqual({
+      stunOnBasic: 8,
+      damageCut: 0.1,
+    })
+  })
+})

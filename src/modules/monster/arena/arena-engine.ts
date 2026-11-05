@@ -327,7 +327,7 @@ const makeFighter = (
   const skillPassives = slots.filter(s => s.slot === 'passive').map(s => s.passive)
   const passive: IArenaPassive = Object.assign({}, spec.passive ?? {}, ...skillPassives)
   // The tree's healing adds to a passive skill's instead of being replaced by it.
-  for (const key of ['regenPct', 'basicLifesteal'] as const) {
+  for (const key of ['regenPct', 'basicLifesteal', 'damageCut'] as const) {
     if (spec.passive?.[key]) {
       passive[key] = skillPassives.reduce((sum, p) => sum + (p?.[key] || 0), spec.passive[key])
     }
@@ -761,6 +761,8 @@ export const simulateArena = (
     }
     const vs = a.passive.bonusVsStatus
     if (vs && has(d, vs.st)) mul = Math.trunc((mul * (100 + vs.pct)) / 100)
+    const ex = a.passive.executeVs
+    if (ex && d.hp * 100 < d.maxHp * ex.belowPct) mul = Math.trunc((mul * (100 + ex.pct)) / 100)
     if (skill?.execute && d.hp * 100 < d.maxHp * EXECUTE_BELOW) {
       mul = Math.trunc((mul * (100 + skill.execute)) / 100)
     }
@@ -826,6 +828,11 @@ export const simulateArena = (
     if (d.hp > 0 && !skill && a.passive.onBasic) {
       const ob = a.passive.onBasic
       if (lands(d, ob.ch, ob.st)) addStatus(d, ob.st, ob.dur, a)
+    }
+    if (!skill && a.passive.onBasicExtra) {
+      for (const extra of a.passive.onBasicExtra) {
+        if (alive(d) && lands(d, extra.ch, extra.st)) addStatus(d, extra.st, extra.dur, a)
+      }
     }
     if (
       opt.melee &&

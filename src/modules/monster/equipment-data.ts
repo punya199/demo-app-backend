@@ -5,6 +5,7 @@ import {
   SET_ENHANCE_THRESHOLD,
   SET_PIECE_MAIN_MULTIPLIER,
 } from './monster-rules'
+import { CRAFT_SETS } from './craft-sets'
 import { IBattleStats, isStageAtLeast } from './species-data'
 
 // Equipment is data-driven: add a template (or a set) here and it works everywhere.
@@ -21,6 +22,8 @@ export enum EnumEquipmentGrade {
   RARE = 'rare',
   EPIC = 'epic',
   LEGENDARY = 'legendary',
+  // Craft only (see craft-data.ts): never drops, never in a box, not exchangeable.
+  MYTHIC = 'mythic',
 }
 
 export enum EnumMaterialId {
@@ -50,6 +53,7 @@ export const GRADE_MULTIPLIER: Record<EnumEquipmentGrade, number> = {
   [EnumEquipmentGrade.RARE]: 1.5,
   [EnumEquipmentGrade.EPIC]: 2.2,
   [EnumEquipmentGrade.LEGENDARY]: 3,
+  [EnumEquipmentGrade.MYTHIC]: 3,
 }
 
 // Secondary stats roll distinct stats at 50%-100% of base x grade multiplier; higher grades roll more.
@@ -59,6 +63,7 @@ export const SUB_STAT_COUNT_BY_GRADE: Record<EnumEquipmentGrade, { min: number; 
   [EnumEquipmentGrade.RARE]: { min: 1, max: 2 },
   [EnumEquipmentGrade.EPIC]: { min: 2, max: 3 },
   [EnumEquipmentGrade.LEGENDARY]: { min: 3, max: 4 },
+  [EnumEquipmentGrade.MYTHIC]: { min: 4, max: 5 },
 }
 export const SUB_STAT_ROLL = { min: 0.5, max: 1 }
 
@@ -79,6 +84,7 @@ export const MIN_STAGE_BY_GRADE: Record<EnumEquipmentGrade, EnumMonsterStage | n
   [EnumEquipmentGrade.RARE]: EnumMonsterStage.ADULT,
   [EnumEquipmentGrade.EPIC]: EnumMonsterStage.PERFECT,
   [EnumEquipmentGrade.LEGENDARY]: EnumMonsterStage.PERFECT,
+  [EnumEquipmentGrade.MYTHIC]: EnumMonsterStage.PERFECT,
 }
 
 // Checked wherever a piece is put on. Pieces already worn are never re-checked (grandfathered).
@@ -104,12 +110,20 @@ export const SPECIAL_DEFINITIONS: Record<SpecialKey, { min: number; max: number 
 export const SPECIAL_KEYS = Object.keys(SPECIAL_DEFINITIONS) as SpecialKey[]
 export const SPECIAL_BY_GRADE: Record<
   EnumEquipmentGrade,
-  { chance: number; secondChance: number; lo: number; hi: number }
+  // `guaranteed` = options rolled before the bonus `secondChance` roll (default 1).
+  { chance: number; secondChance: number; lo: number; hi: number; guaranteed?: number }
 > = {
   [EnumEquipmentGrade.COMMON]: { chance: 0, secondChance: 0, lo: 0, hi: 0 },
   [EnumEquipmentGrade.RARE]: { chance: 0.15, secondChance: 0, lo: 0.5, hi: 0.7 },
   [EnumEquipmentGrade.EPIC]: { chance: 0.5, secondChance: 0, lo: 0.7, hi: 0.9 },
   [EnumEquipmentGrade.LEGENDARY]: { chance: 1, secondChance: 0.25, lo: 0.9, hi: 1 },
+  [EnumEquipmentGrade.MYTHIC]: {
+    chance: 1,
+    secondChance: 0.25,
+    lo: 0.95,
+    hi: 1,
+    guaranteed: 2,
+  },
 }
 // Worn pieces add up, but one option never passes this many times its base maximum.
 export const SPECIAL_TOTAL_CAP_MULTIPLIER = 2
@@ -122,7 +136,8 @@ export const rollSpecialOptions = (
   if (rand() >= rule.chance) {
     return []
   }
-  const count = rand() < rule.secondChance ? 2 : 1
+  // Grades without `guaranteed` draw exactly as before (one chance roll, then one bonus roll).
+  const count = (rule.guaranteed ?? 1) + (rand() < rule.secondChance ? 1 : 0)
   const pool = [...SPECIAL_KEYS]
   const options: ISpecialOption[] = []
   for (let index = 0; index < count; index++) {
@@ -146,7 +161,8 @@ export interface ISpecialBonus {
 
 // Pure: what a pet's worn pieces give. Recomputed on every use, never stored.
 export const calcSpecialBonuses = (
-  items: { specialOptions?: ISpecialOption[] }[]
+  items: { specialOptions?: ISpecialOption[]; setId?: string | null }[],
+  definitions: Record<string, ISetDefinition> = SET_DEFINITIONS
 ): ISpecialBonus => {
   const total: Record<SpecialKey, number> = {
     slowHunger: 0,
@@ -158,6 +174,18 @@ export const calcSpecialBonuses = (
     for (const option of item.specialOptions ?? []) {
       if (option.key in total) {
         total[option.key] += option.value
+      }
+    }
+  }
+  // Care perks of set bonuses (2 pieces and up), under the same cap as the piece options.
+  const pieces = new Map<string, number>()
+  for (const item of items) {
+    if (item.setId) pieces.set(item.setId, (pieces.get(item.setId) ?? 0) + 1)
+  }
+  for (const [setId, count] of pieces) {
+    for (const bonus of definitions[setId]?.bonuses ?? []) {
+      for (const [key, value] of Object.entries(bonus.care ?? {}) as [SpecialKey, number][]) {
+        if (count >= bonus.pieces) total[key] += value
       }
     }
   }
@@ -235,6 +263,7 @@ export const EQUIPMENT_TEMPLATES: IEquipmentTemplate[] = [
   ...setPieces('radiant', 'รัศมีสวรรค์', '✨', SET_PIECE_NAMES),
   ...setPieces('nightfall', 'ราตรีทมิฬ', '🌑', SET_PIECE_NAMES),
   ...setPieces('shadow_veil', 'ม่านเงา', '🌫️', SET_PIECE_NAMES),
+  ...CRAFT_SETS.flatMap(set => setPieces(set.id, set.prefix, set.emoji, SET_PIECE_NAMES)),
 ]
 
 export const findEquipmentTemplate = (templateId: string) =>
@@ -264,6 +293,7 @@ export const DISMANTLE_STONES: Record<EnumEquipmentGrade, number> = {
   [EnumEquipmentGrade.RARE]: 2,
   [EnumEquipmentGrade.EPIC]: 4,
   [EnumEquipmentGrade.LEGENDARY]: 10,
+  [EnumEquipmentGrade.MYTHIC]: 10,
 }
 export const DISMANTLE_STONE_LEVEL_STEP = 4
 
@@ -342,6 +372,8 @@ export interface ISetBonus {
   pct?: Partial<IBattleStats>
   // Special battle effect (see IFighterEffects).
   effect?: IFighterEffects
+  // Care perks in percent, added to the pet's Special options (see calcSpecialBonuses).
+  care?: Partial<Record<SpecialKey, number>>
 }
 
 export interface ISetDefinition {
@@ -402,6 +434,8 @@ export const SET_DEFINITIONS: Record<string, ISetDefinition> = {
       { pieces: 4, effect: { evasion: 0.15, dodgeCdCutSec: 4, afterDodgeBonus: 0.85 } },
     ],
   },
+  // The 12 craft-only sets live in craft-sets.ts.
+  ...Object.fromEntries(CRAFT_SETS.map(set => [set.id, { name: set.name, bonuses: set.bonuses }])),
 }
 
 export interface IEquipmentItem {
@@ -525,7 +559,10 @@ const mergeEffects = (into: IFighterEffects, effect: IFighterEffects) => {
   if (effect.regenPct) {
     into.regenPct = (into.regenPct ?? 0) + effect.regenPct
   }
-  // Crit, evasion and the arena set effects add up (crit/evasion capped where the fighter is built).
+  if (effect.firstStrike) {
+    into.firstStrike = 1
+  }
+  // Crit, evasion and the arena set effects add up (every cap is applied where the fighter is built).
   for (const key of [
     'critChance',
     'critDamage',
@@ -536,6 +573,17 @@ const mergeEffects = (into: IFighterEffects, effect: IFighterEffects) => {
     'lastStandShield',
     'dodgeCdCutSec',
     'afterDodgeBonus',
+    'lifesteal',
+    'thorns',
+    'damageCut',
+    'executeBonus',
+    'slowOnBasic',
+    'defDownOnBasic',
+    'poisonOnBasic',
+    'curseOnBasic',
+    'stunOnBasic',
+    'poisonBonus',
+    'retort',
   ] as const) {
     if (effect[key]) {
       into[key] = (into[key] ?? 0) + effect[key]
