@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { randomInt } from 'crypto'
 import { DataSource, EntityManager } from 'typeorm'
 import { AdventureProgressEntity } from '../../db/entities/adventure-progress.entity'
-import { WalletTransactionEntity } from '../../db/entities/wallet-transaction.entity'
 import {
   EnumWalletCurrency,
   EnumWalletTransactionReason,
@@ -27,16 +26,10 @@ import { IArenaStage } from './arena/arena-types'
 import { loadUnlockedArenaSkills } from './skill.service'
 import { DROP_GRADE_RATES_BY_AREA, rollGrade } from './equipment-data'
 import { grantEquipment, loadEquipmentBonus, toEquipmentView } from './equipment.service'
-import { calcAutoBattleReward } from './idle-data'
 import { loadPassiveBonus } from './passive.service'
 import { loadSpecialBonus } from './special-bonus'
-import { applyBattleOutcome, assertAutoBattleReady, assertCanAdventure } from './monster-engine'
-import {
-  ADVENTURE_STAMINA_COST,
-  AUTO_BATTLE_DAILY_COIN_CAP,
-  EQUIPMENT_DROP_CHANCE_BP,
-} from './monster-rules'
-import { getQuestResetAt } from './quest-data'
+import { applyAdventureSkip, applyBattleOutcome, assertCanAdventure } from './monster-engine'
+import { ADVENTURE_STAMINA_COST, EQUIPMENT_DROP_CHANCE_BP } from './monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 
 // A stage's arena enemy for screens: final stats and its skills with tuned numbers.
@@ -92,8 +85,6 @@ export class AdventureService {
           reward: stage.reward,
           firstClearReward: stage.reward * FIRST_CLEAR_MULTIPLIER,
           firstClearGems: stage.firstClearGems,
-          // Coins one auto-battle win pays (bosses can't be auto-battled).
-          autoReward: stage.isBoss ? null : calcAutoBattleReward(stage),
           clearCount: clearCountByStage.get(stage.id) ?? 0,
           unlocked: isStageUnlocked(stage.id, cleared),
         })),
@@ -101,8 +92,7 @@ export class AdventureService {
     }
   }
 
-  // Idle auto-battle: `isAuto` repeats an already-cleared normal stage for a small, capped reward.
-  async battle(userId: string, stageId: string, isAuto = false) {
+  async battle(userId: string, stageId: string) {
     const now = new Date()
     const entry = findAdventureStage(stageId)
     if (!entry) {
@@ -122,32 +112,10 @@ export class AdventureService {
         throw new BadRequestException('Stage is locked')
       }
       const special = await loadSpecialBonus(monster.id, etm)
-      const staminaCost = Math.max(
-        1,
-        Math.round(ADVENTURE_STAMINA_COST * special.staminaCostMultiplier)
-      )
+      const staminaCost = this.staminaCost(special.staminaCostMultiplier)
       withRuleErrors(() => assertCanAdventure(monster, staminaCost))
 
-      let autoCoinsLeft = 0
-      if (isAuto) {
-        if (entry.stage.isBoss) {
-          throw new BadRequestException('Auto-battle is not available on boss stages')
-        }
-        if (!cleared.has(stageId)) {
-          throw new BadRequestException('Clear this stage once before auto-battling it')
-        }
-        withRuleErrors(() => assertAutoBattleReady(monster, now))
-        // The monster row lock above serializes this user's battles, so the day's total can't be
-        // overspent by two requests racing.
-        autoCoinsLeft =
-          AUTO_BATTLE_DAILY_COIN_CAP - (await this.getAutoCoinsEarnedToday(userId, now, etm))
-        if (autoCoinsLeft <= 0) {
-          throw new BadRequestException('Daily auto-battle reward limit reached')
-        }
-      }
-
-      // Adventure fights run in the real-time arena with the pet's skill loadout. Auto-battles skip
-      // recording the replay (nobody watches them).
+      // Adventure fights run in the real-time arena with the pet's skill loadout.
       const arenaStage = findArenaStage(stageId)
       if (!arenaStage) {
         throw new NotFoundException('Stage not found')
@@ -161,15 +129,13 @@ export class AdventureService {
       )
       const enemy = arenaEnemyOf(arenaStage)
       const seed = randomInt(0, 2 ** 31)
-      const arena = simulateArena([[player], [enemy]], seed, { record: !isAuto })
+      const arena = simulateArena([[player], [enemy]], seed)
       const result = { won: arena.winner === 0, rounds: Math.ceil(arena.ticks / ARENA_TICK) }
 
       const isFirstClear = result.won && !cleared.has(stageId)
       let reward = 0
       if (result.won) {
-        reward = isAuto
-          ? Math.min(calcAutoBattleReward(entry.stage), autoCoinsLeft)
-          : entry.stage.reward * (isFirstClear ? FIRST_CLEAR_MULTIPLIER : 1)
+        reward = entry.stage.reward * (isFirstClear ? FIRST_CLEAR_MULTIPLIER : 1)
       }
       const gemReward = isFirstClear ? entry.stage.firstClearGems : 0
 
@@ -179,7 +145,6 @@ export class AdventureService {
           result.won,
           { stageId, seed, rounds: result.rounds, reward, gemReward },
           now,
-          isAuto,
           staminaCost
         )
       )
@@ -189,9 +154,7 @@ export class AdventureService {
       let wallet = await this.walletService.getBalance(userId, etm)
       if (result.won) {
         const existing = progress.find(row => row.stageId === stageId)
-        if (isAuto) {
-          // Auto-battle only repeats a cleared stage: no progress to record.
-        } else if (existing) {
+        if (existing) {
           existing.clearCount += 1
           await etm.save(AdventureProgressEntity, existing)
         } else {
@@ -206,9 +169,7 @@ export class AdventureService {
           userId,
           EnumWalletCurrency.COIN,
           reward,
-          isAuto
-            ? EnumWalletTransactionReason.AUTO_BATTLE_REWARD
-            : EnumWalletTransactionReason.BATTLE_REWARD,
+          EnumWalletTransactionReason.BATTLE_REWARD,
           stageId,
           etm
         )
@@ -224,27 +185,20 @@ export class AdventureService {
         }
       }
 
-      // Manual wins may drop a piece for the area's grades; auto-battle never does.
+      // A win may drop a piece for the area's grades.
       let drop: ReturnType<typeof toEquipmentView> | null = null
       let dropBagFull = false
-      const rates = DROP_GRADE_RATES_BY_AREA[entry.area.id]
-      if (
-        result.won &&
-        !isAuto &&
-        rates &&
-        randomInt(0, 10_000) <
-          EQUIPMENT_DROP_CHANCE_BP *
-            (await loadPassiveBonus(userId, etm)).equipmentDropMultiplier *
-            special.dropMultiplier
-      ) {
-        const row = await grantEquipment(
+      if (result.won) {
+        const rolled = await this.rollDrops(
           userId,
-          rollGrade(rates, randomInt(0, 1_000_000) / 1_000_000),
-          `battle:${stageId}`,
+          entry.area.id,
+          stageId,
+          1,
+          special.dropMultiplier,
           etm
         )
-        drop = row ? toEquipmentView(row) : null
-        dropBagFull = !row
+        drop = rolled.drops[0] ?? null
+        dropBagFull = rolled.lost > 0
       }
 
       return {
@@ -255,7 +209,7 @@ export class AdventureService {
           won: result.won,
           // Seconds the fight lasted.
           rounds: result.rounds,
-          replay: isAuto ? null : toArenaReplay(arena),
+          replay: toArenaReplay(arena),
           player: { name: player.name, emoji: player.emoji, element: player.element },
           enemy: arenaEnemyView(arenaStage),
           reward,
@@ -269,18 +223,106 @@ export class AdventureService {
     })
   }
 
-  private async getAutoCoinsEarnedToday(userId: string, now: Date, etm: EntityManager) {
-    // The Thai day that quests use: it starts 24 hours before the next reset.
-    const since = new Date(getQuestResetAt(now).getTime() - 24 * 60 * 60 * 1000)
-    const row = await etm
-      .createQueryBuilder(WalletTransactionEntity, 'tx')
-      .select('COALESCE(SUM(tx.amount), 0)', 'sum')
-      .where('tx.userId = :userId AND tx.reason = :reason AND tx.createdAt >= :since', {
+  // Skip: `runs` wins of a stage cleared before, without fighting. Each run costs a fight's
+  // stamina and pays what a repeat win does (coins and a drop roll); bosses included.
+  async skip(userId: string, stageId: string, runs: number) {
+    const now = new Date()
+    const entry = findAdventureStage(stageId)
+    if (!entry) {
+      throw new NotFoundException('Stage not found')
+    }
+
+    return this.dataSource.transaction(async etm => {
+      const monster = await this.monsterService.lockAndTickLatest(userId, now, etm)
+      if (!monster) {
+        throw new NotFoundException('You do not have a monster yet')
+      }
+      const existing = await etm.findOne(AdventureProgressEntity, { where: { userId, stageId } })
+      if (!existing) {
+        throw new BadRequestException('Clear this stage once before skipping it')
+      }
+      const special = await loadSpecialBonus(monster.id, etm)
+      const reward = entry.stage.reward
+      // The rule check (run count, stamina for every run) comes before anything is paid out.
+      const outcome = withRuleErrors(() =>
+        applyAdventureSkip(
+          monster,
+          stageId,
+          runs,
+          reward,
+          now,
+          this.staminaCost(special.staminaCostMultiplier)
+        )
+      )
+      const saved = await this.monsterService.saveState(monster, outcome.state, etm)
+      await this.monsterService.saveEvents(saved, outcome.events, etm)
+
+      existing.clearCount += runs
+      await etm.save(AdventureProgressEntity, existing)
+      const wallet = await this.walletService.change(
         userId,
-        reason: EnumWalletTransactionReason.AUTO_BATTLE_REWARD,
-        since,
-      })
-      .getRawOne<{ sum: string }>()
-    return Number(row?.sum ?? 0)
+        EnumWalletCurrency.COIN,
+        reward * runs,
+        EnumWalletTransactionReason.ADVENTURE_SKIP_REWARD,
+        stageId,
+        etm
+      )
+      const { drops, lost } = await this.rollDrops(
+        userId,
+        entry.area.id,
+        stageId,
+        runs,
+        special.dropMultiplier,
+        etm
+      )
+
+      return {
+        monster: toMonsterView(saved),
+        skip: { stageId, runs, coins: reward * runs, drops, dropsLost: lost },
+        wallet,
+      }
+    })
+  }
+
+  private staminaCost(multiplier: number) {
+    return Math.max(1, Math.round(ADVENTURE_STAMINA_COST * multiplier))
+  }
+
+  // One drop roll per won run, for the area's grades. A full bag loses the piece (counted in `lost`).
+  private async rollDrops(
+    userId: string,
+    areaId: string,
+    stageId: string,
+    runs: number,
+    dropMultiplier: number,
+    etm: EntityManager
+  ) {
+    const drops: ReturnType<typeof toEquipmentView>[] = []
+    let lost = 0
+    const rates = DROP_GRADE_RATES_BY_AREA[areaId]
+    if (!rates) {
+      return { drops, lost }
+    }
+    const chance =
+      EQUIPMENT_DROP_CHANCE_BP *
+      (await loadPassiveBonus(userId, etm)).equipmentDropMultiplier *
+      dropMultiplier
+    for (let run = 0; run < runs; run++) {
+      if (randomInt(0, 10_000) >= chance) {
+        continue
+      }
+      const row = await grantEquipment(
+        userId,
+        rollGrade(rates, randomInt(0, 1_000_000) / 1_000_000),
+        `battle:${stageId}`,
+        etm
+      )
+      if (row) {
+        drops.push(toEquipmentView(row))
+      } else {
+        lost += 1
+      }
+    }
+    return { drops, lost }
   }
 }

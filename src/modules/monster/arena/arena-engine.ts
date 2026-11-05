@@ -759,6 +759,8 @@ export const simulateArena = (
       a.critNext = false
       a.critBonus = 0
     }
+    const vs = a.passive.bonusVsStatus
+    if (vs && has(d, vs.st)) mul = Math.trunc((mul * (100 + vs.pct)) / 100)
     if (skill?.execute && d.hp * 100 < d.maxHp * EXECUTE_BELOW) {
       mul = Math.trunc((mul * (100 + skill.execute)) / 100)
     }
@@ -1100,6 +1102,8 @@ export const simulateArena = (
         me.raging = true
         log({ kind: 'rage', who: me.idx, x: me.x, y: me.y })
       }
+      const refresh = me.passive.shieldEvery
+      if (refresh && tick % sec(refresh.sec) === 0) giveShield(me, refresh.pct, refresh.sec)
       if (me.passive.regenPct && tick % TICK === me.idx % TICK) {
         // Fractions of an HP carry over to the next second instead of rounding up to 1.
         me.regenAcc += Math.round(me.maxHp * me.passive.regenPct * 10)
@@ -1195,7 +1199,7 @@ export const simulateArena = (
         me.act = ACT.WIND
         me.actT = wind
         me.kind = pick
-        me.cds[pick] = sec(sk.cd)
+        me.cds[pick] = Math.trunc((sec(sk.cd) * (100 - (me.passive.cdCut || 0))) / 100)
         // Self skills (buffs, heals, shields) only cost half the shared skill delay.
         const delay = Math.trunc((SKILL_DELAY_TICKS * attackTimePct(me)) / 100)
         me.gcd = wind + (sk.kind === 'self' ? Math.trunc(delay / 2) : delay)

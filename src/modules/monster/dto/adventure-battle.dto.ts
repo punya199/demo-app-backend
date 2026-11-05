@@ -1,11 +1,19 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator'
+import { IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator'
+import { ADVENTURE_SKIP_MAX_RUNS } from '../monster-rules'
 
 export class AdventureBattleBodyDto {
   @IsNotEmpty()
   @IsString()
   stageId: string
+}
 
-  @IsOptional()
-  @IsBoolean()
-  auto?: boolean
+export class AdventureSkipBodyDto {
+  @IsNotEmpty()
+  @IsString()
+  stageId: string
+
+  @IsInt()
+  @Min(1)
+  @Max(ADVENTURE_SKIP_MAX_RUNS)
+  runs: number
 }

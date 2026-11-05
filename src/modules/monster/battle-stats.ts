@@ -37,6 +37,18 @@ export interface IFighterEffects {
   firstStrike?: number
   // 1 = its hits can never be critical (the crit roll is still drawn, so RNG order is unchanged).
   noCrit?: number
+  // Boss-set effects made for the real-time arena (the turn engine ignores them).
+  // Hits on a burning target deal this much more (0.2 = +20%).
+  burnBonus?: number
+  // Every ARENA_SHIELD_REFRESH_SEC seconds, a shield of this share of max HP.
+  shieldRefresh?: number
+  // Skill cooldowns this much shorter (0.15 = -15%).
+  cooldownCut?: number
+  // Once, below 35% HP: a shield of this share of max HP, a cleanse and 2 s of CC immunity.
+  lastStandShield?: number
+  // Seconds off the dodge cooldown, and the next hit after a dodge crits and deals this much more.
+  dodgeCdCutSec?: number
+  afterDodgeBonus?: number
 }
 
 export interface IFighter {

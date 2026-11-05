@@ -84,6 +84,12 @@ export interface IArenaPassive {
   // World bosses: a shield in HP points, and ATK +atk% from `sec` seconds into the fight.
   flatShield?: number
   rage?: { sec: number; atk: number }
+  // Hits on a target with this status deal pct % more.
+  bonusVsStatus?: { st: StatusId; pct: number }
+  // A shield of pct % of max HP every `sec` seconds.
+  shieldEvery?: { pct: number; sec: number }
+  // % off every skill cooldown.
+  cdCut?: number
 }
 
 export interface IArenaDodge {

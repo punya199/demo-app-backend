@@ -9,6 +9,8 @@ import {
   ARENA_ATTACK_SPEED_CAP,
   ARENA_ATTACK_SPEED_PCT,
   ARENA_BURN_CHANCE,
+  ARENA_LAST_STAND_BELOW,
+  ARENA_SHIELD_REFRESH_SEC,
   ARENA_HP_SCALE,
   ARENA_REGEN_PER_SEC_PCT,
   ARENA_TICK,
@@ -127,6 +129,22 @@ const effectsToPassive = (effects: IFighterEffects, spdBonus: number): IArenaPas
   }
   if (effects.burnTurns) {
     passive.onBasic = { st: 'burn', dur: effects.burnTurns, ch: ARENA_BURN_CHANCE }
+  }
+  if (effects.burnBonus) passive.bonusVsStatus = { st: 'burn', pct: percent(effects.burnBonus) }
+  if (effects.shieldRefresh) {
+    passive.shieldEvery = { pct: percent(effects.shieldRefresh), sec: ARENA_SHIELD_REFRESH_SEC }
+  }
+  if (effects.cooldownCut) passive.cdCut = percent(effects.cooldownCut)
+  if (effects.lastStandShield) {
+    passive.lastStand = {
+      belowPct: ARENA_LAST_STAND_BELOW,
+      shield: percent(effects.lastStandShield),
+      immuneSec: 2,
+    }
+  }
+  if (effects.dodgeCdCutSec) passive.dodgeCdCut = effects.dodgeCdCutSec
+  if (effects.afterDodgeBonus) {
+    passive.afterDodge = { critNext: true, bonus: percent(effects.afterDodgeBonus) }
   }
   return passive
 }

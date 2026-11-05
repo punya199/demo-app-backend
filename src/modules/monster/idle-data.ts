@@ -1,6 +1,5 @@
-import { ADVENTURE_AREAS, IAdventureArea, IAdventureStage } from './adventure-data'
+import { ADVENTURE_AREAS, IAdventureArea } from './adventure-data'
 import {
-  AUTO_BATTLE_REWARD_RATIO,
   EXPEDITION_DROP_EVERY_MINUTES,
   EXPEDITION_POWER_MULTIPLIER_MAX,
   EXPEDITION_POWER_MULTIPLIER_MIN,
@@ -8,9 +7,7 @@ import {
 import { EnumShopItemId } from './shop-data'
 import { IBattleStats, STAGE_BASE_STATS } from './species-data'
 
-// Coins per hour a monster of the area's recommended form earns while exploring. Auto-battle on
-// the same area pays a little more per hour (idle-data.spec.ts keeps it that way), which is the
-// reason to keep the game open.
+// Coins per hour a monster of the area's recommended form earns while exploring.
 const EXPEDITION_COINS_PER_HOUR: Record<string, number> = {
   meadow: 100,
   coast: 300,
@@ -45,7 +42,3 @@ export const calcExpeditionCoins = (minutes: number, ratePerHour: number) =>
 
 export const calcExpeditionDrops = (minutes: number) =>
   Math.floor(minutes / EXPEDITION_DROP_EVERY_MINUTES)
-
-// Auto-battle pays a fraction of the stage's normal reward, at least 1 coin.
-export const calcAutoBattleReward = (stage: IAdventureStage) =>
-  Math.max(1, Math.round(stage.reward * AUTO_BATTLE_REWARD_RATIO))
