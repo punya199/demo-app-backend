@@ -129,7 +129,7 @@ export class AdventureService {
       )
       const enemy = arenaEnemyOf(arenaStage)
       const seed = randomInt(0, 2 ** 31)
-      const arena = simulateArena([[player], [enemy]], seed)
+      const arena = simulateArena([[player], [enemy]], seed, { record: true })
       const result = { won: arena.winner === 0, rounds: Math.ceil(arena.ticks / ARENA_TICK) }
 
       const isFirstClear = result.won && !cleared.has(stageId)
