@@ -1,3 +1,12 @@
+# [1.38.0](https://github.com/punya199/demo-app-backend/compare/v1.37.1...v1.38.0) (2026-11-05)
+
+
+### New
+
+* add craft materials, their drops and a 200-piece equipment bag ([7643900](https://github.com/punya199/demo-app-backend/commit/7643900f7f2c57b21c6d8947a4474b842befb309))
+* add the craft queue with Catalyst pity, skip and claim ([c91fa29](https://github.com/punya199/demo-app-backend/commit/c91fa2989cbd2ccc2a7032c5757cebb18ac67314))
+* add the mythic grade, 12 craft sets and their arena effects ([c411672](https://github.com/punya199/demo-app-backend/commit/c411672c231a1b86abb32e20a15f0999eef8293d))
+
 ## [1.37.1](https://github.com/punya199/demo-app-backend/compare/v1.37.0...v1.37.1) (2026-11-05)
 
 
