@@ -1,3 +1,10 @@
+## [1.37.1](https://github.com/punya199/demo-app-backend/compare/v1.37.0...v1.37.1) (2026-11-05)
+
+
+### Fix
+
+* record the replay of adventure fights again ([52a3e58](https://github.com/punya199/demo-app-backend/commit/52a3e58da3c069ddaf327b6b153c184170735734))
+
 # [1.37.0](https://github.com/punya199/demo-app-backend/compare/v1.36.0...v1.37.0) (2026-11-05)
 
 
