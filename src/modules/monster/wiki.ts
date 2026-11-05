@@ -1,11 +1,14 @@
 import { ARENA_STATUS, ARENA_STATUS_NUMBERS } from './arena/arena-data'
+import { DEFENSE_K as ARENA_DEFENSE_K, MAX_DEF_CUT, VAR_MIN, VAR_SPAN } from './arena/arena-engine'
 import {
   ARENA_ATTACK_SPEED_CAP,
   ARENA_ATTACK_SPEED_PCT,
   ARENA_BURN_CHANCE,
   ARENA_HP_SCALE,
+  ARENA_MAX_TICKS,
   ARENA_REGEN_PER_SEC_PCT,
   ARENA_STRONG,
+  ARENA_TICK,
   ARENA_WEAK,
   BOSS_RES,
   CRIT_CHANCE as ARENA_CRIT_CHANCE,
@@ -202,6 +205,13 @@ export const buildWiki = () => ({
   // The real-time arena used by adventure fights (skills, dodging, statuses).
   arena: {
     hpScale: ARENA_HP_SCALE,
+    // A fight ends when a side is down, or at this time limit (more HP share left wins).
+    timeLimitSec: ARENA_MAX_TICKS / ARENA_TICK,
+    defenseK: ARENA_DEFENSE_K,
+    maxDefenseReduction: MAX_DEF_CUT / 10000,
+    // Each hit lands at a random share of its damage between these (VAR_SPAN values, from VAR_MIN %).
+    damageVarianceMin: VAR_MIN / 100,
+    damageVarianceMax: (VAR_MIN + VAR_SPAN - 1) / 100,
     strongMultiplier: ARENA_STRONG / 100,
     weakMultiplier: ARENA_WEAK / 100,
     dodgeBase: DODGE_BASE,
