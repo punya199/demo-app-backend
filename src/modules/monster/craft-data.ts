@@ -5,7 +5,7 @@ import {
   CRAFT_UNIQUE_ID,
 } from './craft-materials'
 import { CRAFT_SETS, CraftEssence, ICraftSet } from './craft-sets'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from './equipment-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot, findEquipmentTemplate } from './equipment-data'
 
 // Craft rules (docs/tamagotchi/craft.md): recipes, prices, timers, Catalyst odds and pity. Pure:
 // the service passes the clock and the dice in, so every rule here is testable without either.
@@ -195,4 +195,98 @@ export const worldBossCraftDrops = (rank: number, kindRoll: number): ICraftMater
       qty: CRAFT_WORLD_BOSS.catalyst + (top ? CRAFT_WORLD_BOSS.topCatalyst : 0),
     },
   ]
+}
+
+// ---- What the craft screen shows (pure: the service passes in what it loaded) ----
+
+export interface ICraftRecipeView {
+  id: string
+  setId: string
+  slot: EnumEquipmentSlot
+  name: string
+  flagship: boolean
+  baseGrade: EnumEquipmentGrade
+  maxGrade: EnumEquipmentGrade
+  coin: number
+  minutes: number
+  materials: { itemId: string; qty: number; owned: number }[]
+  canStart: boolean
+}
+
+export interface ICraftQueueView {
+  recipeId: string
+  useCatalyst: boolean
+  startedAt: string
+  finishAt: string
+  status: 'running' | 'ready'
+  skipCoin: number
+}
+
+export interface ICraftOverview {
+  recipes: ICraftRecipeView[]
+  queue: ICraftQueueView | null
+  catalyst: {
+    owned: number
+    chance: number
+    pity: { step: CraftStep; fails: number; guaranteeAfter: number }[]
+  }
+  coin: number
+}
+
+export interface ICraftJobLike {
+  recipeId: string
+  useCatalyst: boolean
+  startedAt: Date
+  finishAt: Date
+}
+
+export const buildCraftOverview = (input: {
+  job: ICraftJobLike | null
+  owned: Map<string, number>
+  pity: Map<string, number>
+  coin: number
+  now: Date
+}): ICraftOverview => {
+  const { job, owned, pity, coin, now } = input
+  const have = (itemId: string) => owned.get(itemId) ?? 0
+  const recipes = CRAFT_RECIPES.map(recipe => ({
+    id: recipe.id,
+    setId: recipe.setId,
+    slot: recipe.slot,
+    name: findEquipmentTemplate(recipe.templateId)?.name ?? recipe.templateId,
+    flagship: recipe.flagship,
+    baseGrade: recipe.baseGrade,
+    maxGrade: recipe.maxGrade,
+    coin: recipe.coin,
+    minutes: recipe.minutes,
+    materials: recipe.materials.map(need => ({ ...need, owned: have(need.itemId) })),
+    canStart:
+      !job && coin >= recipe.coin && recipe.materials.every(need => have(need.itemId) >= need.qty),
+  }))
+  const queueRecipe = job && findCraftRecipe(job.recipeId)
+  const ready = !!job && job.finishAt.getTime() <= now.getTime()
+  return {
+    recipes,
+    queue:
+      job && queueRecipe
+        ? {
+            recipeId: job.recipeId,
+            useCatalyst: job.useCatalyst,
+            startedAt: job.startedAt.toISOString(),
+            finishAt: job.finishAt.toISOString(),
+            status: ready ? 'ready' : 'running',
+            skipCoin: calcCraftSkipCoin(queueRecipe, job.finishAt, now),
+          }
+        : null,
+    catalyst: {
+      owned: have(CRAFT_CATALYST_ID),
+      chance: CRAFT_CATALYST_CHANCE,
+      pity: CRAFT_STEPS.map(step => ({
+        step,
+        fails: pity.get(step) ?? 0,
+        guaranteeAfter: CRAFT_PITY_AFTER_FAILS,
+      })),
+    },
+    coin,
+  }
 }

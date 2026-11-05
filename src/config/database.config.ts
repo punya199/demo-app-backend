@@ -22,6 +22,8 @@ import { PvpRatingEntity } from '../db/entities/pvp-rating.entity'
 import { EnhanceLogEntity } from '../db/entities/enhance-log.entity'
 import { EquipmentItemEntity } from '../db/entities/equipment-item.entity'
 import { EquipmentLogEntity } from '../db/entities/equipment-log.entity'
+import { CraftJobEntity } from '../db/entities/craft-job.entity'
+import { CraftPityEntity } from '../db/entities/craft-pity.entity'
 import { DailyQuestProgressEntity } from '../db/entities/daily-quest-progress.entity'
 import { InventoryItemEntity } from '../db/entities/inventory-item.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
@@ -77,6 +79,8 @@ export const entities = [
   SupportUnitEntity,
   RentalEntity,
   PassiveAllocationEntity,
+  CraftJobEntity,
+  CraftPityEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
