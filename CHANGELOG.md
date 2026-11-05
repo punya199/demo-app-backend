@@ -1,3 +1,11 @@
+# [1.39.0](https://github.com/punya199/demo-app-backend/compare/v1.38.0...v1.39.0) (2026-11-05)
+
+
+### Update
+
+* publish the arena's time limit, defense and damage spread in the wiki ([75dee0f](https://github.com/punya199/demo-app-backend/commit/75dee0fa4b45f8e2d4aae8b7c0dc152db4dd075c))
+* publish who fights with skills and the skill delay in the wiki ([d42e94c](https://github.com/punya199/demo-app-backend/commit/d42e94cf0a4bd7c4e52a58bbbc580623d52d111f))
+
 # [1.38.0](https://github.com/punya199/demo-app-backend/compare/v1.37.1...v1.38.0) (2026-11-05)
 
 
