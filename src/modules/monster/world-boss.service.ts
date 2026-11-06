@@ -45,6 +45,7 @@ import {
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import { worldBossCraftDrops } from './craft-data'
 import { isCraftSetId } from './craft-sets'
+import { buildBossDetail } from './boss-detail'
 import { calcRentalFee, orderPair } from './social-data'
 import { getQuestDayStart } from './quest-data'
 import { bossTokenItemId, isStageAtLeast, RAID_EXCHANGE_COST } from './raid-data'
@@ -55,6 +56,7 @@ import {
   findWorldBoss,
   getWeek,
   getWorldBossArena,
+  IWorldBoss,
   splitWorldBossDamage,
   getWorldBossOfWeek,
 } from './world-boss-data'
@@ -124,6 +126,17 @@ export class WorldBossService {
     )
   }
 
+  // Stats and skills for the boss card (the HP in `stats` is the week's shared pool).
+  private detailOf(definition: IWorldBoss, hp: number) {
+    const arena = getWorldBossArena(definition, hp)
+    return buildBossDetail(
+      { hp, atk: arena.atk, def: arena.def, spd: arena.spd },
+      definition.arenaSkills,
+      arena.passive,
+      definition.arenaDodge
+    )
+  }
+
   async getStatus(userId: string) {
     const now = new Date()
     const etm = this.dataSource.manager
@@ -177,6 +190,7 @@ export class WorldBossService {
         hp: boss.hp,
         maxHp: boss.maxHp,
         isDefeated: !!boss.defeatedAt,
+        detail: this.detailOf(definition, boss.hp),
       },
       hitsLeft: Math.max(0, WORLD_BOSS_HITS - fights),
       resetsAt: getWindow(now, WORLD_BOSS_RESET_HOURS).resetsAt,

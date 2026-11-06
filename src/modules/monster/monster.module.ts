@@ -38,6 +38,8 @@ import { ShopController } from './shop.controller'
 import { ShopService } from './shop.service'
 import { SkillController } from './skill.controller'
 import { SkillService } from './skill.service'
+import { DummyController } from './dummy.controller'
+import { DummyService } from './dummy.service'
 
 @Module({
   imports: [TypeOrmModule.forFeature([MonsterEntity, MonsterLogEntity]), WalletModule],
@@ -59,6 +61,7 @@ import { SkillService } from './skill.service'
     CostumeController,
     SkillController,
     CraftController,
+    DummyController,
   ],
   providers: [
     MonsterService,
@@ -79,6 +82,7 @@ import { SkillService } from './skill.service'
     CostumeService,
     SkillService,
     CraftService,
+    DummyService,
   ],
 })
 export class MonsterModule {}
