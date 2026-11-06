@@ -38,8 +38,14 @@ describe('equipment and enhancing', () => {
   const grant = async (grade: EnumEquipmentGrade) =>
     (await dataSource.transaction(etm => grantEquipment(userId, grade, 'test', etm)))!
 
+  // A pet in an adult form needs an adult species too: its fighter stats come from the species.
   const setStage = (stage: string) =>
-    sql(`UPDATE monsters SET stage=$2 WHERE owner_id=$1 AND deleted_at IS NULL`, [userId, stage])
+    sql(
+      `UPDATE monsters SET stage=$2::varchar,
+         species_id=CASE WHEN $2::text='adult' THEN 'flame_adultGood' ELSE species_id END
+       WHERE owner_id=$1 AND deleted_at IS NULL`,
+      [userId, stage]
+    )
 
   beforeAll(async () => {
     await startTestDatabase()

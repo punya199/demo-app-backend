@@ -31,6 +31,8 @@ export enum EnumMonsterDeathCause {
   STARVATION = 'starvation',
   // Consumed as a parent of a merge (not a real death).
   MERGED = 'merged',
+  // Sent home by the owner for a Pet Core (not a real death either).
+  RETURNED = 'returned',
 }
 
 // Game rules for every column here live in src/modules/monster/monster-engine.ts - this entity is

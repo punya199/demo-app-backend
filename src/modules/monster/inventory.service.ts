@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { DataSource, EntityManager } from 'typeorm'
 import { InventoryItemEntity } from '../../db/entities/inventory-item.entity'
+import { addToBag } from './inventory-bag'
 import { applyShopItem } from './monster-engine'
 import { toMonsterView, withRuleErrors, MonsterService } from './monster.service'
 import { EnumShopItemId } from './shop-data'
@@ -21,14 +22,8 @@ export class InventoryService {
     }
   }
 
-  // Atomic increment: concurrent purchases of the same item can't lose a count.
   async add(userId: string, itemId: string, etm: EntityManager, quantity = 1) {
-    await etm.query(
-      `INSERT INTO "inventory_items" ("user_id", "item_id", "quantity") VALUES ($1, $2, $3)
-       ON CONFLICT ("user_id", "item_id") WHERE deleted_at IS NULL
-       DO UPDATE SET "quantity" = "inventory_items"."quantity" + $3, "updated_at" = now()`,
-      [userId, itemId, quantity]
-    )
+    await addToBag(etm, userId, itemId, quantity)
   }
 
   // Takes `quantity` out of the bag in one conditional UPDATE; false when there isn't enough.
