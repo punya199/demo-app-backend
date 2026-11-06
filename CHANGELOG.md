@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/punya199/demo-app-backend/compare/v1.39.0...v1.40.0) (2026-11-06)
+
+
+### New
+
+* show boss stats and skills, add training dummy endpoint ([a163279](https://github.com/punya199/demo-app-backend/commit/a1632796eec5f312324202d018fd8c3fa93a9136))
+
 # [1.39.0](https://github.com/punya199/demo-app-backend/compare/v1.38.0...v1.39.0) (2026-11-05)
 
 
