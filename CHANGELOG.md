@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/punya199/demo-app-backend/compare/v1.41.0...v1.42.0) (2026-11-06)
+
+
+### Update
+
+* run integration/e2e tests on a separate throwaway test database ([323536b](https://github.com/punya199/demo-app-backend/commit/323536b87134181691d858af155cd9c67b434ca0))
+
 # [1.41.0](https://github.com/punya199/demo-app-backend/compare/v1.40.0...v1.41.0) (2026-11-06)
 
 
