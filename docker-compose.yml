@@ -31,5 +31,26 @@ services:
       timeout: 5s
       retries: 10
 
+  # Throwaway DB for `yarn test:integration` / `yarn test:e2e`: own port, data in RAM (tmpfs).
+  # Start with `yarn test:db:up`; never started by a plain `docker compose up`.
+  postgres-test:
+    image: postgres:16-alpine
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: yaya_test
+      POSTGRES_PASSWORD: yaya_test
+      POSTGRES_DB: yaya_test
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./scripts/init-postgres-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yaya_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
 volumes:
   postgres_data:

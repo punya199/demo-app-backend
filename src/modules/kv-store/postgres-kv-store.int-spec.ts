@@ -1,6 +1,7 @@
 // Runs against a real Postgres (the docker-compose one) via `yarn test:integration`.
 import { randomUUID } from 'crypto'
 import dataSource from '../../config/database.config'
+import { startTestDatabase, stopTestDatabase } from '../monster/int-test-helpers'
 import { PostgresKvStore } from './postgres-kv-store'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -11,14 +12,13 @@ describe('PostgresKvStore (contract)', () => {
   const key = (name: string) => `${ns}${name}`
 
   beforeAll(async () => {
-    await dataSource.initialize()
-    await dataSource.runMigrations()
+    await startTestDatabase()
     kv = new PostgresKvStore(dataSource)
   })
 
   afterAll(async () => {
     await kv.deleteByPrefix(ns)
-    await dataSource.destroy()
+    await stopTestDatabase()
   })
 
   it('migration down() drops kv_store and up() recreates it', async () => {
