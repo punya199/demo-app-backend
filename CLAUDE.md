@@ -19,7 +19,8 @@ yarn test                  # jest, run from repo root; rootDir is `src`, tests a
 yarn test --testPathPattern=password-helper   # run a single spec file
 yarn test:watch
 yarn test:cov
-yarn test:integration       # KvStore contract suite (*.int-spec.ts) against the docker-compose Postgres; plain `yarn test` stays DB-free
+yarn test:db:up             # start the throwaway `postgres-test` container (port 5433, tmpfs); `yarn test:db:down` removes it
+yarn test:integration       # *.int-spec.ts against that DB; loads .env.test (DATABASE_* overrides, copy from .env.test.example) over .env; plain `yarn test` stays DB-free
 yarn test:e2e               # jest -c ./test/jest-e2e.json — no test/ directory exists yet, this will fail until one is added
 
 yarn migration:generate <name>   # typeorm migration:generate against current entities (diffs live schema)

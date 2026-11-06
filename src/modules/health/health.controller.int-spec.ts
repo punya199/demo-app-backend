@@ -7,12 +7,14 @@ import request from 'supertest'
 import appConfig from '../../config/app-config'
 import dataSource from '../../config/database.config'
 import { createTestingApp } from '../../testing/create-testing-app'
+import { assertSafeTestDatabase } from '../monster/int-test-helpers'
 import { HealthModule } from './health.module'
 
 describe('GET /api/v1/health', () => {
   let app: INestApplication<Server>
 
   beforeAll(async () => {
+    assertSafeTestDatabase()
     app = await createTestingApp({
       imports: [TypeOrmModule.forRoot(dataSource.options), HealthModule],
     })

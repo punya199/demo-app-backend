@@ -18,7 +18,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "node --env-file=.env.test ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "node ./scripts/generate-migration.js",
     "migration:create": "node ./scripts/create-migration.js",
@@ -29,7 +29,9 @@
     "migration:revert:prod": "typeorm migration:revert -d dist/config/database.config.js",
     "migration:show:prod": "typeorm migration:show -d dist/config/database.config.js",
     "prepare": "husky",
-    "test:integration": "jest --testRegex '.*\\.int-spec\\.ts$' --runInBand"
+    "test:integration": "node --env-file=.env.test ./node_modules/jest/bin/jest.js --testRegex '.*\\.int-spec\\.ts$' --runInBand",
+    "test:db:up": "docker compose --profile test up -d --wait postgres-test",
+    "test:db:down": "docker compose --profile test rm -sf postgres-test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.872.0",
