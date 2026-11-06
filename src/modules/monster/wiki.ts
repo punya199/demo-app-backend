@@ -119,6 +119,7 @@ import {
   SPECIES,
   SPIRITUAL_LINES,
 } from './species-data'
+import { PET_CORE_ITEM_PREFIX, PET_CORES_PER_RETURN, RETURN_HOME_STAGES } from './pet-core'
 
 // Everything the in-game guide explains, read straight from the rule constants and game data so
 // the guide can never drift from how the game actually behaves.
@@ -391,5 +392,11 @@ export const buildWiki = () => ({
     defMax: DUMMY_DEF_MAX,
     defenseK: ARENA_DEFENSE_K,
     maxDefenseReduction: MAX_DEF_CUT / 10000,
+  },
+  // กลับดาว: a grown pet leaves for one Pet Core (bag item `${itemPrefix}<speciesId>`).
+  petCore: {
+    stages: RETURN_HOME_STAGES,
+    perReturn: PET_CORES_PER_RETURN,
+    itemPrefix: PET_CORE_ITEM_PREFIX,
   },
 })

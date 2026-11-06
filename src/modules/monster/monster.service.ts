@@ -41,7 +41,9 @@ import {
   STAMINA_REFILL_GEM_PRICE,
   TRAIN_COOLDOWN_MS,
 } from './monster-rules'
+import { addToBag } from './inventory-bag'
 import { createFused } from './monster-merge'
+import { assertCanReturnHome, PET_CORES_PER_RETURN, petCoreItemId } from './pet-core'
 import { loadPassiveBonus } from './passive.service'
 import { loadSpecialBonus } from './special-bonus'
 import { normalizeNickname, RENAME_COOLDOWN_MS } from './monster-name'
@@ -287,6 +289,43 @@ export class MonsterService {
         etm
       )
       return { monster: toMonsterView(created), wallet }
+    })
+  }
+
+  // กลับดาว: the pet leaves for good and the owner gets a Pet Core of its species. The gear it wore
+  // goes back to the bag; passives, skills and costumes belong to the account, so they stay.
+  async returnHome(userId: string, monsterId: string) {
+    const now = new Date()
+    return this.dataSource.transaction(async etm => {
+      const monster = (await this.lockAndTickLiving(userId, now, etm)).find(
+        row => row.id === monsterId
+      )
+      if (!monster) {
+        throw new NotFoundException('Monster not found')
+      }
+      withRuleErrors(() => assertCanReturnHome(monster))
+
+      const coreItemId = petCoreItemId(monster.speciesId)
+      await addToBag(etm, userId, coreItemId, PET_CORES_PER_RETURN)
+      await etm.save(
+        MonsterEntity,
+        Object.assign(monster, {
+          diedAt: now,
+          deathCause: EnumMonsterDeathCause.RETURNED,
+          selectedAt: null,
+        })
+      )
+      await releaseGear(monster.id, etm)
+      await etm.save(MonsterLogEntity, {
+        monsterId: monster.id,
+        type: EnumMonsterLogType.DEATH,
+        payload: {
+          cause: EnumMonsterDeathCause.RETURNED,
+          core: coreItemId,
+          at: now.toISOString(),
+        },
+      })
+      return { itemId: coreItemId, quantity: PET_CORES_PER_RETURN }
     })
   }
 

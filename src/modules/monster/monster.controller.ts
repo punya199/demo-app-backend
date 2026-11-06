@@ -6,6 +6,7 @@ import { MergeMonstersBodyDto } from './dto/merge-monsters.dto'
 import { MinigameBodyDto, StaminaRefillBodyDto } from './dto/minigame.dto'
 import { MonsterActionBodyDto } from './dto/monster-action.dto'
 import { RenameMonsterBodyDto } from './dto/rename-monster.dto'
+import { ReturnHomeBodyDto } from './dto/return-home.dto'
 import { SelectMonsterBodyDto } from './dto/select-monster.dto'
 import { MonsterService } from './monster.service'
 import { buildWiki } from './wiki'
@@ -42,6 +43,12 @@ export class MonsterController {
   @Post('merge')
   async merge(@Body() body: MergeMonstersBodyDto, @ReqUser() user: IAppJwtPayload) {
     return this.monsterService.merge(user['user-id'], body.firstId, body.secondId, body.baseId)
+  }
+
+  @AuthUser()
+  @Post('return-home')
+  async returnHome(@Body() body: ReturnHomeBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.monsterService.returnHome(user['user-id'], body.monsterId)
   }
 
   @AuthUser()
