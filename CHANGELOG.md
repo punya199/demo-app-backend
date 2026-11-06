@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/punya199/demo-app-backend/compare/v1.40.0...v1.41.0) (2026-11-06)
+
+
+### New
+
+* return pet home (กลับดาว) for a Pet Core ([35b4349](https://github.com/punya199/demo-app-backend/commit/35b43496fc75196a03dd4176d4e2103bfebf5efb))
+
 # [1.40.0](https://github.com/punya199/demo-app-backend/compare/v1.39.0...v1.40.0) (2026-11-06)
 
 
