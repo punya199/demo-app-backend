@@ -8,6 +8,7 @@ import {
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
 import { simulateArena } from './arena/arena-engine'
+import { buildBossDetail, defReductionPct } from './boss-detail'
 import { arenaBattleView, toArenaFighter } from './arena/arena-fighter'
 import { loadArenaLoadout } from './skill.service'
 import { raidCoreDrops } from './craft-data'
@@ -82,6 +83,11 @@ export class RaidService {
         setId: boss.setId,
         setName: SET_DEFINITIONS[boss.setId]?.name ?? boss.setId,
         bossTokens: owned.get(bossTokenItemId(boss.id)) ?? 0,
+        // Skills are the same on every difficulty; stats are per difficulty (see `difficulties`).
+        detail: buildBossDetail(
+          getRaidBossFighter(boss, RAID_DIFFICULTIES[0]).stats,
+          boss.arenaSkills
+        ),
         difficulties: RAID_DIFFICULTIES.map((difficulty, index) => {
           const previous = RAID_DIFFICULTIES[index - 1]
           const cleared = progress.get(`${boss.id}:${difficulty.difficulty}`)?.clearCount ?? 0
@@ -92,6 +98,7 @@ export class RaidService {
             raidTokens: difficulty.raidTokens,
             exchangeCost: RAID_EXCHANGE_COST[difficulty.grade],
             enemy: getRaidBossFighter(boss, difficulty),
+            defReductionPct: defReductionPct(getRaidBossFighter(boss, difficulty).stats.def),
             clearCount: cleared,
             // Entry needs the form and a clear of the easier difficulty of the same boss.
             unlocked:

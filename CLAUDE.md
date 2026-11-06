@@ -86,6 +86,10 @@ Distinct from the rest of the app: it treats a specific Google Sheet as the prim
 
 `nestjs-pino` (`src/config/pino-config.ts`) is the structured logger wired at the framework level; `GlobalExceptionFilter` (`src/utils/filters/global-exception-filter.ts`) additionally normalizes all uncaught/`HttpException` errors into a consistent `{ statusCode, message, path, timestamp }` JSON body.
 
+### Tamagotchi change checklist
+
+For any player-visible tamagotchi change: (1) add a Thai player-facing entry to `demo-app` `src/pages/project/tamagotchi/patch-notes.ts`; (2) update the in-game wiki (`src/modules/monster/wiki.ts` here + `WikiPanel.tsx` in `demo-app`); (3) add or update tests for any new helper or engine code.
+
 ## Agent skills
 
 ### Project skills

@@ -1,5 +1,6 @@
 import { ARENA_STATUS, ARENA_STATUS_NUMBERS } from './arena/arena-data'
 import { SKILLED_STAGES } from './arena/arena-fighter'
+import { DUMMY_DEF_MAX, DUMMY_FIGHT_SEC } from './dummy-data'
 import { DEFENSE_K as ARENA_DEFENSE_K, MAX_DEF_CUT, VAR_MIN, VAR_SPAN } from './arena/arena-engine'
 import {
   ARENA_ATTACK_SPEED_CAP,
@@ -383,5 +384,12 @@ export const buildWiki = () => ({
       rare: set.rare,
       unique: set.unique ?? null,
     })),
+  },
+  // Boss screens and the training dummy: DEF cut shown next to boss stats uses the arena formula.
+  dummy: {
+    fightSec: DUMMY_FIGHT_SEC,
+    defMax: DUMMY_DEF_MAX,
+    defenseK: ARENA_DEFENSE_K,
+    maxDefenseReduction: MAX_DEF_CUT / 10000,
   },
 })
