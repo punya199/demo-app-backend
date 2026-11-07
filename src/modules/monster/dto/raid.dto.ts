@@ -1,6 +1,6 @@
 import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from '../equipment-data'
-import { EnumRaidDifficulty } from '../raid-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot } from '../equipment/equipment-data'
+import { EnumRaidDifficulty } from '../boss/raid-data'
 
 export class RaidBattleBodyDto {
   @IsNotEmpty()

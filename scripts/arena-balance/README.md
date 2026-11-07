@@ -1,7 +1,7 @@
 # Arena balance tools
 
 The real-time arena (adventure fights, skills) was balanced by simulation with these scripts. They
-run the demo copy of the engine (`engine.js`, the same rules as `src/modules/monster/arena/arena-engine.ts`,
+run the demo copy of the engine (`engine.js`, the same rules as `src/modules/monster/arena/arena-engine/`,
 pinned by `arena-engine.spec.ts`) over hundreds of thousands of fights and write `tuning.json`.
 
 ```bash

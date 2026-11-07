@@ -1,8 +1,8 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
-import { IFighter, IFighterEffects, toFighter } from '../battle-stats'
-import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from '../equipment-data'
-import { IMonsterState } from '../monster-engine'
-import { getSpecies, STAGE_BASE_STATS } from '../species-data'
+import { IFighter, IFighterEffects, toFighter } from '../battle/battle-stats'
+import { IEquipmentBonus, NO_EQUIPMENT_BONUS } from '../equipment/equipment-data'
+import { IMonsterState } from '../core/monster-engine'
+import { getSpecies, STAGE_BASE_STATS } from '../core/species-data'
 import { ARENA_SKILLS, ARENA_STAGES, ARENA_TUNING } from './arena-data'
 import { ARENA_SKILL_BY_ID, canEquipArenaSkill, getArenaSkill } from './arena-engine'
 import {

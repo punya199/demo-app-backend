@@ -1,5 +1,5 @@
 import { IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator'
-import { ADVENTURE_SKIP_MAX_RUNS } from '../monster-rules'
+import { ADVENTURE_SKIP_MAX_RUNS } from '../core/monster-rules'
 
 export class AdventureBattleBodyDto {
   @IsNotEmpty()

@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
-import { EnumCostumeSlot } from '../costume-data'
+import { EnumCostumeSlot } from '../equipment/costume-data'
 
 export class BuyCostumeBodyDto {
   @IsString()

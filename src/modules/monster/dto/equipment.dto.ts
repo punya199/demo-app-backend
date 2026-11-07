@@ -10,8 +10,8 @@ import {
   IsOptional,
   IsUUID,
 } from 'class-validator'
-import { EnumEquipmentSlot, EnumMaterialId, StatKey, STAT_KEYS } from '../equipment-data'
-import { EQUIPMENT_CAPACITY } from '../monster-rules'
+import { EnumEquipmentSlot, EnumMaterialId, StatKey, STAT_KEYS } from '../equipment/equipment-data'
+import { EQUIPMENT_CAPACITY } from '../core/monster-rules'
 
 export class EquipmentIdBodyDto {
   @IsNotEmpty()

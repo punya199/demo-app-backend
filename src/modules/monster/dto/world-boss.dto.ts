@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator'
-import { EnumEquipmentGrade, EnumEquipmentSlot } from '../equipment-data'
+import { EnumEquipmentGrade, EnumEquipmentSlot } from '../equipment/equipment-data'
 
 const WEEK_PATTERN = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/
 

@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsUUID } from 'class-validator'
-import { EnumMonsterAction } from '../monster-engine'
+import { EnumMonsterAction } from '../core/monster-engine'
 
 export class MonsterActionBodyDto {
   @IsNotEmpty()
