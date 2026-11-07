@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/punya199/demo-app-backend/compare/v1.45.0...v1.46.0) (2026-11-07)
+
+
+### New
+
+* return arena-only pet stats (regen, lifesteal, EVA/ACC/RES) from GET /equipment ([29bdf0e](https://github.com/punya199/demo-app-backend/commit/29bdf0ecdc58395515618cdbcc148e6882f6df4c))
+
 # [1.45.0](https://github.com/punya199/demo-app-backend/compare/v1.44.0...v1.45.0) (2026-11-07)
 
 
