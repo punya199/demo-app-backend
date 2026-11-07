@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/punya199/demo-app-backend/compare/v1.46.0...v1.47.0) (2026-11-07)
+
+
+### Update
+
+* reorganize monster module into feature modules and split oversized files (#39) ([4c5af5c](https://github.com/punya199/demo-app-backend/commit/4c5af5ca64786ebf441cf907a19627750b8160f3)), closes [#39](https://github.com/punya199/demo-app-backend/issues/39)
+
 # [1.46.0](https://github.com/punya199/demo-app-backend/compare/v1.45.0...v1.46.0) (2026-11-07)
 
 
