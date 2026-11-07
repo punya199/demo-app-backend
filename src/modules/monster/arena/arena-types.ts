@@ -84,6 +84,9 @@ export interface IArenaPassive {
   // World bosses: a shield in HP points, and ATK +atk% from `sec` seconds into the fight.
   flatShield?: number
   rage?: { sec: number; atk: number }
+  // World bosses: one more stage at each of `secs` seconds into the fight, each adding atk% ATK and
+  // def% DEF.
+  grow?: { secs: number[]; atk: number; def: number }
   // Hits on a target with this status deal pct % more.
   bonusVsStatus?: { st: StatusId; pct: number }
   // A shield of pct % of max HP every `sec` seconds.

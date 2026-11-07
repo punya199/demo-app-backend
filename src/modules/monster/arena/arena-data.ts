@@ -2214,6 +2214,36 @@ export const ARENA_ENEMY_SKILLS: IArenaSkill[] = [
       },
     ],
   },
+  // The world boss's third skill: it lands on the whole arena (radius past the diagonal), after a one
+  // second warning, so only a dodge avoids it. One per boss element.
+  ...(
+    [
+      ['lightning', '⚡'],
+      ['flame', '🔥'],
+      ['tide', '🌊'],
+      ['earth', '🌋'],
+      ['holy', '✨'],
+      ['dark', '🌑'],
+      ['shadow', '👻'],
+    ] as const
+  ).map(
+    ([el, icon]): IArenaSkill => ({
+      id: `wb_quake_${el}`,
+      name: 'คลื่นทำลายล้าง',
+      icon,
+      el,
+      src: 'enemy',
+      slot: 'active',
+      kind: 'zone',
+      cd: 15,
+      wind: 20,
+      power: 160,
+      hits: 1,
+      radius: 780,
+      delay: 20,
+      note: 'โจมตีทั่วสนาม ต้องใช้สกิลหลบ',
+    })
+  ),
 ]
 
 // Adventure stages by the game's stage id (adventure-data.ts keeps the legacy turn-based enemies).

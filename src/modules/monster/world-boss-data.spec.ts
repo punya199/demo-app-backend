@@ -1,5 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../db/entities/monster.entity'
-import { simulateArena } from './arena/arena-engine'
+import { ARENA_SKILL_BY_ID, simulateArena } from './arena/arena-engine'
+import { ARENA_H, ARENA_W } from './arena/arena-rules'
 import { wellCaredArenaFighter } from './arena/arena-test-helpers'
 import { isCraftSetId } from './craft-sets'
 import {
@@ -185,21 +186,49 @@ describe('world boss balance', () => {
   it.each(each)('%s lets every form help, stronger forms more', (_id, boss) => {
     const adult = averageHit(EnumMonsterStage.ADULT, boss)
     const perfect = averageHit(EnumMonsterStage.PERFECT, boss)
-    expect(adult).toBeGreaterThan(10)
+    // Adults only scratch the boss now (its DEF is high), but they still deal something.
+    expect(adult).toBeGreaterThan(0)
     expect(perfect).toBeGreaterThan(adult * 2)
     expect(averageHit(EnumMonsterStage.ULTIMATE, boss)).toBeGreaterThan(perfect * 1.5)
   })
 
-  // Design: 10 top players (ultimate form, +30% stats from gear), two sessions a day. A session is
-  // WORLD_BOSS_HITS hits, so 6 hits a day each (the cap is 3 hits per 3 hours, 24 a day).
-  it.each(each)('%s dies in 3-5 days to ten top players', (_id, boss) => {
-    const days = boss.hp / (averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3) * 10 * 6)
-    expect(days).toBeGreaterThanOrEqual(3)
-    expect(days).toBeLessThanOrEqual(5)
+  // The top player's pet, from a real one (A grade, ultimate, full gear and tree). The simulated pet
+  // runs a little weaker than the real one on the training dummy (8.5k against 13.6k damage in a
+  // minute), so its hit is scaled by this to match.
+  const TOP_PET = {
+    hp: 307,
+    atk: 119,
+    def: 57,
+    spd: 48,
+    eva: 2,
+    crit: 31,
+    passive: { critDamage: 105 },
+  }
+  const TOP_PET_DAMAGE_CAL = 1.6
+  const topPetHit = (boss: IWorldBoss) => {
+    let total = 0
+    const seeds = 15
+    for (let seed = 1; seed <= seeds; seed++) {
+      const me = {
+        ...wellCaredArenaFighter(EnumMonsterLine.FLAME, EnumMonsterStage.ULTIMATE),
+        ...TOP_PET,
+      }
+      const result = simulateArena([[me], [getWorldBossArena(boss, POOL)]], seed)
+      total += splitWorldBossDamage(POOL, [result.fighters[0].dealt], false).own
+    }
+    return (total / seeds) * TOP_PET_DAMAGE_CAL
+  }
+
+  // Design: 10 top players, two sessions a day. A session is WORLD_BOSS_HITS hits, so 6 hits a day
+  // each (the cap is 3 hits per 3 hours, 24 a day).
+  it.each(each)('%s dies in 6-7 days to ten top players', (_id, boss) => {
+    const days = boss.hp / (topPetHit(boss) * 10 * 6)
+    expect(days).toBeGreaterThanOrEqual(6)
+    expect(days).toBeLessThanOrEqual(7)
   })
 
-  it.each(each)('%s outlasts one ultimate player alone for a week', (_id, boss) => {
-    expect(averageHit(EnumMonsterStage.ULTIMATE, boss, 1.3) * 24 * 7).toBeLessThan(boss.hp)
+  it.each(each)('%s outlasts one top player alone for a week', (_id, boss) => {
+    expect(topPetHit(boss) * 24 * 7).toBeLessThan(boss.hp)
   })
 })
 
@@ -250,6 +279,30 @@ describe('world boss mechanics', () => {
     const rage = enraged.events.find(event => event.kind === 'rage')
     expect(rage?.t).toBe(5 * 20)
     expect(fight(plain).events.some(event => event.kind === 'rage')).toBe(false)
+  })
+
+  it('grows stronger at 20 and 40 seconds, and not before', () => {
+    // A hero that outlives the minute, so the fight reaches both stages.
+    const grown = simulateArena(
+      [[{ ...hero(), hp: 1_000_000 }], [getWorldBossArena(plain, 100_000)]],
+      7,
+      { record: true }
+    )
+    const stages = grown.events.filter(event => event.kind === 'grow')
+    expect(stages.map(event => event.t)).toEqual([20 * 20, 40 * 20])
+    expect(getWorldBossArena(plain, 1000).passive?.grow).toEqual({
+      secs: [20, 40],
+      atk: 30,
+      def: 30,
+    })
+  })
+
+  it('has a third skill that lands on the whole arena', () => {
+    for (const boss of WORLD_BOSS_ROTATION) {
+      const skill = ARENA_SKILL_BY_ID[boss.arenaSkills[2]]
+      expect(skill?.kind).toBe('zone')
+      expect(skill.radius).toBeGreaterThan(Math.hypot(ARENA_W, ARENA_H))
+    }
   })
 
   it('keeps the element triangle', () => {

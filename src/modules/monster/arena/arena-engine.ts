@@ -278,6 +278,8 @@ interface IFighter {
   critNext: boolean
   critBonus: number
   raging: boolean
+  // Stages of `passive.grow` reached so far.
+  grown: number
   usesElements: boolean
   seized: boolean
   regenAcc: number
@@ -381,6 +383,7 @@ const makeFighter = (
     critNext: false,
     critBonus: 0,
     raging: false,
+    grown: 0,
     usesElements: !!spec.usesElements,
     seized: false,
     regenAcc: 0,
@@ -404,6 +407,7 @@ const atkOf = (f: IFighter) => {
   if (has(f, 'atkUp')) pct += Math.trunc((N.atkUp * magOf(f, 'atkUp')) / 100)
   if (has(f, 'atkDown')) pct -= N.atkDown
   if (f.raging) pct += f.passive.rage?.atk ?? 0
+  pct += f.grown * (f.passive.grow?.atk ?? 0)
   if (f.passive.enrage && f.hp * 100 < f.maxHp * f.passive.enrage.belowPct) {
     pct += f.passive.enrage.atk
   }
@@ -413,6 +417,7 @@ const defOf = (f: IFighter) => {
   let pct = 100
   if (has(f, 'defUp')) pct += Math.trunc((N.defUp * magOf(f, 'defUp')) / 100)
   if (has(f, 'defDown')) pct -= N.defDown
+  pct += f.grown * (f.passive.grow?.def ?? 0)
   return Math.trunc((f.def * pct) / 100)
 }
 const resistOf = (f: IFighter, cc: boolean) =>
@@ -1108,6 +1113,14 @@ export const simulateArena = (
       if (me.passive.rage && !me.raging && tick >= sec(me.passive.rage.sec)) {
         me.raging = true
         log({ kind: 'rage', who: me.idx, x: me.x, y: me.y })
+      }
+      const grow = me.passive.grow
+      if (grow) {
+        const stages = grow.secs.filter(at => tick >= sec(at)).length
+        while (me.grown < stages) {
+          me.grown++
+          log({ kind: 'grow', who: me.idx, x: me.x, y: me.y })
+        }
       }
       const refresh = me.passive.shieldEvery
       if (refresh && tick % sec(refresh.sec) === 0) giveShield(me, refresh.pct, refresh.sec)
