@@ -2,7 +2,7 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-// One row per user per season (YYYY-MM, Thai time). Rows of finished seasons stop changing, so
+// One row per user per season (YYYY-Www Thai ISO week; old rows are YYYY-MM). Rows of finished seasons stop changing, so
 // final ranks and rewards need no job. Rules live in elo.ts and pvp-season.ts.
 @Entity({
   name: 'pvp_ratings',
