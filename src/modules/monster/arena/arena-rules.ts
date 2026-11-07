@@ -80,9 +80,6 @@ export const MAX_RESIST = 70
 export const CRIT_CHANCE = 15
 export const CRIT_MULTIPLIER = 150
 export const EXECUTE_BELOW = 35
-// Gear and trainer-tree regen is written per turn; a second in the arena heals this % of that. Kept
-// low on purpose: at 10 a full tank tree outlasted the cavern boss to the time limit every fight.
-export const ARENA_REGEN_PER_SEC_PCT = 3
 // Burn from gear and the tree: chance % on each basic attack, lasting its turns in seconds.
 export const ARENA_BURN_CHANCE = 30
 // Boss sets: how often the tide set's shield comes back, and when the holy set's last stand fires.

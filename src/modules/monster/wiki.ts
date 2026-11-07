@@ -8,7 +8,6 @@ import {
   ARENA_BURN_CHANCE,
   ARENA_HP_SCALE,
   ARENA_MAX_TICKS,
-  ARENA_REGEN_PER_SEC_PCT,
   ARENA_STRONG,
   ARENA_TICK,
   ARENA_WEAK,
@@ -43,6 +42,7 @@ import {
   HUNGRY_ATK_MULTIPLIER,
   OVERWEIGHT_RATIO,
   OVERWEIGHT_SPD_MULTIPLIER,
+  SECONDS_PER_TURN,
 } from './battle-stats'
 import {
   ASCENDANCY_MAX_POINTS,
@@ -302,7 +302,7 @@ export const buildWiki = () => ({
     winsPerPoint: PASSIVE_WINS_PER_POINT,
     winMaxPoints: PASSIVE_WIN_MAX_POINTS,
     pvpSeasonPoints: PVP_SEASON_POINTS,
-    arenaRegenPerSecPct: ARENA_REGEN_PER_SEC_PCT,
+    secondsPerTurn: SECONDS_PER_TURN,
     arenaBurnChance: ARENA_BURN_CHANCE,
     arenaAttackSpeedPct: ARENA_ATTACK_SPEED_PCT,
     arenaAttackSpeedCap: ARENA_ATTACK_SPEED_CAP,

@@ -116,7 +116,7 @@ describe('gear and trainer-tree effects', () => {
     const effects: Required<IFighterEffects> = {
       burnTurns: 2,
       shieldPct: 0.1,
-      regenPct: 0.12,
+      regenPct: 0.0036,
       doubleStrikeChance: 0.2,
       critChance: 0.05,
       critDamage: 0.5,

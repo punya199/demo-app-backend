@@ -265,7 +265,7 @@ describe('boss sets', () => {
       shieldRefresh: 0.04,
     })
     expect(calcEquipmentBonus(wearSet('deep_root', 2)).pct.hp).toBeCloseTo(0.1)
-    expect(calcEquipmentBonus(wearSet('deep_root', 4)).effects.regenPct).toBe(0.045)
+    expect(calcEquipmentBonus(wearSet('deep_root', 4)).effects.regenPct).toBe(0.00135)
     expect(calcEquipmentBonus(wearSet('swift_thunder', 2)).pct.spd).toBeCloseTo(0.08)
     expect(calcEquipmentBonus(wearSet('swift_thunder', 4)).effects).toEqual({
       doubleStrikeChance: 0.15,

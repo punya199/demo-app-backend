@@ -15,7 +15,6 @@ import {
   ARENA_LAST_STAND_BELOW,
   ARENA_SHIELD_REFRESH_SEC,
   ARENA_HP_SCALE,
-  ARENA_REGEN_PER_SEC_PCT,
   ARENA_TICK,
   BOSS_RES,
   LINE_ACC,
@@ -163,7 +162,7 @@ const effectsToPassive = (effects: IFighterEffects, spdBonus: number): IArenaPas
   if (effects.firstStrike) passive.firstStrike = true
   if (effects.thorns) passive.thorns = percent(effects.thorns)
   if (effects.regenPct) {
-    passive.regenPct = Math.round(effects.regenPct * 100 * ARENA_REGEN_PER_SEC_PCT) / 100
+    passive.regenPct = Math.round(effects.regenPct * 10000) / 100
   }
   if (effects.burnTurns) {
     passive.onBasic = { st: 'burn', dur: effects.burnTurns, ch: ARENA_BURN_CHANCE }

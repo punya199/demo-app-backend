@@ -1,6 +1,6 @@
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
 import { BURN_DAMAGE_ATK_RATIO, IBattleEvent, rollHit, simulateBattle } from './battle-engine'
-import { IFighter, IFighterEffects } from './battle-stats'
+import { IFighter, IFighterEffects, SECONDS_PER_TURN } from './battle-stats'
 import { IBattleStats } from './species-data'
 
 type FighterOverrides = Omit<Partial<IFighter>, 'stats'> & { stats?: Partial<IBattleStats> }
@@ -94,7 +94,7 @@ describe('set effects in the battle engine', () => {
     it('heals a share of max HP each own turn and never above max', () => {
       const tank = fighter({
         stats: { hp: 1000, atk: 1, def: 1000, spd: 1 },
-        effects: { regenPct: 0.05 },
+        effects: { regenPct: 0.05 / SECONDS_PER_TURN },
       })
       const hitter = fighter({ stats: { atk: 60, spd: 99 } })
       const { events } = simulateBattle(hitter, tank, 2)
@@ -106,7 +106,7 @@ describe('set effects in the battle engine', () => {
 
     it('does nothing while HP is full', () => {
       // The regenerating fighter acts first in round 1, before it has taken any damage.
-      const fresh = fighter({ stats: { spd: 99 }, effects: { regenPct: 0.5 } })
+      const fresh = fighter({ stats: { spd: 99 }, effects: { regenPct: 0.5 / SECONDS_PER_TURN } })
       const { events } = simulateBattle(fresh, punchingBag(), 2)
       expect(events.filter(event => event.round === 1 && event.kind === 'regen')).toHaveLength(0)
     })
