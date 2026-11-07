@@ -9,6 +9,8 @@ import {
   EnumWalletTransactionReason,
 } from '../../db/entities/wallet-transaction.entity'
 import { WalletService } from '../wallet/wallet.service'
+import { toArenaFighter } from './arena/arena-fighter'
+import { toArenaStatsView } from './arena/arena-stats'
 import { toFighter } from './battle-stats'
 import { combatTotals } from './monster-potential'
 import {
@@ -159,13 +161,11 @@ export class EquipmentService {
     const living = await this.monsterService.getLiving(userId, etm)
     const pet = (monsterId ? living.find(row => row.id === monsterId) : living[0]) ?? null
     const worn = rows.filter(row => row.equipped && row.monsterId === pet?.id).map(toEquipmentCore)
-    const fighter =
-      pet && pet.stage !== EnumMonsterStage.EGG
-        ? toFighter(
-            pet,
-            mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
-          )
-        : null
+    const isHatched = !!pet && pet.stage !== EnumMonsterStage.EGG
+    const bonus = isHatched
+      ? mergeCombatBonus(calcEquipmentBonus(worn), (await loadPassiveBonus(userId, etm)).combat)
+      : null
+    const fighter = pet && bonus ? toFighter(pet, bonus) : null
     return {
       capacity: EQUIPMENT_CAPACITY,
       items: rows.map(toEquipmentView),
@@ -187,6 +187,8 @@ export class EquipmentService {
       // and evasion; null for an egg or without a pet.
       stats: fighter?.stats ?? null,
       combat: fighter ? combatTotals(fighter.effects) : null,
+      // Arena-only numbers (line EVA/ACC/RES, regen, lifesteal ...) the same way a fight reads them.
+      arenaStats: pet && bonus ? toArenaStatsView(toArenaFighter(pet, bonus)) : null,
     }
   }
 
