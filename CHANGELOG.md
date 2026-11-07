@@ -1,3 +1,10 @@
+# [1.48.0](https://github.com/punya199/demo-app-backend/compare/v1.47.0...v1.48.0) (2026-11-07)
+
+
+### Update
+
+* add unit tests raising monster module coverage to ~99.9% (#40) ([71deabc](https://github.com/punya199/demo-app-backend/commit/71deabc0147cd1e0f2b38fa7252f8f05f308b894)), closes [#40](https://github.com/punya199/demo-app-backend/issues/40)
+
 # [1.47.0](https://github.com/punya199/demo-app-backend/compare/v1.46.0...v1.47.0) (2026-11-07)
 
 
