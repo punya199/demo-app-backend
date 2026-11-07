@@ -303,6 +303,11 @@ export const PASSIVE_POWER_SCALE = 0.5
 export const PASSIVE_KEYSTONE_SCALE = 0.6
 const UNSCALED: PassiveEffectKey[] = ['burn', 'firstStrike', 'noCrit']
 
+// Regen is written in % of max HP per second: a node keeps its old per-turn weight (below), times
+// this. 0.03 is exactly what the arena has always healed, and the boss balance guards sit right at
+// that strength: 0.04 already lets a full sustain build outlast the cavern boss.
+const REGEN_PER_SEC_PER_POINT = 0.03
+
 // Rounded to the nearest 0.5 so tooltips stay readable, never below 0.5 for a positive value.
 const scaleFx = (fx: IPassiveEffects, scale: number): IPassiveEffects =>
   Object.fromEntries(
@@ -311,7 +316,14 @@ const scaleFx = (fx: IPassiveEffects, scale: number): IPassiveEffects =>
         return [key, value]
       }
       const scaled = Math.round(Math.abs(value) * scale * 2) / 2
-      return [key, Math.sign(value) * Math.max(0.5, scaled)]
+      const weight = Math.max(0.5, scaled)
+      if (key === 'regen') {
+        return [
+          key,
+          Math.sign(value) * (Math.round(weight * REGEN_PER_SEC_PER_POINT * 1000) / 1000),
+        ]
+      }
+      return [key, Math.sign(value) * weight]
     })
   )
 

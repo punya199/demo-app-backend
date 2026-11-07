@@ -431,7 +431,7 @@ export const SET_DEFINITIONS: Record<string, ISetDefinition> = {
     name: 'ชุดรากแก้ว',
     bonuses: [
       { pieces: 2, pct: { hp: 0.1 } },
-      { pieces: 4, effect: { regenPct: 0.045 } },
+      { pieces: 4, effect: { regenPct: 0.00135 } },
     ],
   },
   swift_thunder: {

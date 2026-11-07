@@ -7,6 +7,9 @@ import { getSpecies, IBattleStats, ISkill } from './species-data'
 
 // How a monster's care state turns its species' base stats into the stats it fights with.
 
+// One turn of the turn-based engines heals this many seconds of regen (the old per-turn values).
+export const SECONDS_PER_TURN = 100 / 3
+
 export const ATK_BONUS_PER_STRENGTH_HEART = 0.05
 export const HUNGRY_ATK_MULTIPLIER = 0.8
 export const OVERWEIGHT_RATIO = 1.5
@@ -19,7 +22,8 @@ export interface IFighterEffects {
   burnTurns?: number
   // Starts the fight with a shield of this share of max HP.
   shieldPct?: number
-  // Heals this share of max HP at the start of each of its own turns.
+  // Heals this share of max HP every second; the turn engines heal SECONDS_PER_TURN seconds at the
+  // start of each of the fighter's own turns.
   regenPct?: number
   // Chance to strike again right after attacking (never chains).
   doubleStrikeChance?: number

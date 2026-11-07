@@ -1,5 +1,5 @@
 import { BURN_DAMAGE_ATK_RATIO, createRng, IBattleEvent, rollHit } from './battle-engine'
-import { IFighter } from './battle-stats'
+import { IFighter, SECONDS_PER_TURN } from './battle-stats'
 
 // A team of fighters against one boss. The 1-vs-1 `simulateBattle` is left alone so stored fights
 // keep replaying; this engine is for fights that need several fighters on one side (World Boss
@@ -200,7 +200,10 @@ export const simulateTeamBattle = (
       }
       const regen = actor.fighter.effects?.regenPct
       if (regen && actor.hp < actor.maxHp) {
-        const healed = Math.min(actor.maxHp - actor.hp, Math.round(actor.maxHp * regen))
+        const healed = Math.min(
+          actor.maxHp - actor.hp,
+          Math.round(actor.maxHp * regen * SECONDS_PER_TURN)
+        )
         if (healed > 0) {
           actor.hp += healed
           events.push({

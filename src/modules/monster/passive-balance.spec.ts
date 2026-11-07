@@ -29,10 +29,14 @@ const SEEDS = 120
 const BOSSES = ADVENTURE_AREAS.map(area => area.stages[area.stages.length - 1].enemy)
 const byId = new Map(PASSIVE_NODES.map(node => [node.id, node]))
 
+// Regen nodes are written in % per second (about 0.03 of the old per-turn weight), so their weight
+// in the build search is scaled up to keep the same preference.
+const REGEN_WEIGHT = 2 / 0.03
+
 const ARCHETYPES: Record<string, Record<string, number>> = {
   attack: { atk: 1, crit: 1.2, critdmg: 0.5, dbl: 0.8, spd: 0.3, hp: 0.2, def: 0.2 },
-  tank: { hp: 1, def: 1, shield: 0.6, regen: 2, thorns: 1, lifesteal: 1, atk: 0.2 },
-  sustain: { lifesteal: 2, regen: 2, hp: 0.8, atk: 0.6, def: 0.5 },
+  tank: { hp: 1, def: 1, shield: 0.6, regen: REGEN_WEIGHT, thorns: 1, lifesteal: 1, atk: 0.2 },
+  sustain: { lifesteal: 2, regen: REGEN_WEIGHT, hp: 0.8, atk: 0.6, def: 0.5 },
   speed: { spd: 1, firstStrike: 30, dbl: 1, crit: 0.8, atk: 0.6 },
 }
 

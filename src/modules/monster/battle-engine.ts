@@ -1,5 +1,5 @@
 import { EnumMonsterLine } from '../../db/entities/monster.entity'
-import { IFighter } from './battle-stats'
+import { IFighter, SECONDS_PER_TURN } from './battle-stats'
 
 // Deterministic auto-battle: the same fighters and seed always replay the same fight, so the
 // server can decide results and the client only animates the returned events.
@@ -267,7 +267,10 @@ export const simulateBattle = (
       }
       const regen = attacker.effects?.regenPct
       if (regen && hp[actor] < maxHp[actor]) {
-        const healed = Math.min(maxHp[actor] - hp[actor], Math.round(maxHp[actor] * regen))
+        const healed = Math.min(
+          maxHp[actor] - hp[actor],
+          Math.round(maxHp[actor] * regen * SECONDS_PER_TURN)
+        )
         if (healed > 0) {
           hp[actor] += healed
           events.push({

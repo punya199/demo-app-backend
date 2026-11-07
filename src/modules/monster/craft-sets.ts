@@ -55,7 +55,7 @@ export const CRAFT_SETS: ICraftSet[] = [
     unique: 'verdant_heart',
     bonuses: [
       { pieces: 2, pct: { hp: 0.1 } },
-      { pieces: 4, effect: { lifesteal: 0.1, regenPct: 0.03 } },
+      { pieces: 4, effect: { lifesteal: 0.1, regenPct: 0.0009 } },
     ],
   },
   {
@@ -184,7 +184,7 @@ export const CRAFT_SETS: ICraftSet[] = [
     rare: 'rune',
     bonuses: [
       { pieces: 2, pct: { hp: 0.05 }, care: { slowHunger: 10, tidyPet: 15 } },
-      { pieces: 4, effect: { regenPct: 0.13 } },
+      { pieces: 4, effect: { regenPct: 0.0039 } },
     ],
   },
   {
