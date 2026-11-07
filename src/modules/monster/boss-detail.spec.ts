@@ -18,7 +18,7 @@ describe('boss detail', () => {
         boss.arenaPassive,
         boss.arenaDodge
       )
-      expect(detail.skills).toHaveLength(2)
+      expect(detail.skills).toHaveLength(boss.arenaSkills!.length)
       detail.skills.forEach(skill => {
         expect(skill.name).toBeTruthy()
         expect(skill.description).toContain('ประเภท')
