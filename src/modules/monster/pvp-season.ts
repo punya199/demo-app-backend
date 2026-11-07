@@ -1,21 +1,18 @@
 import { PVP_SEASON_RESET_KEEP } from './monster-rules'
 import { START_RATING } from './elo'
+import { getWeek } from './world-boss-data'
 
-// A season is a calendar month in Thai time (UTC+7, no DST), written YYYY-MM. There is no job
-// that rolls seasons over: a new month just has no rating rows yet.
+// A season is a Thai ISO week (Monday 00:00 UTC+7, no DST), written YYYY-Www. There is no job
+// that rolls seasons over: a new week just has no rating rows yet. Seasons used to be months
+// (YYYY-MM); those keys still sort before every YYYY-Www of the same year ('1' < 'W'), so old
+// rows read as finished seasons.
 
-const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000
-
-export const getSeason = (now: Date) =>
-  new Date(now.getTime() + BANGKOK_OFFSET_MS).toISOString().slice(0, 7)
+export const getSeason = (now: Date) => getWeek(now).key
 
 export const isSeasonOver = (season: string, now: Date) => season < getSeason(now)
 
-// First instant of the next season (the next Thai midnight on the 1st).
-export const getSeasonResetAt = (now: Date) => {
-  const [year, month] = getSeason(now).split('-').map(Number)
-  return new Date(Date.UTC(year, month, 1) - BANGKOK_OFFSET_MS)
-}
+// First instant of the next season (the next Thai Monday midnight).
+export const getSeasonResetAt = (now: Date) => getWeek(now).endsAt
 
 // Starting rating of a new season: half of last season's distance from the start rating.
 export const softReset = (previousRating: number) =>
