@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/punya199/demo-app-backend/compare/v1.44.0...v1.45.0) (2026-11-07)
+
+
+### Update
+
+* write tree and gear regen as % of max HP per second ([ea44689](https://github.com/punya199/demo-app-backend/commit/ea446898c6d00c0ba9bd762e2323fe9a0a9c101f))
+
 # [1.44.0](https://github.com/punya199/demo-app-backend/compare/v1.43.0...v1.44.0) (2026-11-07)
 
 
