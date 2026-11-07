@@ -1,6 +1,6 @@
 import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
-import { EnumRaidDifficulty } from '../raid-data'
-import { DUMMY_DEF_MAX, DUMMY_ELEMENTS, DUMMY_PRESETS } from '../dummy-data'
+import { EnumRaidDifficulty } from '../boss/raid-data'
+import { DUMMY_DEF_MAX, DUMMY_ELEMENTS, DUMMY_PRESETS } from '../arena/dummy-data'
 
 export class DummyFightBodyDto {
   @IsIn(DUMMY_PRESETS)

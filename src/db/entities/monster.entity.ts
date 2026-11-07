@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
-import type { IPotential } from '../../modules/monster/monster-potential'
+import type { IPotential } from '../../modules/monster/core/monster-potential'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 

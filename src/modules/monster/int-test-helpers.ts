@@ -2,7 +2,7 @@ import dataSource from '../../config/database.config'
 import { EnumMonsterLine, MonsterEntity } from '../../db/entities/monster.entity'
 import { WalletEntity } from '../../db/entities/wallet.entity'
 import { WalletService } from '../wallet/wallet.service'
-import { MonsterService } from './monster.service'
+import { MonsterService } from './core/monster.service'
 
 // Helpers for the *.int-spec.ts suites, which run against a REAL Postgres via
 // `yarn test:integration`. They run migrations and insert/delete rows, so they refuse to start

@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty } from 'class-validator'
-import { EnumQuestId } from '../quest-data'
+import { EnumQuestId } from '../adventure/quest-data'
 
 export class ClaimQuestBodyDto {
   @IsNotEmpty()

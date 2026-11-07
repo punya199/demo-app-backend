@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator'
-import { PVP_DISPLAY_NAME_MAX, PVP_DISPLAY_NAME_MIN } from '../monster-rules'
+import { PVP_DISPLAY_NAME_MAX, PVP_DISPLAY_NAME_MIN } from '../core/monster-rules'
 
 const SEASON_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 

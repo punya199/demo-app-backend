@@ -7,7 +7,7 @@ description: Add or change an endpoint, action, or tunable in the monster (Tamag
 
 The monster game is server-authoritative. Read the "monster module" section of `CLAUDE.md`
 first; this skill is the step-by-step checklist on top of it. Copy the shape of an existing
-feature rather than inventing a new one. `expedition.controller.ts` + `expedition.service.ts`
+feature rather than inventing a new one. `adventure/expedition.controller.ts` + `adventure/expedition.service.ts`
 are the smallest complete example.
 
 ## 0. Before you start (3 developers work in parallel)
@@ -18,8 +18,8 @@ conflicts happen in a few shared files, so:
 - Start from a fresh `origin/main` (`git fetch origin && git rebase origin/main`) and rebase again
   before you push.
 - In shared lists, **append at the end** and never reorder or reformat existing lines:
-  `monster.module.ts` (controllers/providers), `EnumWalletTransactionReason`, `wiki.ts`'s
-  `buildWiki()`, `monster-rules.ts`, and `species-data.ts`.
+  the feature's `<feature>.module.ts` (controllers/providers), `EnumWalletTransactionReason`,
+  `core/wiki.ts`'s `buildWiki()`, `core/monster-rules.ts`, and `core/species-data.ts`.
 - Migration timestamps: use the real current time (`Date.now()`), **not** "the last one + 100000000".
   Two people picking the same next round number creates a clash that only shows up after merge.
 - Don't regenerate `battle-engine.golden.json` to make a test pass. Another dev's PvP history
@@ -29,7 +29,7 @@ conflicts happen in a few shared files, so:
 
 - New numbers go in `monster-rules.ts` (or the feature's `*-data.ts`, e.g. `idle-data.ts`,
   `raid-data.ts`). Never inline them in a service.
-- Game logic is a pure function over `IMonsterState` in `monster-engine.ts` (or a sibling pure
+- Game logic is a pure function over `IMonsterState` in `core/monster-engine/` (or a sibling pure
   file). It takes `now: Date` as an argument instead of calling `new Date()` itself, and returns
   `{ state, events }`.
 - Refuse an action by throwing `MonsterRuleError`. The service wraps the call in
@@ -83,7 +83,7 @@ Rules that apply every time:
   `@ReqUser() user: IAppJwtPayload`. Pass `user['user-id']` to the service.
 - Validate the body with a DTO in `dto/` (`class-validator` decorators, `...BodyDto` naming).
   Optional `monsterId` is `@IsOptional() @IsUUID()`.
-- A new controller or service must be **appended** to `monster.module.ts`.
+- A new controller or service must be **appended** to its feature's `<feature>.module.ts` (put it in the matching feature folder; a new feature folder needs its own module added to `monster.module.ts`). If it injects a service from another feature, import that feature's module (and export the service from it).
 
 ## 4. Privacy (other players)
 
@@ -100,7 +100,7 @@ change to match. Mention it in the PR description, because the other repo has it
 
 ## 6. Tests
 
-- Pure rules: a co-located `*.spec.ts` (e.g. `monster-engine.spec.ts`, `idle-data.spec.ts`).
+- Pure rules: a co-located `*.spec.ts` (e.g. `core/monster-engine/actions.spec.ts`, `idle-data.spec.ts`).
   Pass a fixed `now`, and never sleep.
 - Anything involving a transaction, wallet or locking: a `*.int-spec.ts` using
   `int-test-helpers.ts` (`startTestDatabase`, `createUser`, `createUserWithMonster`, `buildCore`).

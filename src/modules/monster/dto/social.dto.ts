@@ -9,8 +9,8 @@ import {
   Matches,
   MaxLength,
 } from 'class-validator'
-import { PVP_DISPLAY_NAME_MAX, PVP_DISPLAY_NAME_MIN } from '../monster-rules'
-import { EnumShopItemId } from '../shop-data'
+import { PVP_DISPLAY_NAME_MAX, PVP_DISPLAY_NAME_MIN } from '../core/monster-rules'
+import { EnumShopItemId } from '../equipment/shop-data'
 
 export class SetProfileNameBodyDto {
   // Same rules as the arena name it replaces: plain text, no markup characters.

@@ -1,5 +1,5 @@
 import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator'
-import { MINIGAME_ROUNDS } from '../monster-rules'
+import { MINIGAME_ROUNDS } from '../core/monster-rules'
 
 export class MinigameBodyDto {
   @IsInt()

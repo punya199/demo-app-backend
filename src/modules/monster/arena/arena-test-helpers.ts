@@ -1,5 +1,5 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
-import { createEgg, IMonsterState } from '../monster-engine'
+import { createEgg, IMonsterState } from '../core/monster-engine'
 import { ARENA_SKILLS } from './arena-data'
 import { simulateArena } from './arena-engine'
 import { arenaInnateOf, toArenaFighter } from './arena-fighter'

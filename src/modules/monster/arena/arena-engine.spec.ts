@@ -1,8 +1,8 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
-import { ADVENTURE_AREAS } from '../adventure-data'
-import { IFighterEffects } from '../battle-stats'
-import { NO_EQUIPMENT_BONUS } from '../equipment-data'
-import { createEgg } from '../monster-engine'
+import { ADVENTURE_AREAS } from '../adventure/adventure-data'
+import { IFighterEffects } from '../battle/battle-stats'
+import { NO_EQUIPMENT_BONUS } from '../equipment/equipment-data'
+import { createEgg } from '../core/monster-engine'
 import { ARENA_SKILLS, ARENA_STAGES } from './arena-data'
 import { ARENA_SKILL_BY_ID, canEquipArenaSkill, simulateArena } from './arena-engine'
 import {
