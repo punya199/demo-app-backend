@@ -1,3 +1,10 @@
+# [1.44.0](https://github.com/punya199/demo-app-backend/compare/v1.43.0...v1.44.0) (2026-11-07)
+
+
+### Update
+
+* make PvP seasons weekly ([dad35af](https://github.com/punya199/demo-app-backend/commit/dad35afb85882a9bc5f8dd24131c11395146185d))
+
 # [1.43.0](https://github.com/punya199/demo-app-backend/compare/v1.42.0...v1.43.0) (2026-11-07)
 
 
