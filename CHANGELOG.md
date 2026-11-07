@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/punya199/demo-app-backend/compare/v1.42.0...v1.43.0) (2026-11-07)
+
+
+### Update
+
+* make the world boss much harder ([8a67298](https://github.com/punya199/demo-app-backend/commit/8a67298ead1820601b4c93e40874f2c38d2bbd98))
+
 # [1.42.0](https://github.com/punya199/demo-app-backend/compare/v1.41.0...v1.42.0) (2026-11-06)
 
 
