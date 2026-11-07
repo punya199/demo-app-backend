@@ -13,6 +13,7 @@ import {
   calcWorldBossReward,
   claimRolls,
   findRankTier,
+  findWorldBoss,
   getWeek,
   getWorldBossArena,
   getWorldBossOfWeek,
@@ -307,5 +308,12 @@ describe('world boss mechanics', () => {
 
   it('keeps the element triangle', () => {
     expect(getWorldBossArena(plain, 1000).usesElements).toBe(true)
+  })
+})
+
+describe('world boss lookups', () => {
+  it('finds a boss by id, and nothing for an unknown id', () => {
+    expect(findWorldBoss(WORLD_BOSS_ROTATION[0].id)).toBe(WORLD_BOSS_ROTATION[0])
+    expect(findWorldBoss('nope')).toBeUndefined()
   })
 })

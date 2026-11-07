@@ -35,4 +35,33 @@ describe('training dummy', () => {
     expect(summary.bestHit).toEqual({ damage: 200, skill: null })
     expect(summary.dps).toBeGreaterThan(0)
   })
+
+  it('reports zero hits and no best hit for a fight without player hits', () => {
+    const arena = {
+      ticks: 1,
+      fighters: [{ dealt: 0 }],
+      events: [{ t: 1, kind: 'hit', who: 1, dmg: 5 }],
+    } as unknown as IArenaResult
+    expect(summarizeDummyFight(arena)).toEqual({
+      totalDamage: 0,
+      seconds: 1,
+      dps: 0,
+      hits: 0,
+      crits: 0,
+      avgHit: 0,
+      bestHit: null,
+    })
+  })
+
+  it('treats a hit without damage as 0 and keeps the named best skill', () => {
+    const arena = {
+      ticks: 600,
+      fighters: [{ dealt: 50 }],
+      events: [
+        { t: 1, kind: 'hit', who: 0 },
+        { t: 2, kind: 'hit', who: 0, dmg: 50, skill: 'Slash' },
+      ],
+    } as unknown as IArenaResult
+    expect(summarizeDummyFight(arena).bestHit).toEqual({ damage: 50, skill: 'Slash' })
+  })
 })
