@@ -7,6 +7,7 @@ import {
   findQuest,
   getLoginStatus,
   getQuestDate,
+  getQuestDayStart,
   getQuestPeriod,
   getQuestResetAt,
   WEEKLY_QUESTS,
@@ -56,6 +57,12 @@ describe('quest day', () => {
     )
     expect(getQuestResetAt(new Date('2026-05-01T17:00:00Z')).toISOString()).toBe(
       '2026-05-02T17:00:00.000Z'
+    )
+  })
+
+  it('starts the Thai day 24 hours before the reset', () => {
+    expect(getQuestDayStart(new Date('2026-05-01T16:59:00Z')).toISOString()).toBe(
+      '2026-04-30T17:00:00.000Z'
     )
   })
 })

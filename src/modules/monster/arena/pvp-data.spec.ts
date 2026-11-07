@@ -3,7 +3,8 @@ import { simulateBattle } from '../battle/battle-engine'
 import { IFighter, toFighter } from '../battle/battle-stats'
 import { createEgg } from '../core/monster-engine'
 import { arenaWinRate, wellCaredArenaFighter } from './arena-test-helpers'
-import { getNpcArena, PVP_NPCS, PVP_STAGES } from './pvp-data'
+import { PVP_SEASON_MIN_FIGHTS } from '../core/monster-rules'
+import { getNpcArena, getSeasonReward, PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
 const SPECIES: Record<string, string> = {
@@ -93,6 +94,18 @@ describe('PvP balance', () => {
       })
       const middle = PVP_NPCS.find(npc => npc.stage === stage && npc.rating === 1000)!
       expect(winRate(tired, middle.fighter)).toBeLessThan(0.1)
+    }
+  })
+})
+
+describe('getSeasonReward without a catch-all tier', () => {
+  it('has no reward when no tier matches', () => {
+    const saved = [...PVP_SEASON_REWARDS]
+    try {
+      PVP_SEASON_REWARDS.length = 0
+      expect(getSeasonReward(1, PVP_SEASON_MIN_FIGHTS)).toBeNull()
+    } finally {
+      PVP_SEASON_REWARDS.push(...saved)
     }
   })
 })

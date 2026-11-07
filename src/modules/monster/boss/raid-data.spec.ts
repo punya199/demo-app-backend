@@ -10,7 +10,10 @@ import {
 } from '../equipment/equipment-data'
 import { createEgg } from '../core/monster-engine'
 import {
+  bossTokenItemId,
   EnumRaidDifficulty,
+  findRaidBoss,
+  findRaidDifficulty,
   getRaidBossArena,
   getRaidBossFighter,
   isStageAtLeast,
@@ -136,5 +139,15 @@ describe('raid balance', () => {
     const adult = raidWinRate(EnumMonsterLine.TIDE, EnumMonsterStage.ADULT, 0)
     const ultimate = raidWinRate(EnumMonsterLine.TIDE, EnumMonsterStage.ULTIMATE, 0)
     expect(ultimate).toBeGreaterThan(adult)
+  })
+})
+
+describe('raid lookups', () => {
+  it('finds bosses, difficulties and tokens, and returns nothing for unknown ones', () => {
+    expect(findRaidDifficulty(RAID_DIFFICULTIES[1].difficulty)).toBe(RAID_DIFFICULTIES[1])
+    expect(findRaidDifficulty('nope')).toBeUndefined()
+    expect(findRaidBoss(RAID_BOSSES[0].id)).toBe(RAID_BOSSES[0])
+    expect(findRaidBoss('nope')).toBeUndefined()
+    expect(bossTokenItemId('x')).toBe('boss_token:x')
   })
 })
