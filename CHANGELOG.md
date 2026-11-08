@@ -1,3 +1,16 @@
+# [1.49.0](https://github.com/punya199/demo-app-backend/compare/v1.48.0...v1.49.0) (2026-11-08)
+
+
+### New
+
+* send a sprite id for every monster form, enemy and boss ([7de3b1d](https://github.com/punya199/demo-app-backend/commit/7de3b1d01609ccca90a28fdec0a5587198692484))
+
+### Update
+
+* allow merging only two monsters of the same line for now ([3aae45e](https://github.com/punya199/demo-app-backend/commit/3aae45ef46835588ef598a8534f65b3cd058ad62))
+* rename monsters and skills to match the new pixel art ([31e87f2](https://github.com/punya199/demo-app-backend/commit/31e87f226186cd79333e64cbc0e31f2e5bc71645))
+* switch the costume system off for now ([85919f1](https://github.com/punya199/demo-app-backend/commit/85919f12cf556b891cf1586e7fc6c6d40cd0f9e9))
+
 # [1.48.0](https://github.com/punya199/demo-app-backend/compare/v1.47.0...v1.48.0) (2026-11-07)
 
 
