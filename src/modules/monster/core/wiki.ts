@@ -176,16 +176,19 @@ export const buildWiki = () => ({
     powerMultiplier: rules.MERGE_POWER_MULTIPLIER,
     spiritualLines: SPIRITUAL_LINES,
     lifespanMinutes: rules.FUSED_LIFESPAN_MINUTES,
-    forms: FUSED_FORMS.map(([a, b]) => {
-      const species = getSpecies(fusedSpeciesId(a, b))
-      return {
-        id: species.id,
-        lines: [a, b],
-        name: species.name,
-        emoji: species.emoji,
-        stats: species.stats,
+    crossLineEnabled: rules.CROSS_LINE_MERGE_ENABLED,
+    forms: FUSED_FORMS.filter(([a, b]) => rules.CROSS_LINE_MERGE_ENABLED || a === b).map(
+      ([a, b]) => {
+        const species = getSpecies(fusedSpeciesId(a, b))
+        return {
+          id: species.id,
+          lines: [a, b],
+          name: species.name,
+          emoji: species.emoji,
+          stats: species.stats,
+        }
       }
-    }),
+    ),
   },
   potential: {
     statSpread: potential.POTENTIAL_STAT_SPREAD,

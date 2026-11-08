@@ -35,7 +35,7 @@ import {
   STAMINA_REFILL_GEM_PRICE,
 } from './monster-rules'
 import { addToBag } from '../inventory/inventory-bag'
-import { createFused } from './monster-merge'
+import { assertMergeOpen, createFused } from './monster-merge'
 import { assertCanReturnHome, PET_CORES_PER_RETURN, petCoreItemId } from './pet-core'
 import { loadPassiveBonus } from '../passive/passive.service'
 import { loadSpecialBonus } from './special-bonus'
@@ -177,9 +177,10 @@ export class MonsterService {
       if (!first || !second) {
         throw new NotFoundException('Monster not found')
       }
-      const state = withRuleErrors(() =>
-        createFused(first, second, baseId === firstId ? first : second, now)
-      )
+      const state = withRuleErrors(() => {
+        assertMergeOpen(first, second)
+        return createFused(first, second, baseId === firstId ? first : second, now)
+      })
 
       await this.walletService.change(
         userId,

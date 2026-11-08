@@ -1,8 +1,9 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
 import { toFighter } from '../battle/battle-stats'
 import { createEgg, IMonsterState, tick } from './monster-engine'
-import { assertCanMerge, createFused } from './monster-merge'
+import { assertCanMerge, assertMergeOpen, createFused } from './monster-merge'
 import {
+  CROSS_LINE_MERGE_ENABLED,
   FUSED_LIFESPAN_MINUTES,
   getLifespanMinutes,
   LIFESPAN_MINUTES,
@@ -34,12 +35,19 @@ const ultimate = (line: EnumMonsterLine, over: Partial<IMonsterState> = {}): IMo
 
 describe('assertCanMerge', () => {
   const a = ultimate(EnumMonsterLine.FLAME)
-  const b = ultimate(EnumMonsterLine.TIDE)
+  const b = ultimate(EnumMonsterLine.FLAME, { weight: 50 })
 
-  it('accepts two healthy Ultimates, either branch', () => {
-    const alt = ultimate(EnumMonsterLine.LEAF, { speciesId: 'leaf_ultimateAlt' })
+  it('accepts two healthy Ultimates of one line, either branch', () => {
+    const alt = ultimate(EnumMonsterLine.FLAME, { speciesId: 'flame_ultimateAlt' })
     expect(() => assertCanMerge(a, b)).not.toThrow()
     expect(() => assertCanMerge(a, alt)).not.toThrow()
+  })
+
+  it('refuses two different lines while cross-line merging is off', () => {
+    expect(CROSS_LINE_MERGE_ENABLED).toBe(false)
+    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.TIDE))).toThrow('same line')
+    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.LEAF))).toThrow('same line')
+    expect(() => assertMergeOpen(a, b)).not.toThrow()
   })
 
   it.each([
@@ -88,7 +96,7 @@ describe('fused forms', () => {
     expect(() =>
       assertCanMerge(
         ultimate('holy_ultimate', EnumMonsterLine.HOLY),
-        ultimate('dark_ultimate', EnumMonsterLine.DARK)
+        ultimate('holy_ultimateAlt', EnumMonsterLine.HOLY)
       )
     ).not.toThrow()
   })

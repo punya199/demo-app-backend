@@ -65,6 +65,10 @@ export const MERGE_COIN_COST = 2000
 export const MERGE_GEM_COST = 20
 // Fused base stats are the Ultimate base stats times this (then the parents' line lean).
 export const MERGE_POWER_MULTIPLIER = 1.3
+// Merging two different lines (the hybrid fused forms) is switched off while those forms are
+// redesigned; two Ultimates of the same line still merge into its awakened form. Hybrids already
+// raised stay as they are.
+export const CROSS_LINE_MERGE_ENABLED = false
 
 // A minute counts as "online" when it falls within this long after the player's last request.
 // The page polls every minute while it is open and visible, so an open page stays online.

@@ -68,12 +68,19 @@ describe('MonsterService merge', () => {
     expect(wallet.change).not.toHaveBeenCalled()
   })
 
+  it('refuses two different lines before charging while cross-line merging is off', async () => {
+    const { etm, service, wallet } = setup()
+    etm.find.mockResolvedValue([ultimate('a', 'flame'), ultimate('b', 'tide')])
+    await expect(service.merge('user-1', 'a', 'b', 'a')).rejects.toThrow('same line')
+    expect(wallet.change).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['first', 'a'],
     ['second', 'b'],
   ])('fuses into a pet named after the %s parent when it is the base', async (_label, baseId) => {
     const { etm, service, wallet } = setup()
-    etm.find.mockResolvedValue([ultimate('a', 'flame'), ultimate('b', 'tide')])
+    etm.find.mockResolvedValue([ultimate('a', 'flame'), ultimate('b', 'flame')])
     const result = await service.merge('user-1', 'a', 'b', baseId)
 
     expect(result.monster.stage).toBe(EnumMonsterStage.FUSED)
