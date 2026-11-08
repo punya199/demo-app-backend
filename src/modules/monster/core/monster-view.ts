@@ -37,7 +37,13 @@ export const withRuleErrors = <T>(rule: () => T): T => {
 
 const speciesSummary = (speciesId: string) => {
   const species = getSpecies(speciesId)
-  return { id: species.id, name: species.name, emoji: species.emoji, stage: species.stage }
+  return {
+    id: species.id,
+    name: species.name,
+    emoji: species.emoji,
+    sprite: species.sprite,
+    stage: species.stage,
+  }
 }
 
 const readyAt = (last: Date | null, cooldownMs: number) =>
@@ -52,6 +58,7 @@ export const toMonsterView = (monster: MonsterEntity) => {
     // What the owner calls it, falling back to the species name.
     displayName: monster.nickname ?? species.name,
     emoji: species.emoji,
+    sprite: species.sprite,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
     // Min / max / rolled value per stat for this form (see monster-potential.ts).
     potentialView: buildPotentialView(species.stats, monster.potential),
@@ -95,5 +102,6 @@ export const dexView = (discovered: Set<string>) =>
       discovered: isDiscovered,
       name: isDiscovered ? species.name : null,
       emoji: isDiscovered ? species.emoji : null,
+      sprite: isDiscovered ? species.sprite : null,
     }
   })

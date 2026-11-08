@@ -175,6 +175,7 @@ export class EquipmentService {
         id: row.id,
         name: getSpecies(row.speciesId).name,
         emoji: getSpecies(row.speciesId).emoji,
+        sprite: getSpecies(row.speciesId).sprite,
       })),
       setBonuses: calcSetBonuses(worn),
       // Every set with the pieces this pet wears, and its bonus tiers (the client only displays).

@@ -55,9 +55,18 @@ describe('pvp-queries', () => {
 
   describe('arenaDefenseOf', () => {
     it('prefers the stored arena snapshot', () => {
-      const snapshot = { name: 'snap' }
+      const snapshot = { name: 'snap', sprite: 'sunking' }
       const defense = { arenaFighter: snapshot, fighter: fighter() } as unknown as PvpDefenseEntity
       expect(arenaDefenseOf(defense)).toBe(snapshot)
+    })
+
+    it('gives a snapshot stored before sprites the sprite of its species', () => {
+      const defense = {
+        arenaFighter: { name: 'old' },
+        fighter: fighter(),
+        speciesId: 'flame_ultimate',
+      } as unknown as PvpDefenseEntity
+      expect(arenaDefenseOf(defense)).toEqual({ name: 'old', sprite: 'sunking' })
     })
 
     it('falls back to the line defaults for a defense without a snapshot', () => {
@@ -177,6 +186,7 @@ describe('pvp-queries', () => {
       id: 'c1',
       userId: 'u9',
       displayName: 'Rival',
+      sprite: 'sunking',
       rating: 1000,
       isNpc: false,
     }
@@ -187,6 +197,7 @@ describe('pvp-queries', () => {
         id: 'c1',
         displayName: 'Rival',
         emoji: '🔥',
+        sprite: 'sunking',
         name: 'Fighter',
         nickname: null,
         costume: null,

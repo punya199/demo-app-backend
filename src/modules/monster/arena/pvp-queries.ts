@@ -5,6 +5,7 @@ import { PvpRatingEntity } from '../../../db/entities/pvp-rating.entity'
 import { IFighter } from '../battle/battle-stats'
 import { defaultDisplayName } from '../core/display-name'
 import { PVP_SEASON_RESET_KEEP } from '../core/monster-rules'
+import { spriteOfSpecies } from '../core/species-data'
 import { getQuestResetAt } from '../adventure/quest-data'
 import { arenaSpecOfFighter } from './arena-fighter'
 import { IArenaFighterSpec } from './arena-types'
@@ -19,14 +20,20 @@ export interface IPvpCandidateFull extends IPvpCandidate {
   userId: string | null
   displayName: string
   fighter: IFighter
+  // The defender's pixel-art sprite (null for NPCs and forms without art).
+  sprite: string | null
 }
 
 export const dayStart = (now: Date) => new Date(getQuestResetAt(now).getTime() - DAY_MS)
 
 // A defense set before snapshots carried a loadout fights with its line's default skills.
-export const arenaDefenseOf = (defense: PvpDefenseEntity) =>
-  (defense.arenaFighter as unknown as IArenaFighterSpec | null) ??
-  arenaSpecOfFighter(defense.fighter as unknown as IFighter)
+// A snapshot stored before sprites gets its sprite from the defender's species.
+export const arenaDefenseOf = (defense: PvpDefenseEntity): IArenaFighterSpec => {
+  const spec =
+    (defense.arenaFighter as unknown as IArenaFighterSpec | null) ??
+    arenaSpecOfFighter(defense.fighter as unknown as IFighter)
+  return spec.sprite === undefined ? { ...spec, sprite: spriteOfSpecies(defense.speciesId) } : spec
+}
 
 // Rating a user starts a season with: soft reset of their latest earlier season, else the start.
 export async function initialRating(userId: string, season: string, etm: EntityManager) {
@@ -94,10 +101,11 @@ export async function loadCandidates(
       user_id: string
       display_name: string | null
       fighter: IFighter
+      species_id: string
       rating: number
     }[]
   >(
-    `SELECT d."id", d."user_id", pr."display_name", d."fighter",
+    `SELECT d."id", d."user_id", pr."display_name", d."fighter", d."species_id",
               COALESCE(r."rating", ROUND($4::int + (COALESCE(p."rating", $4::int) - $4::int) * $5::numeric)::int) AS "rating"
        FROM "pvp_defenses" d
        LEFT JOIN "player_profiles" pr ON pr."user_id" = d."user_id" AND pr."deleted_at" IS NULL
@@ -116,6 +124,7 @@ export async function loadCandidates(
     userId: row.user_id,
     displayName: row.display_name ?? defaultDisplayName(row.user_id),
     fighter: row.fighter,
+    sprite: spriteOfSpecies(row.species_id),
     rating: row.rating,
     isNpc: false,
   }))
@@ -124,6 +133,7 @@ export async function loadCandidates(
     userId: null,
     displayName: npc.fighter.name,
     fighter: npc.fighter,
+    sprite: null,
     rating: npc.rating,
     isNpc: true,
   }))
@@ -144,6 +154,7 @@ export const toOpponentView = (candidate: IPvpCandidateFull, costume: ILoadout |
   id: candidate.id,
   displayName: candidate.displayName,
   emoji: candidate.fighter.emoji,
+  sprite: candidate.sprite,
   name: candidate.fighter.name,
   nickname: candidate.fighter.nickname ?? null,
   costume,

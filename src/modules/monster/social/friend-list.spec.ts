@@ -133,7 +133,12 @@ describe('FriendService.list', () => {
       {
         relationId: 'r-acc',
         displayName: 'Pat',
-        monster: { emoji: expect.any(String), stage: EnumMonsterStage.ADULT, costume: { hat: 1 } },
+        monster: {
+          emoji: expect.any(String),
+          sprite: 'gecko',
+          stage: EnumMonsterStage.ADULT,
+          costume: { hat: 1 },
+        },
         points: 4,
         hasSupport: true,
         canGreet: true,

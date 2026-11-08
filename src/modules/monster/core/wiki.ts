@@ -185,6 +185,7 @@ export const buildWiki = () => ({
           lines: [a, b],
           name: species.name,
           emoji: species.emoji,
+          sprite: species.sprite,
           stats: species.stats,
         }
       }

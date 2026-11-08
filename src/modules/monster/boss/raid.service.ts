@@ -79,6 +79,7 @@ export class RaidService {
         id: boss.id,
         name: boss.name,
         emoji: boss.emoji,
+        sprite: boss.sprite,
         element: boss.element,
         setId: boss.setId,
         setName: SET_DEFINITIONS[boss.setId]?.name ?? boss.setId,

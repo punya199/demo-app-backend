@@ -43,6 +43,7 @@ const arenaEnemyView = (stage: IArenaStage | undefined) => {
   return {
     name: fighter.name,
     emoji: fighter.emoji,
+    sprite: fighter.sprite ?? null,
     element: fighter.element,
     isBoss: stage.boss,
     // HP as it is in the fight (the arena triples every HP pool).
@@ -215,7 +216,12 @@ export class AdventureService {
           // Seconds the fight lasted.
           rounds: result.rounds,
           replay: toArenaReplay(arena),
-          player: { name: player.name, emoji: player.emoji, element: player.element },
+          player: {
+            name: player.name,
+            emoji: player.emoji,
+            sprite: player.sprite ?? null,
+            element: player.element,
+          },
           enemy: arenaEnemyView(arenaStage),
           reward,
           gemReward,

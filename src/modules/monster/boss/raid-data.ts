@@ -1,5 +1,6 @@
 import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.entity'
 import { arenaBossSpec } from '../arena/arena-fighter'
+import { IArenaFighterSpec } from '../arena/arena-types'
 import { IFighter } from '../battle/battle-stats'
 import { EnumEquipmentGrade, EnumMaterialId } from '../equipment/equipment-data'
 import { scaleStats, STAGE_BASE_STATS } from '../core/species-data'
@@ -70,6 +71,8 @@ export interface IRaidBoss {
   id: string
   name: string
   emoji: string
+  // Pixel-art sprite id the client draws (the emoji is its fallback).
+  sprite: string
   element: EnumMonsterLine
   // The set whose pieces this boss drops (see SET_DEFINITIONS).
   setId: string
@@ -83,6 +86,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'lava_king',
     name: 'ราชันย์ลาวา',
     emoji: '🔥',
+    sprite: 'lavaking',
     element: EnumMonsterLine.FLAME,
     setId: 'blazing',
     skillName: 'ลาวาถล่ม',
@@ -92,6 +96,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'deep_dweller',
     name: 'อสูรห้วงลึก',
     emoji: '💧',
+    sprite: 'abyssfish',
     element: EnumMonsterLine.TIDE,
     setId: 'tidal_guard',
     skillName: 'คลื่นกลืนกิน',
@@ -101,6 +106,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'ancient_flora',
     name: 'พฤกษาโบราณ',
     emoji: '🌿',
+    sprite: 'flora',
     element: EnumMonsterLine.LEAF,
     setId: 'deep_root',
     skillName: 'รากพันธนาการ',
@@ -110,6 +116,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'radiant_seraph',
     name: 'เซราฟรัศมี',
     emoji: '✨',
+    sprite: 'raidseraph',
     element: EnumMonsterLine.HOLY,
     setId: 'radiant',
     skillName: 'แสงพิพากษา',
@@ -119,6 +126,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'void_sovereign',
     name: 'จ้าวมืดมิด',
     emoji: '🌑',
+    sprite: 'vampire',
     element: EnumMonsterLine.DARK,
     setId: 'nightfall',
     skillName: 'ราตรีกลืนกิน',
@@ -128,6 +136,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     id: 'nameless_phantom',
     name: 'ราชันย์เงานิรนาม',
     emoji: '🌫️',
+    sprite: 'nameless',
     element: EnumMonsterLine.SHADOW,
     setId: 'shadow_veil',
     skillName: 'คมเงาเงียบ',
@@ -145,8 +154,13 @@ export const getRaidBossFighter = (boss: IRaidBoss, difficulty: IRaidDifficulty)
   skill: { name: boss.skillName, power: RAID_BOSS_SKILL_POWER },
 })
 
-export const getRaidBossArena = (boss: IRaidBoss, difficulty: IRaidDifficulty) =>
-  arenaBossSpec(getRaidBossFighter(boss, difficulty), boss.arenaSkills)
+export const getRaidBossArena = (
+  boss: IRaidBoss,
+  difficulty: IRaidDifficulty
+): IArenaFighterSpec => ({
+  ...arenaBossSpec(getRaidBossFighter(boss, difficulty), boss.arenaSkills),
+  sprite: boss.sprite,
+})
 
 // Boss tokens to exchange for a chosen piece of the boss's set; the grade can only be bought
 // once the difficulty that drops it has been cleared.

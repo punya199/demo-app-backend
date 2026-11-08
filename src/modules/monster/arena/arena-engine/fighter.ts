@@ -29,6 +29,7 @@ export interface IFighter {
   idx: number
   name: string
   emoji: string
+  sprite: string | null
   el: ArenaLine
   atk: number
   def: number
@@ -133,6 +134,7 @@ export const makeFighter = (
     idx,
     name: spec.name,
     emoji: spec.emoji,
+    sprite: spec.sprite ?? null,
     el: spec.element,
     atk: spec.atk,
     def: spec.def,

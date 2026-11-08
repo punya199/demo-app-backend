@@ -385,6 +385,7 @@ export const simulateArena = (
       team: f.team,
       name: f.name,
       emoji: f.emoji,
+      sprite: f.sprite,
       el: f.el,
       maxHp: f.maxHp,
       hp: f.hp,

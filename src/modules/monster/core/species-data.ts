@@ -40,6 +40,9 @@ export interface ISpecies {
   stage: EnumMonsterStage
   name: string
   emoji: string
+  // The pixel-art sprite the client draws (demo-app tamagotchi/sprites); null = no art yet, the
+  // client shows the emoji.
+  sprite: string | null
   minWeight: number
   // Base battle stats before care modifiers (see battle-stats.ts). An egg has none and can't fight.
   stats: IBattleStats
@@ -125,6 +128,65 @@ type FormKey =
 // [name, emoji, skill name]
 type FormNames = Record<FormKey, [string, string, string]>
 
+// Sprite ids of each line's forms, in FormKey order: egg, baby1, baby2, adult good/poor/alt,
+// perfect good/poor/alt, ultimate, ultimateAlt.
+const spriteRow = (ids: string): Record<FormKey, string> => {
+  const keys: FormKey[] = [
+    'egg',
+    'baby1',
+    'baby2',
+    'adultGood',
+    'adultPoor',
+    'adultAlt',
+    'perfectGood',
+    'perfectPoor',
+    'perfectAlt',
+    'ultimate',
+    'ultimateAlt',
+  ]
+  const list = ids.split(' ')
+  return Object.fromEntries(keys.map((key, i) => [key, list[i]])) as Record<FormKey, string>
+}
+
+export const LINE_SPRITES: Record<EnumMonsterLine, Record<FormKey, string>> = {
+  [EnumMonsterLine.FLAME]: spriteRow(
+    'egg wisp coal gecko smoke raptor frill lava dragon sunking phoenix'
+  ),
+  [EnumMonsterLine.TIDE]: spriteRow(
+    'wegg drop bubble swordwhale jelly shark armorwhale octopus seadragon whaleC leviathan'
+  ),
+  [EnumMonsterLine.LEAF]: spriteRow(
+    'legg seed sprout leafdeer mushroom wolf stag stump barkwolf forestdeer wolfking'
+  ),
+  [EnumMonsterLine.EARTH]: spriteRow(
+    'eegg pebble clay tortoise worm rhino pillarturtle boulder orerhino mountturtle crystalrhino'
+  ),
+  [EnumMonsterLine.LIGHTNING]: spriteRow(
+    'begg spark cloudpuff tbird staticcat stormfox hawk gloomcloud boltfox thunderking foxking'
+  ),
+  [EnumMonsterLine.HOLY]: spriteRow(
+    'hegg glint lamb wingsheep cherub lioncub qilin bellcrab winglion sunqilin lionking'
+  ),
+  [EnumMonsterLine.DARK]: spriteRow(
+    'degg mote batling spider rat vampbat eyespider zrat batlord spiderqueen batemperor'
+  ),
+  [EnumMonsterLine.SHADOW]: spriteRow(
+    'segg wbaby kbaby knight shyghost lantern knight2 mistblob soulwraith knightlord wraithlord'
+  ),
+}
+
+// The awakened form of each line (the same line twice). Hybrids of two lines have no art yet.
+const AWAKENED_SPRITES: Record<EnumMonsterLine, string> = {
+  [EnumMonsterLine.FLAME]: 'avatar',
+  [EnumMonsterLine.TIDE]: 'wfused',
+  [EnumMonsterLine.LEAF]: 'lfused',
+  [EnumMonsterLine.EARTH]: 'efused',
+  [EnumMonsterLine.LIGHTNING]: 'bfused',
+  [EnumMonsterLine.HOLY]: 'hfused',
+  [EnumMonsterLine.DARK]: 'dfused',
+  [EnumMonsterLine.SHADOW]: 'sfused',
+}
+
 const SKILL_POWER = 1.6
 const ULTIMATE_SKILL_POWER = 1.8
 
@@ -142,6 +204,7 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
     stage,
     name: names[key][0],
     emoji: names[key][1],
+    sprite: LINE_SPRITES[line][key],
     minWeight,
     stats: scaleStats(
       scaleStats(
@@ -364,6 +427,7 @@ const fusedSpecies = (): ISpecies[] =>
       stage: EnumMonsterStage.FUSED,
       name,
       emoji,
+      sprite: a === b ? AWAKENED_SPRITES[a] : null,
       minWeight: 40,
       stats: scaleStats(STAGE_BASE_STATS[EnumMonsterStage.FUSED], {
         hp: lean('hp'),
@@ -388,5 +452,8 @@ export const getSpecies = (speciesId: string): ISpecies => {
   }
   return species
 }
+
+// The sprite of a stored species id; null for an unknown id or a form without art.
+export const spriteOfSpecies = (speciesId: string) => speciesById.get(speciesId)?.sprite ?? null
 
 export const eggSpeciesId = (line: EnumMonsterLine) => `${line}_egg`
