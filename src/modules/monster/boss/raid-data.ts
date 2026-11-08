@@ -130,7 +130,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.DARK,
     setId: 'nightfall',
     skillName: 'ราตรีกลืนกิน',
-    arenaSkills: ['e_dragontail', 'e_orebite'],
+    arenaSkills: ['e_batswarm', 'e_vampbite'],
   },
   {
     id: 'nameless_phantom',
@@ -140,7 +140,7 @@ export const RAID_BOSSES: IRaidBoss[] = [
     element: EnumMonsterLine.SHADOW,
     setId: 'shadow_veil',
     skillName: 'คมเงาเงียบ',
-    arenaSkills: ['e_sparktail', 'e_mistbite'],
+    arenaSkills: ['e_flail', 'e_mistcut'],
   },
 ]
 

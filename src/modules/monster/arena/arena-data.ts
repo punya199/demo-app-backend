@@ -421,7 +421,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'tide_trident',
-    name: 'ตรีศูลสมุทร',
+    name: 'หอกเขาผลึก',
     icon: '🔱',
     el: 'tide',
     src: 'tide_ultimate',
@@ -532,7 +532,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'leaf_claw',
-    name: 'กรงเล็บไพร',
+    name: 'เขาไพรสามคม',
     icon: '🐅',
     el: 'leaf',
     src: 'leaf_perfectGood',
@@ -569,7 +569,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'leaf_trunk',
-    name: 'งวงพฤกษา',
+    name: 'เถาวัลย์ฟาด',
     icon: '🐘',
     el: 'leaf',
     src: 'leaf_perfectAlt',
@@ -674,7 +674,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'earth_paw',
-    name: 'อุ้งตีนผา',
+    name: 'กระทืบผา',
     icon: '🐻',
     el: 'earth',
     src: 'earth_perfectGood',
@@ -711,7 +711,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'earth_quill',
-    name: 'ขนแร่',
+    name: 'หนามแร่',
     icon: '🦔',
     el: 'earth',
     src: 'earth_perfectAlt',
@@ -818,7 +818,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'ltn_claw',
-    name: 'เล็บพายุ',
+    name: 'ข่วนสายฟ้า',
     icon: '🐆',
     el: 'lightning',
     src: 'lightning_adultAlt',
@@ -832,7 +832,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'ltn_hoof',
-    name: 'กีบอสนี',
+    name: 'โฉบอสนี',
     icon: '🦄',
     el: 'lightning',
     src: 'lightning_perfectGood',
@@ -924,7 +924,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'ltn_vajra',
-    name: 'วัชระผ่าฟ้า',
+    name: 'หางปาอสนี',
     icon: '🌀',
     el: 'lightning',
     src: 'lightning_ultimateAlt',
@@ -979,7 +979,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'holy_blade',
-    name: 'ดาบรัศมี',
+    name: 'อุ้งเล็บรัศมี',
     icon: '🛡️',
     el: 'holy',
     src: 'holy_adultAlt',
@@ -995,7 +995,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'holy_arrow',
-    name: 'ธนูรัศมี',
+    name: 'ศรเขากิเลน',
     icon: '🏹',
     el: 'holy',
     src: 'holy_perfectGood',
@@ -1270,7 +1270,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'shd_kunai',
-    name: 'คุไนเงา',
+    name: 'พัดดาบเงา',
     icon: '🥷',
     el: 'shadow',
     src: 'shadow_adultGood',
@@ -1310,7 +1310,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'shd_arrow',
-    name: 'ศรเงียบ',
+    name: 'ไฟโคมเงียบ',
     icon: '🏹',
     el: 'shadow',
     src: 'shadow_adultAlt',
@@ -1330,7 +1330,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'shd_snake',
-    name: 'เขี้ยวเงียบ',
+    name: 'โล่ทมิฬ',
     icon: '🐍',
     el: 'shadow',
     src: 'shadow_perfectGood',
@@ -1377,7 +1377,7 @@ export const ARENA_SKILLS: IArenaSkill[] = [
   },
   {
     id: 'shd_sting',
-    name: 'เหล็กในเงา',
+    name: 'เปลวพิษวิญญาณ',
     icon: '🦂',
     el: 'shadow',
     src: 'shadow_perfectAlt',
@@ -2244,6 +2244,92 @@ export const ARENA_ENEMY_SKILLS: IArenaSkill[] = [
       note: 'โจมตีทั่วสนาม ต้องใช้สกิลหลบ',
     })
   ),
+  // The vampire's and the headless knight's own versions (same numbers as the skills they shared
+  // with other bosses), so each raid boss shows its own name and animation.
+  {
+    id: 'e_batswarm',
+    name: 'ฝูงค้างคาวโลหิต',
+    icon: '🦇',
+    el: 'flame',
+    src: 'enemy',
+    slot: 'active',
+    kind: 'burst',
+    cd: 12,
+    wind: 14,
+    power: 180,
+    hits: 1,
+    radius: 110,
+    fx: [
+      {
+        st: 'defDown',
+        dur: 4,
+        ch: 100,
+      },
+    ],
+  },
+  {
+    id: 'e_vampbite',
+    name: 'เขี้ยวดูดเลือด',
+    icon: '🩸',
+    el: 'earth',
+    src: 'enemy',
+    slot: 'active',
+    kind: 'melee',
+    cd: 7,
+    wind: 8,
+    power: 150,
+    hits: 1,
+    range: 60,
+    fx: [
+      {
+        st: 'defDown',
+        dur: 3,
+        ch: 100,
+      },
+    ],
+  },
+  {
+    id: 'e_flail',
+    name: 'เหวี่ยงตุ้มโซ่',
+    icon: '⛓️',
+    el: 'lightning',
+    src: 'enemy',
+    slot: 'active',
+    kind: 'multi',
+    cd: 5,
+    wind: 5,
+    power: 45,
+    hits: 4,
+    range: 60,
+    fx: [
+      {
+        st: 'static',
+        dur: 2,
+        ch: 30,
+      },
+    ],
+  },
+  {
+    id: 'e_mistcut',
+    name: 'ฟันจากหมอก',
+    icon: '🗡️',
+    el: 'tide',
+    src: 'enemy',
+    slot: 'active',
+    kind: 'melee',
+    cd: 8,
+    wind: 9,
+    power: 200,
+    hits: 1,
+    range: 62,
+    fx: [
+      {
+        st: 'blind',
+        dur: 2,
+        ch: 100,
+      },
+    ],
+  },
 ]
 
 // Adventure stages by the game's stage id (adventure-data.ts keeps the legacy turn-based enemies).

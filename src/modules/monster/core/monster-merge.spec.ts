@@ -144,7 +144,7 @@ describe('createFused', () => {
     expect(fromFlame.skill.name).toBe('สุริยะแผดเผา')
     expect(fromTide.stats).toEqual(fromFlame.stats)
     expect(fromTideBase.element).toBe(EnumMonsterLine.TIDE)
-    expect(fromTideBase.skill.name).toBe('ตรีศูลสมุทร')
+    expect(fromTideBase.skill.name).toBe('หอกเขาผลึก')
   })
 
   it('refuses parents that cannot merge', () => {
