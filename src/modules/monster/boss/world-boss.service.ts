@@ -121,6 +121,7 @@ export class WorldBossService {
         id: definition.id,
         name: definition.name,
         emoji: definition.emoji,
+        sprite: definition.sprite,
         setId: definition.setId,
         setName: SET_DEFINITIONS[definition.setId].name,
         element: definition.element,
@@ -242,6 +243,7 @@ export class WorldBossService {
           ? {
               name: rental.ally.name,
               emoji: rental.ally.emoji,
+              sprite: rental.ally.sprite ?? null,
               damage: allyDamage,
               fee: rental.fee,
             }

@@ -40,6 +40,9 @@ export interface ISpecies {
   stage: EnumMonsterStage
   name: string
   emoji: string
+  // The pixel-art sprite the client draws (demo-app tamagotchi/sprites); null = no art yet, the
+  // client shows the emoji.
+  sprite: string | null
   minWeight: number
   // Base battle stats before care modifiers (see battle-stats.ts). An egg has none and can't fight.
   stats: IBattleStats
@@ -125,6 +128,65 @@ type FormKey =
 // [name, emoji, skill name]
 type FormNames = Record<FormKey, [string, string, string]>
 
+// Sprite ids of each line's forms, in FormKey order: egg, baby1, baby2, adult good/poor/alt,
+// perfect good/poor/alt, ultimate, ultimateAlt.
+const spriteRow = (ids: string): Record<FormKey, string> => {
+  const keys: FormKey[] = [
+    'egg',
+    'baby1',
+    'baby2',
+    'adultGood',
+    'adultPoor',
+    'adultAlt',
+    'perfectGood',
+    'perfectPoor',
+    'perfectAlt',
+    'ultimate',
+    'ultimateAlt',
+  ]
+  const list = ids.split(' ')
+  return Object.fromEntries(keys.map((key, i) => [key, list[i]])) as Record<FormKey, string>
+}
+
+export const LINE_SPRITES: Record<EnumMonsterLine, Record<FormKey, string>> = {
+  [EnumMonsterLine.FLAME]: spriteRow(
+    'egg wisp coal gecko smoke raptor frill lava dragon sunking phoenix'
+  ),
+  [EnumMonsterLine.TIDE]: spriteRow(
+    'wegg drop bubble swordwhale jelly shark armorwhale octopus seadragon whaleC leviathan'
+  ),
+  [EnumMonsterLine.LEAF]: spriteRow(
+    'legg seed sprout leafdeer mushroom wolf stag stump barkwolf forestdeer wolfking'
+  ),
+  [EnumMonsterLine.EARTH]: spriteRow(
+    'eegg pebble clay tortoise worm rhino pillarturtle boulder orerhino mountturtle crystalrhino'
+  ),
+  [EnumMonsterLine.LIGHTNING]: spriteRow(
+    'begg spark cloudpuff tbird staticcat stormfox hawk gloomcloud boltfox thunderking foxking'
+  ),
+  [EnumMonsterLine.HOLY]: spriteRow(
+    'hegg glint lamb wingsheep cherub lioncub qilin bellcrab winglion sunqilin lionking'
+  ),
+  [EnumMonsterLine.DARK]: spriteRow(
+    'degg mote batling spider rat vampbat eyespider zrat batlord spiderqueen batemperor'
+  ),
+  [EnumMonsterLine.SHADOW]: spriteRow(
+    'segg wbaby kbaby knight shyghost lantern knight2 mistblob soulwraith knightlord wraithlord'
+  ),
+}
+
+// The awakened form of each line (the same line twice). Hybrids of two lines have no art yet.
+const AWAKENED_SPRITES: Record<EnumMonsterLine, string> = {
+  [EnumMonsterLine.FLAME]: 'avatar',
+  [EnumMonsterLine.TIDE]: 'wfused',
+  [EnumMonsterLine.LEAF]: 'lfused',
+  [EnumMonsterLine.EARTH]: 'efused',
+  [EnumMonsterLine.LIGHTNING]: 'bfused',
+  [EnumMonsterLine.HOLY]: 'hfused',
+  [EnumMonsterLine.DARK]: 'dfused',
+  [EnumMonsterLine.SHADOW]: 'sfused',
+}
+
 const SKILL_POWER = 1.6
 const ULTIMATE_SKILL_POWER = 1.8
 
@@ -142,6 +204,7 @@ const lineSpecies = (line: EnumMonsterLine, names: FormNames): ISpecies[] => {
     stage,
     name: names[key][0],
     emoji: names[key][1],
+    sprite: LINE_SPRITES[line][key],
     minWeight,
     stats: scaleStats(
       scaleStats(
@@ -196,24 +259,24 @@ export const SPECIES: ISpecies[] = [
     adultGood: ['เพลิงจอมซน', '🦎', 'หางเพลิง'],
     adultPoor: ['ควันกรุ่น', '💨', 'ควันพิษ'],
     adultAlt: ['เพลิงนักรบ', '🦖', 'ฟันเพลิง'],
-    perfectGood: ['อัคนีพยัคฆ์', '🐯', 'กรงเล็บอัคคี'],
+    perfectGood: ['อัคนีแผงคอ', '🦎', 'กรงเล็บอัคคี'],
     perfectPoor: ['ลาวาอ้วน', '🌋', 'ลาวาทับ'],
     perfectAlt: ['มังกรเพลิงรบ', '🐲', 'ลมหายใจมังกร'],
-    ultimate: ['ราชาสุริยะ', '☀️', 'สุริยะแผดเผา'],
-    ultimateAlt: ['ฟีนิกซ์อมตะ', '🦅', 'ปีกอัคนี'],
+    ultimate: ['ราชันมังกรสุริยะ', '🐉', 'สุริยะแผดเผา'],
+    ultimateAlt: ['มังกรปีกฟีนิกซ์', '🦅', 'ปีกอัคนี'],
   }),
   ...lineSpecies(EnumMonsterLine.TIDE, {
     egg: ['ไข่วารี', '🥚', '-'],
     baby1: ['หยดน้ำ', '💧', 'กระเซ็น'],
     baby2: ['ฟองจิ๋ว', '🫧', 'ฟองสบู่'],
-    adultGood: ['ปลาดาบน้อย', '🐟', 'ดาบน้ำ'],
+    adultGood: ['ลูกวาฬดาบ', '🐋', 'ดาบน้ำ'],
     adultPoor: ['แมงกะพรุนขี้เซา', '🪼', 'หนวดช็อต'],
     adultAlt: ['ฉลามหนาม', '🦈', 'เขี้ยวคลื่น'],
     perfectGood: ['วาฬเกราะ', '🐋', 'คลื่นเกราะ'],
     perfectPoor: ['หมึกขี้เกียจ', '🐙', 'หมึกพ่น'],
     perfectAlt: ['มังกรทะเลลึก', '🐉', 'น้ำวนมังกร'],
-    ultimate: ['เจ้าสมุทร', '🔱', 'ตรีศูลสมุทร'],
-    ultimateAlt: ['เทพีสายน้ำ', '🧜', 'สายน้ำนิรันดร์'],
+    ultimate: ['ราชาวาฬผลึก', '🐋', 'หอกเขาผลึก'],
+    ultimateAlt: ['เลวีอาธานคลื่นคลั่ง', '🐉', 'สายน้ำนิรันดร์'],
   }),
   ...lineSpecies(EnumMonsterLine.LEAF, {
     egg: ['ไข่พฤกษ์', '🥚', '-'],
@@ -222,11 +285,11 @@ export const SPECIES: ISpecies[] = [
     adultGood: ['กวางใบไม้', '🦌', 'เขาพฤกษา'],
     adultPoor: ['เห็ดง่วง', '🍄', 'สปอร์หลับ'],
     adultAlt: ['หมาป่าไพร', '🐺', 'เขี้ยวไพร'],
-    perfectGood: ['พยัคฆ์ไพร', '🐅', 'กรงเล็บไพร'],
+    perfectGood: ['กวางเขาพฤกษา', '🦌', 'เขาไพรสามคม'],
     perfectPoor: ['ตอไม้แก่', '🪵', 'รากฟาด'],
-    perfectAlt: ['ช้างพฤกษา', '🐘', 'งวงพฤกษา'],
+    perfectAlt: ['หมาป่าเปลือกไม้', '🐺', 'เถาวัลย์ฟาด'],
     ultimate: ['เทพพนาลัย', '🌳', 'พนาพิโรธ'],
-    ultimateAlt: ['เอนท์พิทักษ์', '🌲', 'พิทักษ์พนา'],
+    ultimateAlt: ['ราชาหมาป่าพงไพร', '🐺', 'พิทักษ์พนา'],
   }),
   ...lineSpecies(EnumMonsterLine.EARTH, {
     egg: ['ไข่ศิลา', '🥚', '-'],
@@ -235,11 +298,11 @@ export const SPECIES: ISpecies[] = [
     adultGood: ['เต่าศิลา', '🐢', 'กระดองศิลา'],
     adultPoor: ['หนอนดินเกียจคร้าน', '🪱', 'เลื้อยทับ'],
     adultAlt: ['แรดผา', '🦏', 'งาผา'],
-    perfectGood: ['หมีหินผา', '🐻', 'อุ้งตีนผา'],
+    perfectGood: ['เต่าผาหิน', '🐢', 'กระทืบผา'],
     perfectPoor: ['ก้อนหินขี้เกียจ', '🗿', 'ทับกด'],
-    perfectAlt: ['เม่นแร่เหล็ก', '🦔', 'ขนแร่'],
-    ultimate: ['เจ้าธรณี', '🏔️', 'ธรณีสั่น'],
-    ultimateAlt: ['ไททันคริสตัล', '💠', 'ผลึกพิโรธ'],
+    perfectAlt: ['แรดเกราะแร่', '🦏', 'หนามแร่'],
+    ultimate: ['เต่าภูเขา', '🏔️', 'ธรณีสั่น'],
+    ultimateAlt: ['ไททันแรดคริสตัล', '💎', 'ผลึกพิโรธ'],
   }),
   ...lineSpecies(EnumMonsterLine.LIGHTNING, {
     egg: ['ไข่อสนี', '🥚', '-'],
@@ -247,25 +310,25 @@ export const SPECIES: ISpecies[] = [
     baby2: ['ลูกเมฆฟ้า', '☁️', 'ฟ้าร้อง'],
     adultGood: ['นกฟ้าผ่า', '🐦', 'ปีกฟ้าผ่า'],
     adultPoor: ['แมวไฟสถิต', '🐱', 'ขนพองช็อต'],
-    adultAlt: ['เสือพายุ', '🐆', 'เล็บพายุ'],
-    perfectGood: ['ม้าอสนี', '🦄', 'กีบอสนี'],
+    adultAlt: ['จิ้งจอกพายุ', '🦊', 'ข่วนสายฟ้า'],
+    perfectGood: ['เหยี่ยวพายุ', '🦅', 'โฉบอสนี'],
     perfectPoor: ['เมฆหม่นขี้เกียจ', '🌥️', 'ฟ้าคำราม'],
     perfectAlt: ['จิ้งจอกอสนี', '🦊', 'หางอสนี'],
-    ultimate: ['ราชาอสนี', '🌪️', 'อสนีบาต'],
-    ultimateAlt: ['วัชรเทพ', '🌀', 'วัชระผ่าฟ้า'],
+    ultimate: ['วิหคราชาอสนี', '🌩️', 'อสนีบาต'],
+    ultimateAlt: ['ราชาจิ้งจอกอสนี', '🦊', 'หางปาอสนี'],
   }),
   ...lineSpecies(EnumMonsterLine.HOLY, {
     egg: ['ไข่รัศมี', '🥚', '-'],
     baby1: ['ประกายแสง', '🌟', 'แสงวาบ'],
     baby2: ['ลูกแกะแสง', '🐑', 'ขนทอง'],
-    adultGood: ['นกพิราบทิพย์', '🕊️', 'ปีกทิพย์'],
+    adultGood: ['แกะปีกทิพย์', '🐑', 'ปีกทิพย์'],
     adultPoor: ['ทูตน้อยขี้เซา', '👼', 'พรหลับ'],
-    adultAlt: ['อัศวินรัศมี', '🛡️', 'ดาบรัศมี'],
-    perfectGood: ['เทพธิดารัศมี', '👸', 'ธนูรัศมี'],
+    adultAlt: ['สิงห์น้อยรัศมี', '🦁', 'อุ้งเล็บรัศมี'],
+    perfectGood: ['กิเลนรัศมี', '🦄', 'ศรเขากิเลน'],
     perfectPoor: ['ระฆังแตก', '🔔', 'เสียงก้อง'],
-    perfectAlt: ['เซราฟปีกขาว', '😇', 'ปีกขาวเจิดจ้า'],
-    ultimate: ['เจ้าแห่งแสงสว่าง', '🌞', 'ตะวันชำระ'],
-    ultimateAlt: ['มหาเทวทูต', '👑', 'พิพากษาสวรรค์'],
+    perfectAlt: ['ราชสีห์ปีกขาว', '🦁', 'ปีกขาวเจิดจ้า'],
+    ultimate: ['กิเลนสุริยเทพ', '🌞', 'ตะวันชำระ'],
+    ultimateAlt: ['มหาราชสีห์เทวะ', '👑', 'พิพากษาสวรรค์'],
   }),
   ...lineSpecies(EnumMonsterLine.DARK, {
     egg: ['ไข่รัตติกาล', '🥚', '-'],
@@ -273,25 +336,25 @@ export const SPECIES: ISpecies[] = [
     baby2: ['ลูกค้างคาว', '🦇', 'เสียงกรีด'],
     adultGood: ['แมงมุมคำสาป', '🕷️', 'ใยสาป'],
     adultPoor: ['หนูท่อมืด', '🐀', 'กัดโสโครก'],
-    adultAlt: ['อสูรเขี้ยวโลหิต', '🧛', 'เขี้ยวโลหิต'],
-    perfectGood: ['ปีศาจนัยน์ตาแดง', '👹', 'นัยน์ตาอาฆาต'],
-    perfectPoor: ['ซอมบี้ขี้เกียจ', '🧟', 'คลานทับ'],
-    perfectAlt: ['ราชันย์ปีศาจ', '😈', 'พิโรธรัตติกาล'],
-    ultimate: ['จักรพรรดิรัตติกาล', '🌚', 'อวสานแสง'],
-    ultimateAlt: ['เจ้าแห่งคำสาป', '💀', 'คำสาปนิรันดร์'],
+    adultAlt: ['ค้างคาวเขี้ยวโลหิต', '🦇', 'เขี้ยวโลหิต'],
+    perfectGood: ['แมงมุมอสูรตาแดง', '🕷️', 'นัยน์ตาอาฆาต'],
+    perfectPoor: ['หนูซากศพขี้เกียจ', '🧟', 'คลานทับ'],
+    perfectAlt: ['ค้างคาวอสูรราชันย์', '🦇', 'พิโรธรัตติกาล'],
+    ultimate: ['ราชินีแมงมุมรัตติกาล', '🕸️', 'อวสานแสง'],
+    ultimateAlt: ['จักรพรรดิค้างคาวคำสาป', '🦇', 'คำสาปนิรันดร์'],
   }),
   ...lineSpecies(EnumMonsterLine.SHADOW, {
     egg: ['ไข่เงา', '🥚', '-'],
     baby1: ['เงาจิ๋ว', '🌫️', 'พรางตัว'],
-    baby2: ['แมวเงา', '🐈', 'ย่องเบา'],
-    adultGood: ['นินจาเงา', '🥷', 'คุไนเงา'],
+    baby2: ['หมวกผีน้อย', '👻', 'ย่องเบา'],
+    adultGood: ['อัศวินเงา', '🛡️', 'พัดดาบเงา'],
     adultPoor: ['ผีเงาขี้อาย', '👻', 'ลอยหนี'],
-    adultAlt: ['ผู้ล่าไร้เสียง', '🏹', 'ศรเงียบ'],
-    perfectGood: ['พญางูเงา', '🐍', 'เขี้ยวเงียบ'],
+    adultAlt: ['ภูตตะเกียงเงา', '🏮', 'ไฟโคมเงียบ'],
+    perfectGood: ['อัศวินเงาเกราะทมิฬ', '🛡️', 'โล่ทมิฬ'],
     perfectPoor: ['ม่านหมอกขี้เกียจ', '🌁', 'กลืนกลบ'],
-    perfectAlt: ['แมงป่องอาถรรพ์', '🦂', 'เหล็กในเงา'],
-    ultimate: ['เจ้าแห่งเงา', '🎭', 'อวสานเงา'],
-    ultimateAlt: ['ราชันย์ไร้ตัวตน', '🌌', 'จักรวาลเงา'],
+    perfectAlt: ['ภูตโคมวิญญาณ', '🏮', 'เปลวพิษวิญญาณ'],
+    ultimate: ['จอมอัศวินเงา', '⚔️', 'อวสานเงา'],
+    ultimateAlt: ['เจ้าภูตเงา', '💀', 'จักรวาลเงา'],
   }),
 ]
 
@@ -341,7 +404,7 @@ export const FUSED_FORMS: [EnumMonsterLine, EnumMonsterLine, string, string][] =
 
 const FUSED_SKILLS: Record<EnumMonsterLine, ISkill> = {
   [EnumMonsterLine.FLAME]: { name: 'สุริยะแผดเผา', power: ULTIMATE_SKILL_POWER },
-  [EnumMonsterLine.TIDE]: { name: 'ตรีศูลสมุทร', power: ULTIMATE_SKILL_POWER },
+  [EnumMonsterLine.TIDE]: { name: 'หอกเขาผลึก', power: ULTIMATE_SKILL_POWER },
   [EnumMonsterLine.LEAF]: { name: 'พนาพิโรธ', power: ULTIMATE_SKILL_POWER },
   [EnumMonsterLine.EARTH]: { name: 'ธรณีสั่น', power: ULTIMATE_SKILL_POWER },
   [EnumMonsterLine.LIGHTNING]: { name: 'อสนีบาต', power: ULTIMATE_SKILL_POWER },
@@ -364,6 +427,7 @@ const fusedSpecies = (): ISpecies[] =>
       stage: EnumMonsterStage.FUSED,
       name,
       emoji,
+      sprite: a === b ? AWAKENED_SPRITES[a] : null,
       minWeight: 40,
       stats: scaleStats(STAGE_BASE_STATS[EnumMonsterStage.FUSED], {
         hp: lean('hp'),
@@ -388,5 +452,8 @@ export const getSpecies = (speciesId: string): ISpecies => {
   }
   return species
 }
+
+// The sprite of a stored species id; null for an unknown id or a form without art.
+export const spriteOfSpecies = (speciesId: string) => speciesById.get(speciesId)?.sprite ?? null
 
 export const eggSpeciesId = (line: EnumMonsterLine) => `${line}_egg`

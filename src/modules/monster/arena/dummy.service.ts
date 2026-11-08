@@ -39,12 +39,18 @@ export class DummyService {
       defDefault: DUMMY_DEF_DEFAULT,
       defMax: DUMMY_DEF_MAX,
       elements: DUMMY_ELEMENTS,
-      raidBosses: RAID_BOSSES.map(boss => ({ id: boss.id, name: boss.name, emoji: boss.emoji })),
+      raidBosses: RAID_BOSSES.map(boss => ({
+        id: boss.id,
+        name: boss.name,
+        emoji: boss.emoji,
+        sprite: boss.sprite,
+      })),
       difficulties: RAID_DIFFICULTIES.map(entry => entry.difficulty),
       worldBosses: WORLD_BOSS_ROTATION.map(boss => ({
         id: boss.id,
         name: boss.name,
         emoji: boss.emoji,
+        sprite: boss.sprite,
       })),
     }
   }

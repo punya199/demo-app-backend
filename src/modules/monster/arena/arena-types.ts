@@ -164,6 +164,8 @@ export interface IArenaStage {
   id: string
   name: string
   emoji: string
+  // Pixel-art sprite id the client draws (the emoji is its fallback).
+  sprite: string
   el: ArenaLine
   level: 'baby1' | 'baby2' | 'adult' | 'perfect' | 'ultimate'
   str: number | { hp: number; atk: number; def: number; spd: number }
@@ -175,6 +177,8 @@ export interface IArenaStage {
 export interface IArenaFighterSpec {
   name: string
   emoji: string
+  // Pixel-art sprite id; missing on NPCs and on snapshots stored before sprites (emoji then).
+  sprite?: string | null
   element: ArenaLine
   hp: number
   atk: number
@@ -235,6 +239,7 @@ export interface IArenaFighterSummary {
   team: number
   name: string
   emoji: string
+  sprite: string | null
   el: ArenaLine
   maxHp: number
   hp: number

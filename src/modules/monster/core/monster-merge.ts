@@ -1,7 +1,7 @@
 import { EnumMonsterStage } from '../../../db/entities/monster.entity'
 import { IMonsterState, MonsterRuleError } from './monster-engine'
 import { mergePotential } from './monster-potential'
-import { MAX_STAMINA } from './monster-rules'
+import { CROSS_LINE_MERGE_ENABLED, MAX_STAMINA } from './monster-rules'
 import { fusedSpeciesId, getSpecies, isSameGroup } from './species-data'
 
 // Ultimate Merge rules (pure). MonsterService.merge() locks both parents, calls these, charges the
@@ -26,6 +26,15 @@ export const assertCanMerge = (first: IMonsterState, second: IMonsterState) => {
   // Natural and spiritual elements do not mix.
   if (!isSameGroup(first.line, second.line)) {
     throw new MonsterRuleError('Natural and spiritual elements cannot be merged')
+  }
+}
+
+// The merge action's switch: while CROSS_LINE_MERGE_ENABLED is off, only two Ultimates of the same
+// line merge (into its awakened form). createFused itself still builds any pair, so hybrids raised
+// before the switch went off stay valid.
+export const assertMergeOpen = (first: IMonsterState, second: IMonsterState) => {
+  if (!CROSS_LINE_MERGE_ENABLED && first.line !== second.line) {
+    throw new MonsterRuleError('Only two monsters of the same line can be merged for now')
   }
 }
 

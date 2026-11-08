@@ -15,6 +15,12 @@ import {
   succeeded,
 } from '../int-test-helpers'
 
+// These specs cover the costume system switched on; costume-switch.spec.ts covers it switched off.
+jest.mock('../core/monster-rules', () => ({
+  ...jest.requireActual<Record<string, unknown>>('../core/monster-rules'),
+  COSTUMES_ENABLED: true,
+}))
+
 jest.setTimeout(60_000)
 
 describe('costume shop', () => {

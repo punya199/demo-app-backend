@@ -57,9 +57,14 @@ describe('DummyService.getPresets', () => {
       defDefault: DUMMY_DEF_DEFAULT,
       defMax: DUMMY_DEF_MAX,
       elements: DUMMY_ELEMENTS,
-      raidBosses: RAID_BOSSES.map(({ id, name, emoji }) => ({ id, name, emoji })),
+      raidBosses: RAID_BOSSES.map(({ id, name, emoji, sprite }) => ({ id, name, emoji, sprite })),
       difficulties: RAID_DIFFICULTIES.map(entry => entry.difficulty),
-      worldBosses: WORLD_BOSS_ROTATION.map(({ id, name, emoji }) => ({ id, name, emoji })),
+      worldBosses: WORLD_BOSS_ROTATION.map(({ id, name, emoji, sprite }) => ({
+        id,
+        name,
+        emoji,
+        sprite,
+      })),
     })
   })
 })

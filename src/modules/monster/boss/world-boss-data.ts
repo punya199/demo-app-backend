@@ -14,6 +14,8 @@ export interface IWorldBoss {
   id: string
   name: string
   emoji: string
+  // Pixel-art sprite id the client draws (the emoji is its fallback).
+  sprite: string
   setId: string
   // Real element: World Boss fights use the element triangle both ways.
   element: EnumMonsterLine
@@ -43,6 +45,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'storm_golem',
     name: 'จักรกลพายุ',
     emoji: '⚡',
+    sprite: 'stormbison',
     setId: 'swift_thunder',
     element: EnumMonsterLine.LIGHTNING,
     hp: 335_000,
@@ -56,6 +59,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'flame_dragon',
     name: 'มังกรเพลิงกัลป์',
     emoji: '🔥',
+    sprite: 'boss',
     setId: 'blazing',
     element: EnumMonsterLine.FLAME,
     hp: 345_000,
@@ -70,6 +74,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'tide_tortoise',
     name: 'เต่ายักษ์วารี',
     emoji: '🌊',
+    sprite: 'turtle',
     setId: 'tidal_guard',
     element: EnumMonsterLine.TIDE,
     hp: 340_000,
@@ -83,6 +88,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'ancient_tree',
     name: 'ต้นไม้โบราณ',
     emoji: '🌳',
+    sprite: 'pangolin',
     setId: 'deep_root',
     element: EnumMonsterLine.EARTH,
     hp: 455_000,
@@ -96,6 +102,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'radiant_angel',
     name: 'เทวทูตรัศมี',
     emoji: '✨',
+    sprite: 'holyele',
     setId: 'radiant',
     element: EnumMonsterLine.HOLY,
     hp: 320_000,
@@ -109,6 +116,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'night_lord',
     name: 'จอมราตรี',
     emoji: '🌑',
+    sprite: 'darksoul',
     setId: 'nightfall',
     element: EnumMonsterLine.DARK,
     hp: 445_000,
@@ -123,6 +131,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     id: 'shadow_king',
     name: 'ราชาม่านเงา',
     emoji: '👻',
+    sprite: 'sboss',
     setId: 'shadow_veil',
     element: EnumMonsterLine.SHADOW,
     hp: 410_000,
@@ -178,6 +187,7 @@ export const WORLD_BOSS_ARENA_HP_SCALE = 2.4
 // World bosses keep the element triangle (raid bosses ignore it).
 export const getWorldBossArena = (boss: IWorldBoss, hp: number): IArenaFighterSpec => ({
   ...arenaBossSpec(getWorldBossFighter(boss, hp), boss.arenaSkills),
+  sprite: boss.sprite,
   hp: (hp * WORLD_BOSS_ARENA_HP_SCALE) / ARENA_HP_SCALE,
   usesElements: true,
   dodge: boss.arenaDodge ?? null,

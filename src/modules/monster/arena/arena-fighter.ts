@@ -205,6 +205,7 @@ export const toArenaFighter = (
   return {
     name: fighter.nickname ?? fighter.name,
     emoji: fighter.emoji,
+    sprite: getSpecies(state.speciesId).sprite,
     element: line,
     hp: (fighter.stats.hp * lean) / 100,
     atk: fighter.stats.atk,
@@ -280,6 +281,7 @@ export const arenaBossSpec = (fighter: IFighter, skills: string[]): IArenaFighte
 export const arenaEnemyViewOf = (spec: IArenaFighterSpec) => ({
   name: spec.name,
   emoji: spec.emoji,
+  sprite: spec.sprite ?? null,
   element: spec.element,
   isBoss: !!spec.boss,
   stats: {
@@ -305,7 +307,12 @@ export const arenaBattleView = (
   // Seconds the fight lasted.
   rounds: Math.ceil(arena.ticks / ARENA_TICK),
   replay: toArenaReplay(arena),
-  player: { name: player.name, emoji: player.emoji, element: player.element },
+  player: {
+    name: player.name,
+    emoji: player.emoji,
+    sprite: player.sprite ?? null,
+    element: player.element,
+  },
   enemy: arenaEnemyViewOf(enemy),
 })
 
@@ -331,6 +338,7 @@ export const arenaEnemyOf = (stage: IArenaStage): IArenaFighterSpec => {
   return {
     name: stage.name,
     emoji: stage.emoji,
+    sprite: stage.sprite,
     element: stage.el,
     hp: Math.round((base.hp * str.hp * k) / 100),
     atk: Math.round((base.atk * str.atk * k) / 100),
@@ -349,7 +357,13 @@ export const arenaEnemyOf = (stage: IArenaStage): IArenaFighterSpec => {
 export const arenaSkillSource = (src: string) => {
   try {
     const species = getSpecies(src)
-    return { speciesId: src, name: species.name, emoji: species.emoji, stage: species.stage }
+    return {
+      speciesId: src,
+      name: species.name,
+      emoji: species.emoji,
+      sprite: species.sprite,
+      stage: species.stage,
+    }
   } catch {
     return null
   }

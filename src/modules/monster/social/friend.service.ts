@@ -122,6 +122,7 @@ export class FriendService {
             monster
               ? {
                   emoji: getEmoji(monster.speciesId),
+                  sprite: getSpecies(monster.speciesId).sprite,
                   stage: monster.stage,
                   costume: costumes.get(friendId) ?? null,
                 }
@@ -275,6 +276,7 @@ export class FriendService {
       monster: monster
         ? {
             emoji: getEmoji(monster.speciesId),
+            sprite: getSpecies(monster.speciesId).sprite,
             name: getName(monster.speciesId),
             nickname: monster.nickname,
             costume: costumes.get(friendId) ?? null,

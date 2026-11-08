@@ -15,6 +15,7 @@ export const DUMMY_FIGHT_SEC = ARENA_MAX_TICKS / ARENA_TICK
 export const plainDummy = (def: number, element: ArenaLine): IArenaFighterSpec => ({
   name: 'หุ่นซ้อม',
   emoji: '🎯',
+  sprite: 'dummy',
   element,
   hp: DUMMY_HP,
   atk: 0,

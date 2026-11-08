@@ -6,7 +6,7 @@ import { MonsterLogEntity } from '../../../db/entities/monster-log.entity'
 import { toFighter } from '../battle/battle-stats'
 import { calcExpeditionCoins, calcExpeditionDrops } from '../adventure/idle-data'
 import { getEvolutionProgress, MonsterRuleError } from './monster-engine'
-import { MINIGAME_COOLDOWN_MS, TRAIN_COOLDOWN_MS } from './monster-rules'
+import { COSTUMES_ENABLED, MINIGAME_COOLDOWN_MS, TRAIN_COOLDOWN_MS } from './monster-rules'
 import { buildPotentialView } from './monster-potential'
 import { getSpecies, SPECIES } from './species-data'
 
@@ -37,7 +37,13 @@ export const withRuleErrors = <T>(rule: () => T): T => {
 
 const speciesSummary = (speciesId: string) => {
   const species = getSpecies(speciesId)
-  return { id: species.id, name: species.name, emoji: species.emoji, stage: species.stage }
+  return {
+    id: species.id,
+    name: species.name,
+    emoji: species.emoji,
+    sprite: species.sprite,
+    stage: species.stage,
+  }
 }
 
 const readyAt = (last: Date | null, cooldownMs: number) =>
@@ -51,7 +57,10 @@ export const toMonsterView = (monster: MonsterEntity) => {
     name: species.name,
     // What the owner calls it, falling back to the species name.
     displayName: monster.nickname ?? species.name,
+    // Costumes are switched off for now (the stored loadout is kept for when they come back).
+    costume: COSTUMES_ENABLED ? monster.costume : {},
     emoji: species.emoji,
+    sprite: species.sprite,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
     // Min / max / rolled value per stat for this form (see monster-potential.ts).
     potentialView: buildPotentialView(species.stats, monster.potential),
@@ -95,5 +104,6 @@ export const dexView = (discovered: Set<string>) =>
       discovered: isDiscovered,
       name: isDiscovered ? species.name : null,
       emoji: isDiscovered ? species.emoji : null,
+      sprite: isDiscovered ? species.sprite : null,
     }
   })
