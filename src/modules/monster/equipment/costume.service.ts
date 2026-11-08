@@ -25,6 +25,13 @@ import { InventoryService } from '../inventory/inventory.service'
 import { bossTokenItemId } from '../boss/raid-data'
 import { MonsterService } from '../core/monster.service'
 import { ProfileService } from '../core/profile.service'
+import { COSTUMES_ENABLED } from '../core/monster-rules'
+
+const assertCostumesEnabled = () => {
+  if (!COSTUMES_ENABLED) {
+    throw new BadRequestException('Costumes are switched off for now')
+  }
+}
 
 // The selected living pet's costume for each of these players, for screens that show other
 // players. Anyone who turned sharing off (or has no pet) is left out; nothing but catalog ids is
@@ -32,7 +39,7 @@ import { ProfileService } from '../core/profile.service'
 export const loadPublicCostumes = async (userIds: string[], etm: EntityManager) => {
   const result = new Map<string, ILoadout>()
   const ids = [...new Set(userIds)]
-  if (ids.length === 0) {
+  if (ids.length === 0 || !COSTUMES_ENABLED) {
     return result
   }
   const rows = await etm.query<{ owner_id: string; costume: unknown; show_costume: boolean }[]>(
@@ -112,6 +119,7 @@ export class CostumeService {
   }
 
   async buy(userId: string, costumeId: string) {
+    assertCostumesEnabled()
     const costume = this.findCostumeOrThrow(costumeId)
     const now = new Date()
     return this.dataSource.transaction(async etm => {
@@ -155,6 +163,7 @@ export class CostumeService {
   }
 
   async equip(userId: string, costumeId: string, monsterId?: string) {
+    assertCostumesEnabled()
     const costume = this.findCostumeOrThrow(costumeId)
     return this.dataSource.transaction(async etm => {
       const pet = await this.lockPet(userId, monsterId, etm)
@@ -172,6 +181,7 @@ export class CostumeService {
   }
 
   async unequip(userId: string, slot: EnumCostumeSlot, monsterId?: string) {
+    assertCostumesEnabled()
     if (!COSTUME_SLOTS.includes(slot)) {
       throw new BadRequestException('Unknown costume slot')
     }
@@ -185,6 +195,7 @@ export class CostumeService {
   }
 
   async setShowCostume(userId: string, show: boolean) {
+    assertCostumesEnabled()
     return this.dataSource.transaction(async etm => {
       const profile = await this.profileService.ensureProfile(userId, etm)
       profile.showCostume = show

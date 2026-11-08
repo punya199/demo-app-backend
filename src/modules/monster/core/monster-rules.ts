@@ -183,3 +183,7 @@ export const SUPPORT_COOLDOWN_MS = 30 * 60 * 1000
 // What a renter pays the owner per rental, and the most one owner can earn from rentals a day.
 export const RENTAL_FEE = 20
 export const RENTAL_OWNER_DAILY_CAP = 200
+// The costume (fashion) system is switched off for now: buying, wearing and the privacy toggle are
+// refused, and no screen sends a costume (own pet or other players'). Costumes already owned and the
+// loadouts stored on pets are kept, so switching it back on restores them.
+export const COSTUMES_ENABLED = false

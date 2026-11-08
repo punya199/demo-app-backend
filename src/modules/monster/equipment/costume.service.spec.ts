@@ -19,6 +19,12 @@ import {
   USER,
 } from './equipment-test-helpers'
 
+// These specs cover the costume system switched on; costume-switch.spec.ts covers it switched off.
+jest.mock('../core/monster-rules', () => ({
+  ...jest.requireActual<Record<string, unknown>>('../core/monster-rules'),
+  COSTUMES_ENABLED: true,
+}))
+
 const setup = () => {
   const etm = makeEtm()
   const monsterService = {

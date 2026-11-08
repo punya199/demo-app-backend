@@ -6,7 +6,7 @@ import { MonsterLogEntity } from '../../../db/entities/monster-log.entity'
 import { toFighter } from '../battle/battle-stats'
 import { calcExpeditionCoins, calcExpeditionDrops } from '../adventure/idle-data'
 import { getEvolutionProgress, MonsterRuleError } from './monster-engine'
-import { MINIGAME_COOLDOWN_MS, TRAIN_COOLDOWN_MS } from './monster-rules'
+import { COSTUMES_ENABLED, MINIGAME_COOLDOWN_MS, TRAIN_COOLDOWN_MS } from './monster-rules'
 import { buildPotentialView } from './monster-potential'
 import { getSpecies, SPECIES } from './species-data'
 
@@ -57,6 +57,8 @@ export const toMonsterView = (monster: MonsterEntity) => {
     name: species.name,
     // What the owner calls it, falling back to the species name.
     displayName: monster.nickname ?? species.name,
+    // Costumes are switched off for now (the stored loadout is kept for when they come back).
+    costume: COSTUMES_ENABLED ? monster.costume : {},
     emoji: species.emoji,
     sprite: species.sprite,
     // Fighting stats from care (hunger, strength, weight) before gear; an egg can't fight.
