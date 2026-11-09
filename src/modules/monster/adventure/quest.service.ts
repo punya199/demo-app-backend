@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { DataSource, EntityManager, In, MoreThanOrEqual } from 'typeorm'
+import { Between, DataSource, EntityManager, In } from 'typeorm'
 import { DailyQuestProgressEntity } from '../../../db/entities/daily-quest-progress.entity'
 import {
   EnumWalletCurrency,
@@ -11,17 +11,20 @@ import {
   countQuestProgress,
   DAILY_QUESTS,
   findQuest,
-  addDays,
+  getLoginMonthRange,
   getLoginStatus,
   getQuestDate,
   getQuestPeriod,
   LOGIN_QUEST_ID,
   LOGIN_REWARDS,
+  rollLoginBox,
   getQuestResetAt,
   IQuest,
   WEEKLY_QUESTS,
 } from './quest-data'
 import { getWeek } from '../boss/world-boss-data'
+import { grantCostume } from '../equipment/costume-grant'
+import { addToBag } from '../inventory/inventory-bag'
 
 // Adds the events' quest progress for today (daily) and this week (weekly), capped at each quest's target. One atomic upsert per
 // quest, so it is safe inside the caller's transaction without any extra lock.
@@ -66,12 +69,12 @@ export class QuestService {
       progress: byQuest.get(quest.id)?.progress ?? 0,
       claimed: !!byQuest.get(quest.id)?.claimedAt,
     })
-    // Streaks longer than a month don't change the reward, so a 30-day look-back is enough.
+    // The login board is per Thai month, so only this month's claims count.
     const logins = await etm.find(DailyQuestProgressEntity, {
       where: {
         userId,
         questId: LOGIN_QUEST_ID,
-        questDate: MoreThanOrEqual(addDays(questDate, -30)),
+        questDate: Between(...getLoginMonthRange(questDate)),
       },
     })
     return {
@@ -142,9 +145,16 @@ export class QuestService {
 
     return this.dataSource.transaction(async etm => {
       const logins = await etm.find(DailyQuestProgressEntity, {
-        where: { userId, questId: LOGIN_QUEST_ID, questDate: MoreThanOrEqual(addDays(today, -30)) },
+        where: {
+          userId,
+          questId: LOGIN_QUEST_ID,
+          questDate: Between(...getLoginMonthRange(today)),
+        },
       })
-      const { reward } = getLoginStatus(new Set(logins.map(row => row.questDate)), today)
+      const { reward: slot } = getLoginStatus(new Set(logins.map(row => row.questDate)), today)
+      if (!slot) {
+        throw new BadRequestException('All login rewards this month were already claimed')
+      }
 
       // The unique (user, date, quest) index decides the claim, so two racing requests can't both pay.
       const inserted = await etm.query<{ id: string }[]>(
@@ -158,26 +168,42 @@ export class QuestService {
         throw new BadRequestException('Login reward was already claimed today')
       }
 
+      // A box is opened on the spot; its prize is added to the slot's own coin, gem and items.
+      const box = slot.box ? rollLoginBox(slot.box) : null
+      const granted = {
+        coin: slot.coin + (box?.coin ?? 0),
+        gem: slot.gem + (box?.gem ?? 0),
+        items: [...(slot.items ?? []), ...(box?.items ?? [])],
+        costume:
+          slot.costume && (await grantCostume(userId, slot.costume, etm)) ? slot.costume : null,
+      }
+
       const reason = EnumWalletTransactionReason.LOGIN_REWARD
-      let wallet = await this.walletService.change(
-        userId,
-        EnumWalletCurrency.COIN,
-        reward.coin,
-        reason,
-        today,
-        etm
-      )
-      if (reward.gem > 0) {
-        wallet = await this.walletService.change(
+      if (granted.coin > 0) {
+        await this.walletService.change(
           userId,
-          EnumWalletCurrency.GEM,
-          reward.gem,
+          EnumWalletCurrency.COIN,
+          granted.coin,
           reason,
           today,
           etm
         )
       }
-      return { wallet, ...(await this.getQuests(userId, etm)) }
+      if (granted.gem > 0) {
+        await this.walletService.change(
+          userId,
+          EnumWalletCurrency.GEM,
+          granted.gem,
+          reason,
+          today,
+          etm
+        )
+      }
+      for (const { itemId, qty } of granted.items) {
+        await addToBag(etm, userId, itemId, qty)
+      }
+      const wallet = await this.walletService.getBalance(userId, etm)
+      return { wallet, granted, ...(await this.getQuests(userId, etm)) }
     })
   }
 }
