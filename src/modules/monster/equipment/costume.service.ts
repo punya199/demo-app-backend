@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { DataSource, EntityManager } from 'typeorm'
 import { PlayerCostumeEntity } from '../../../db/entities/player-costume.entity'
+import { grantCostume } from './costume-grant'
 import { PlayerProfileEntity } from '../../../db/entities/player-profile.entity'
 import { MonsterEntity } from '../../../db/entities/monster.entity'
 import {
@@ -60,18 +61,7 @@ export const loadPublicCostumes = async (userIds: string[], etm: EntityManager) 
   return result
 }
 
-// Gives a costume (a reward); a second grant of the same one changes nothing.
-export const grantCostume = async (userId: string, costumeId: string, etm: EntityManager) => {
-  const inserted = await etm
-    .createQueryBuilder()
-    .insert()
-    .into(PlayerCostumeEntity)
-    .values({ userId, costumeId })
-    .orIgnore()
-    .returning(['id'])
-    .execute()
-  return (inserted.raw as unknown[]).length > 0
-}
+export { grantCostume }
 
 const CURRENCY = { coin: EnumWalletCurrency.COIN, gem: EnumWalletCurrency.GEM } as const
 

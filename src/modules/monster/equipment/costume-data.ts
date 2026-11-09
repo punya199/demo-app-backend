@@ -168,6 +168,16 @@ export const COSTUMES: ICostume[] = [
     price: { currency: 'coin', amount: 800 },
   },
   {
+    id: 'loginCrown',
+    slot: EnumCostumeSlot.HAT,
+    name: 'มงกุฎดาวประจำเดือน',
+    emoji: '🌟',
+    rarity: EnumEquipmentGrade.EPIC,
+    theme: null,
+    // Reward for claiming all 28 days of the monthly login board.
+    price: { currency: 'season', amount: 0 },
+  },
+  {
     id: 'rainbow',
     slot: EnumCostumeSlot.AURA,
     name: 'รัศมีสายรุ้ง',

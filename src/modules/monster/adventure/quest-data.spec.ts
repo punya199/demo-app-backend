@@ -1,3 +1,4 @@
+import { findCostume } from '../equipment/costume-data'
 import { EnumMonsterLogType } from '../../../db/entities/monster-log.entity'
 import { IMonsterEvent } from '../core/monster-engine'
 import {
@@ -5,7 +6,12 @@ import {
   DAILY_QUESTS,
   EnumQuestId,
   findQuest,
+  getLoginMonthRange,
   getLoginStatus,
+  LOGIN_BOARD_SIZE,
+  LOGIN_COSTUME_ID,
+  LOGIN_REWARDS,
+  rollLoginBox,
   getQuestDate,
   getQuestDayStart,
   getQuestPeriod,
@@ -86,24 +92,48 @@ describe('weekly quests', () => {
   })
 })
 
-describe('login streak', () => {
-  it('extends on consecutive days, restarts after a gap and cycles every 7 days', () => {
-    expect(getLoginStatus(new Set(), '2026-05-10')).toMatchObject({ streak: 0, day: 1 })
-    expect(getLoginStatus(new Set(['2026-05-09']), '2026-05-10')).toMatchObject({
-      streak: 1,
+describe('monthly login board', () => {
+  const claims = (n: number) => new Set(Array.from({ length: n }, (_, i) => `2026-05-${i + 1}`))
+
+  it('uses the next slot for the number of claims this month, gaps included', () => {
+    expect(getLoginStatus(new Set(), '2026-05-10')).toMatchObject({ claimed: 0, day: 1 })
+    expect(getLoginStatus(new Set(['2026-05-01']), '2026-05-10')).toMatchObject({
+      claimedToday: false,
+      claimed: 1,
       day: 2,
     })
-    expect(getLoginStatus(new Set(['2026-05-08']), '2026-05-10')).toMatchObject({
-      streak: 0,
+    expect(getLoginStatus(new Set(['2026-05-10']), '2026-05-10')).toMatchObject({
+      claimedToday: true,
+      claimed: 1,
       day: 1,
     })
-    const week = new Set(['04', '05', '06', '07', '08', '09', '10'].map(d => `2026-05-${d}`))
-    expect(getLoginStatus(week, '2026-05-10')).toMatchObject({
-      claimedToday: true,
-      streak: 7,
-      day: 7,
-    })
-    week.add('2026-05-11')
-    expect(getLoginStatus(week, '2026-05-11')).toMatchObject({ streak: 8, day: 1 })
+  })
+
+  it('has no reward left after 28 claims', () => {
+    expect(getLoginStatus(claims(27), '2026-05-30').reward).toBe(LOGIN_REWARDS[27])
+    expect(getLoginStatus(claims(28), '2026-05-30').reward).toBeNull()
+  })
+
+  it('covers the month range for the query', () => {
+    expect(getLoginMonthRange('2026-02-14')).toEqual(['2026-02-01', '2026-02-31'])
+  })
+
+  it('has 28 slots, a monthly costume on the last and a bounded gem budget', () => {
+    expect(LOGIN_REWARDS).toHaveLength(LOGIN_BOARD_SIZE)
+    expect(LOGIN_REWARDS[27].costume).toBe(LOGIN_COSTUME_ID)
+    expect(findCostume(LOGIN_COSTUME_ID)).toBeDefined()
+    expect(LOGIN_REWARDS.reduce((sum, reward) => sum + reward.gem, 0)).toBeLessThanOrEqual(35)
+  })
+
+  it('rolls boxes from the right table', () => {
+    const low = () => 0
+    const high = () => 0.999
+    expect(rollLoginBox('S', low)).toMatchObject({ coin: 50 })
+    expect(rollLoginBox('S', high).items).toEqual([{ itemId: 'training_manual', qty: 1 }])
+    expect(rollLoginBox('M', () => 0.6).gem).toBeGreaterThan(0)
+    expect(rollLoginBox('M', high).items).toEqual([{ itemId: 'craft_catalyst', qty: 1 }])
+    const large = rollLoginBox('L', low)
+    expect(large.gem).toBeGreaterThanOrEqual(3)
+    expect(large.items).toEqual([{ itemId: 'craft_forge_core', qty: 1 }])
   })
 })
