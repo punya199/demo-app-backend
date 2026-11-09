@@ -38,6 +38,7 @@ import { addToBag } from '../inventory/inventory-bag'
 import { assertMergeOpen, createFused } from './monster-merge'
 import { assertCanReturnHome, PET_CORES_PER_RETURN, petCoreItemId } from './pet-core'
 import { loadPassiveBonus } from '../passive/passive.service'
+import { loadFarmEffects } from '../farm/farm-effects'
 import { loadSpecialBonus } from './special-bonus'
 import { normalizeNickname, RENAME_COOLDOWN_MS } from './monster-name'
 import { recordQuestProgress } from '../adventure/quest.service'
@@ -382,13 +383,15 @@ export class MonsterService {
     })
     const living: MonsterEntity[] = []
     const { hungerDrainMultiplier } = await loadPassiveBonus(userId, etm)
+    const farm = await loadFarmEffects(userId, etm)
     for (const row of rows) {
       const special = await loadSpecialBonus(row.id, etm)
       const { state, events } = tick(
         row,
         now,
-        hungerDrainMultiplier * special.hungerDrainMultiplier,
-        special.poopRateMultiplier
+        hungerDrainMultiplier * special.hungerDrainMultiplier * farm.fullnessDrain,
+        special.poopRateMultiplier * farm.poopRate,
+        farm
       )
       const saved = await this.saveState(row, { ...state, lastSeenAt: now }, etm)
       await this.saveEvents(saved, events, etm)

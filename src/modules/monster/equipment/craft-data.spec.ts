@@ -5,7 +5,6 @@ import {
   CRAFT_PITY_AFTER_FAILS,
   CRAFT_RECIPES,
   CRAFT_TIERS,
-  calcCraftSkipCoin,
   craftFinishAt,
   findCraftRecipe,
   raidCoreDrops,
@@ -111,26 +110,9 @@ describe('craft materials', () => {
   })
 })
 
-describe('skip price and timer', () => {
-  const started = NOW
-  const finish = craftFinishAt(standard, started)
-
+describe('craft timer', () => {
   it('finishes `minutes` after the start', () => {
-    expect(finish.getTime() - started.getTime()).toBe(30 * 60_000)
-  })
-
-  it('charges ceil(2 x coin x left / total), and nothing once done', () => {
-    expect(calcCraftSkipCoin(standard, finish, started)).toBe(600)
-    const half = new Date(started.getTime() + 15 * 60_000)
-    expect(calcCraftSkipCoin(standard, finish, half)).toBe(300)
-    // 1 ms left still rounds up to 1 coin, never 0.
-    expect(calcCraftSkipCoin(standard, finish, new Date(finish.getTime() - 1))).toBe(1)
-    expect(calcCraftSkipCoin(standard, finish, finish)).toBe(0)
-    expect(calcCraftSkipCoin(standard, finish, new Date(finish.getTime() + 60_000))).toBe(0)
-  })
-
-  it('never charges more than the full price, even if the clock is before the start', () => {
-    expect(calcCraftSkipCoin(standard, finish, new Date(started.getTime() - 3_600_000))).toBe(600)
+    expect(craftFinishAt(standard, NOW).getTime() - NOW.getTime()).toBe(30 * 60_000)
   })
 })
 

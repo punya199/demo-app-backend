@@ -24,6 +24,7 @@ import { EquipmentItemEntity } from '../db/entities/equipment-item.entity'
 import { EquipmentLogEntity } from '../db/entities/equipment-log.entity'
 import { CraftJobEntity } from '../db/entities/craft-job.entity'
 import { CraftPityEntity } from '../db/entities/craft-pity.entity'
+import { PlayerFurnitureEntity } from '../db/entities/player-furniture.entity'
 import { DailyQuestProgressEntity } from '../db/entities/daily-quest-progress.entity'
 import { InventoryItemEntity } from '../db/entities/inventory-item.entity'
 import { LedgerItemEntity } from '../db/entities/ledger-item.entity'
@@ -81,6 +82,7 @@ export const entities = [
   PassiveAllocationEntity,
   CraftJobEntity,
   CraftPityEntity,
+  PlayerFurnitureEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

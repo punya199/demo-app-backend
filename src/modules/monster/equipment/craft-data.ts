@@ -34,8 +34,6 @@ export const CRAFT_STEPS: CraftStep[] = ['epic_legendary', 'legendary_mythic']
 export const CRAFT_CATALYST_CHANCE = 0.15
 // This many failures in a row (per player and step): the next Catalyst try always succeeds.
 export const CRAFT_PITY_AFTER_FAILS = 8
-// Skipping the wait costs this many times the recipe's coin, pro rata to the time left.
-export const CRAFT_SKIP_COIN_MULTIPLIER = 2
 
 // Adventure wins: chance and amount of an essence matching the area's element.
 export const CRAFT_ADVENTURE_ESSENCE = { chance: 0.06, min: 1, max: 2 }
@@ -111,13 +109,6 @@ const MINUTE_MS = 60_000
 
 export const craftFinishAt = (recipe: ICraftRecipe, startedAt: Date) =>
   new Date(startedAt.getTime() + recipe.minutes * MINUTE_MS)
-
-// Coin to skip the rest of the wait: ceil(2 x coin x time left / total time); nothing left = free.
-export const calcCraftSkipCoin = (recipe: ICraftRecipe, finishAt: Date, now: Date): number => {
-  const total = recipe.minutes * MINUTE_MS
-  const left = Math.min(total, finishAt.getTime() - now.getTime())
-  return left <= 0 ? 0 : Math.ceil((CRAFT_SKIP_COIN_MULTIPLIER * recipe.coin * left) / total)
-}
 
 export interface ICraftGradeResult {
   grade: EnumEquipmentGrade
@@ -219,7 +210,6 @@ export interface ICraftQueueView {
   startedAt: string
   finishAt: string
   status: 'running' | 'ready'
-  skipCoin: number
 }
 
 export interface ICraftOverview {
@@ -275,7 +265,6 @@ export const buildCraftOverview = (input: {
             startedAt: job.startedAt.toISOString(),
             finishAt: job.finishAt.toISOString(),
             status: ready ? 'ready' : 'running',
-            skipCoin: calcCraftSkipCoin(queueRecipe, job.finishAt, now),
           }
         : null,
     catalyst: {

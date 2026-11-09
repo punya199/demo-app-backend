@@ -174,44 +174,6 @@ describe('CraftService.start', () => {
   })
 })
 
-describe('CraftService.skip', () => {
-  it('rejects without a job or with an unknown recipe', async () => {
-    const { service, etm } = setup()
-    await expect(service.skip(USER)).rejects.toThrow(
-      new NotFoundException('There is no craft in the queue')
-    )
-    etm.findOne.mockResolvedValue(job({ recipeId: 'gone' }))
-    await expect(service.skip(USER)).rejects.toThrow(
-      new NotFoundException('There is no craft in the queue')
-    )
-  })
-
-  it('charges the skip price and finishes the job now', async () => {
-    const { service, etm, walletService } = setup()
-    etm.findOne.mockResolvedValue(
-      job({ finishAt: new Date(NOW.getTime() + recipe.minutes * 60_000) })
-    )
-    await service.skip(USER)
-    expect(walletService.change).toHaveBeenCalledWith(
-      USER,
-      EnumWalletCurrency.COIN,
-      -recipe.coin * 2,
-      EnumWalletTransactionReason.CRAFT_SKIP,
-      'job-1',
-      expect.anything()
-    )
-    expect(etm.update).toHaveBeenCalledWith(CraftJobEntity, { id: 'job-1' }, { finishAt: NOW })
-  })
-
-  it('does nothing for a job that is already finished', async () => {
-    const { service, etm, walletService } = setup()
-    etm.findOne.mockResolvedValue(job())
-    await service.skip(USER)
-    expect(walletService.change).not.toHaveBeenCalled()
-    expect(etm.update).not.toHaveBeenCalled()
-  })
-})
-
 describe('CraftService.claim', () => {
   const prepare = (jobRow: unknown = job(), updateResult: unknown = { affected: 1 }) => {
     const ctx = setup()
@@ -327,7 +289,6 @@ describe('CraftController', () => {
     const svc = {
       getOverview: jest.fn().mockResolvedValue('overview'),
       start: jest.fn().mockResolvedValue('start'),
-      skip: jest.fn().mockResolvedValue('skip'),
       claim: jest.fn().mockResolvedValue('claim'),
     }
     const controller = new CraftController(svc as never)
@@ -337,7 +298,6 @@ describe('CraftController', () => {
       'start'
     )
     expect(svc.start).toHaveBeenCalledWith(USER, 'r', true)
-    expect(await controller.skip(user)).toBe('skip')
     expect(await controller.claim(user)).toBe('claim')
     expect(svc.claim).toHaveBeenCalledWith(USER)
   })
