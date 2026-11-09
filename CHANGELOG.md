@@ -1,3 +1,10 @@
+## [1.49.1](https://github.com/punya199/demo-app-backend/compare/v1.49.0...v1.49.1) (2026-11-09)
+
+
+### Fix
+
+* accept weekly season keys in PvP claim and leaderboard (#42) ([db16d04](https://github.com/punya199/demo-app-backend/commit/db16d043101811666b1d66e651222f2e162c6f18)), closes [#42](https://github.com/punya199/demo-app-backend/issues/42)
+
 # [1.49.0](https://github.com/punya199/demo-app-backend/compare/v1.48.0...v1.49.0) (2026-11-08)
 
 
