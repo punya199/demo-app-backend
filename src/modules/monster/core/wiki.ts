@@ -23,6 +23,7 @@ import {
   MAX_BUFF_UPTIME,
   MAX_RESIST,
   SKILL_DELAY_TICKS,
+  SKILL_TIER_PCT,
 } from '../arena/arena-rules'
 import { ADVENTURE_AREAS, FIRST_CLEAR_MULTIPLIER } from '../adventure/adventure-data'
 import {
@@ -225,6 +226,9 @@ export const buildWiki = () => ({
     timeLimitSec: ARENA_MAX_TICKS / ARENA_TICK,
     // Forms that fight with skills (babies and eggs only attack normally).
     skilledStages: SKILLED_STAGES,
+    // Skill strength by the stage of the form that carries the skill, percent (damage, heal, shield,
+    // status length, passive values), wherever it is equipped. Fused forms have their own skill.
+    skillTierPct: SKILL_TIER_PCT,
     // After a cast every skill waits this long (self skills half of it), on top of its own cooldown.
     skillDelaySec: SKILL_DELAY_TICKS / ARENA_TICK,
     defenseK: ARENA_DEFENSE_K,

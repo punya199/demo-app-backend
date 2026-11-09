@@ -1,5 +1,5 @@
 import { ARENA_TUNING } from '../arena-data'
-import { MAX_BUFF_UPTIME } from '../arena-rules'
+import { MAX_BUFF_UPTIME, skillTierPct } from '../arena-rules'
 import { ArenaLine, IArenaPassive, IArenaSkill } from '../arena-types'
 import { ARENA_SKILL_BY_ID } from './constants'
 
@@ -29,20 +29,23 @@ const scalePassive = (p: IArenaPassive, pow: number): IArenaPassive => {
   return out
 }
 
-// A skill with the balance tuning applied (cooldown and strength multipliers in percent).
+// A skill with the balance tuning and its stage tier applied (cooldown and strength multipliers in
+// percent). The tier (SKILL_TIER_PCT) multiplies the tuned strength, so skills of one stage stay as
+// balanced against each other as the tuning left them.
 export const tunedSkill = (skill: IArenaSkill, tuning: Tuning = ARENA_TUNING): IArenaSkill => {
-  const t = tuning[skill.id]
+  const tier = skill.slot === 'dodge' ? 100 : skillTierPct(skill.src)
+  const t = tuning[skill.id] ?? (tier !== 100 ? {} : undefined)
   if (!t) {
     return skill
   }
-  const pow = t.pow ?? 100
+  const pow = Math.round(((t.pow ?? 100) * tier) / 100)
   const out: IArenaSkill = { ...skill }
   if (t.cd) out.cd = Math.round(skill.cd * t.cd) / 100
   if (skill.power) out.power = Math.round((skill.power * pow) / 100)
   if (skill.heal) out.heal = Math.round((skill.heal * pow) / 100)
   if (skill.shield) out.shield = Math.round((skill.shield * pow) / 100)
   // Strength also stretches status durations (and regen per second).
-  const dur = t.dur ?? pow
+  const dur = t.dur !== undefined ? Math.round((t.dur * tier) / 100) : pow
   if (skill.fx && dur !== 100) {
     out.fx = skill.fx.map(e => ({
       ...e,

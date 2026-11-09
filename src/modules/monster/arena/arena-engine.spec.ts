@@ -3,8 +3,15 @@ import { ADVENTURE_AREAS } from '../adventure/adventure-data'
 import { IFighterEffects } from '../battle/battle-stats'
 import { NO_EQUIPMENT_BONUS } from '../equipment/equipment-data'
 import { createEgg } from '../core/monster-engine'
-import { ARENA_SKILLS, ARENA_STAGES } from './arena-data'
-import { ARENA_SKILL_BY_ID, canEquipArenaSkill, simulateArena } from './arena-engine'
+import { FUSED_FORMS, fusedSpeciesId } from '../core/species-data'
+import { ARENA_SKILLS, ARENA_STAGES, ARENA_TUNING } from './arena-data'
+import {
+  ARENA_SKILL_BY_ID,
+  canEquipArenaSkill,
+  getArenaSkill,
+  simulateArena,
+  tunedSkill,
+} from './arena-engine'
 import {
   arenaEnemyOf,
   arenaInnateOf,
@@ -18,6 +25,7 @@ import {
   ARENA_LAST_STAND_BELOW,
   ARENA_SHIELD_REFRESH_SEC,
   LINE_EVA,
+  skillTierPct,
 } from './arena-rules'
 import { IArenaFighterSpec, IArenaPassive } from './arena-types'
 
@@ -272,7 +280,7 @@ describe('arena skills in the game', () => {
     expect(ids.sort()).toEqual(['dg_step', 'flame_tail', 'n_breath'].sort())
   })
 
-  it('gives skills from Adult up only, and a fused form its base line Ultimate skill', () => {
+  it('gives skills from Adult up only, and a fused form its own skill', () => {
     expect(arenaInnateOf(pet(EnumMonsterLine.FLAME, 'baby2', EnumMonsterStage.BABY_2))).toBeNull()
     expect(arenaInnateOf(pet(EnumMonsterLine.FLAME, 'adultGood', EnumMonsterStage.ADULT))).toBe(
       'flame_tail'
@@ -283,7 +291,39 @@ describe('arena skills in the game', () => {
         line: EnumMonsterLine.TIDE,
         stage: EnumMonsterStage.FUSED,
       })
-    ).toBe('tide_trident')
+    ).toBe('fz_flame_tide')
+    expect(
+      arenaInnateOf({
+        speciesId: 'fused_tide_tide',
+        line: EnumMonsterLine.TIDE,
+        stage: EnumMonsterStage.FUSED,
+      })
+    ).toBe('fz_tide_tide')
+  })
+
+  it('gives every Fused form its own skill', () => {
+    for (const [a, b] of FUSED_FORMS) {
+      const id = fusedSpeciesId(a, b)
+      expect(arenaInnateOf({ speciesId: id, line: a, stage: EnumMonsterStage.FUSED })).toBe(
+        `fz_${id.slice('fused_'.length)}`
+      )
+    }
+  })
+
+  it('scales skill strength by the stage of the form that carries it', () => {
+    const at = (id: string) => getArenaSkill(id)
+    const raw = (id: string) => ARENA_SKILL_BY_ID[id]
+    const pow = (id: string) => ARENA_TUNING[id]?.pow ?? 100
+    const expected = (id: string, tier: number) =>
+      Math.round((raw(id).power! * Math.round((pow(id) * tier) / 100)) / 100)
+    expect(at('n_whip').power).toBe(expected('n_whip', 75))
+    expect(at('flame_tail').power).toBe(expected('flame_tail', 100))
+    expect(at('flame_claw').power).toBe(expected('flame_claw', 120))
+    expect(at('flame_sun').power).toBe(expected('flame_sun', 140))
+    expect(at('fz_flame_flame').power).toBe(expected('fz_flame_flame', 160))
+    // dodges and enemy skills keep their numbers
+    expect(at('dg_step')).toEqual(tunedSkill(raw('dg_step')))
+    expect(skillTierPct('enemy')).toBe(100)
   })
 
   it('drops loadout picks that are no longer legal', () => {
@@ -339,8 +379,10 @@ describe('arena skills in the game', () => {
   })
 
   it('has a source species for every player skill', () => {
-    for (const skill of ARENA_SKILLS) expect(skill.src).toMatch(/^[a-z]+_[A-Za-z0-9]+$/)
+    for (const skill of ARENA_SKILLS)
+      expect(skill.src).toMatch(/^([a-z]+_[A-Za-z0-9]+|fused_[a-z]+_[a-z]+)$/)
   })
 })
 
-const PINNED = { winner: 1, ticks: 659, checksum: '35b053ce' }
+// Re-pinned on purpose 2026-11-09: the skill tiers (SKILL_TIER_PCT) change skill strength.
+const PINNED = { winner: 1, ticks: 625, checksum: 'ff9a0fcb' }

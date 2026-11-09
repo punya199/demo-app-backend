@@ -18,6 +18,13 @@ describe('buildWiki arena rules', () => {
   it('publishes who fights with skills and the shared skill delay', () => {
     const { arena } = buildWiki()
     expect(arena.skilledStages).toEqual(SKILLED_STAGES)
+    expect(arena.skillTierPct).toEqual({
+      baby2: 75,
+      adult: 100,
+      perfect: 120,
+      ultimate: 140,
+      fused: 160,
+    })
     expect(arena.skillDelaySec * ARENA_TICK).toBe(SKILL_DELAY_TICKS)
   })
 

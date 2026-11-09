@@ -17,3 +17,11 @@ node gen-ts.js                 # regenerate src/modules/monster/arena/arena-data
 Change numbers in `data.js` (skills, statuses, stages), re-tune, then regenerate. Don't hand-edit
 `arena-data.ts`: every value there came out of these runs. If you change the engine, change both
 `engine.js` and `arena-engine.ts` the same way, and update the pinned fight in the spec on purpose.
+
+**Drift (2026-11-09): don't run `gen-ts.js` any more.** `arena-data.ts` now has hand-made parts that
+`data.js` lacks: the skill renames for the pixel art, the world boss's third skill, the raid bosses'
+own skill copies, and the 21 Fused-form skills (`fz_*`). Regenerating would drop them. Edit
+`arena-data.ts` directly and copy only new `adv:<stage>` k values across (as was done for the skill
+tiers). The skill tiers (`SKILL_TIER_PCT` in `arena-rules.ts`) are in both engines (`tierOf` in
+`engine.js`); never re-run `balance.js tune2` with them on, because it would tune the tiers away
+(it pushes every skill towards a 50% win rate across stages).

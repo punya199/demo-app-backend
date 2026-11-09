@@ -38,8 +38,8 @@ export interface IWorldBoss {
 }
 
 // One boss a week, in this order, starting over after the last. One boss per equipment set, so the
-// exchange shop covers every set. HP is tuned in world-boss-data.spec.ts so ten top players kill
-// each in 6-7 days. Abilities are never a share of max HP: the pool is far bigger than a pet's HP.
+// exchange shop covers every set. HP is tuned in world-boss-data.spec.ts so ten top players kill each
+// in 6-7 days (retuned 2026-11-09 for the skill tiers). Abilities are never a share of max HP: the pool is far bigger than a pet's HP.
 export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
   {
     id: 'storm_golem',
@@ -48,7 +48,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'stormbison',
     setId: 'swift_thunder',
     element: EnumMonsterLine.LIGHTNING,
-    hp: 335_000,
+    hp: 355_000,
     skillName: 'พายุสายฟ้า',
     ability: 'โจมตีเร็ว',
     arenaSkills: ['e_sparktail', 'e_thunderdive', 'wb_quake_lightning'],
@@ -62,7 +62,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'boss',
     setId: 'blazing',
     element: EnumMonsterLine.FLAME,
-    hp: 345_000,
+    hp: 370_000,
     skillName: 'ลมหายใจเพลิง',
     ability: 'ตีธรรมดาติดเผาไหม้',
     arenaSkills: ['e_volcano', 'e_dragontail', 'wb_quake_flame'],
@@ -77,7 +77,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'turtle',
     setId: 'tidal_guard',
     element: EnumMonsterLine.TIDE,
-    hp: 340_000,
+    hp: 400_000,
     skillName: 'คลื่นยักษ์',
     ability: 'ลดดาเมจที่ได้รับ',
     arenaSkills: ['e_whirlpool', 'e_shellram', 'wb_quake_tide'],
@@ -91,7 +91,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'pangolin',
     setId: 'deep_root',
     element: EnumMonsterLine.EARTH,
-    hp: 455_000,
+    hp: 475_000,
     skillName: 'รากพันธนาการ',
     ability: 'สะท้อนดาเมจกลับ',
     arenaSkills: ['e_crystalburst', 'e_rockcharge', 'wb_quake_earth'],
@@ -105,7 +105,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'holyele',
     setId: 'radiant',
     element: EnumMonsterLine.HOLY,
-    hp: 320_000,
+    hp: 335_000,
     skillName: 'แสงชำระ',
     ability: 'ตีธรรมดาทำให้ใบ้ ใช้สกิลไม่ได้',
     arenaSkills: ['e_fan', 'e_plumes', 'wb_quake_holy'],
@@ -119,7 +119,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'darksoul',
     setId: 'nightfall',
     element: EnumMonsterLine.DARK,
-    hp: 445_000,
+    hp: 500_000,
     skillName: 'ราตรีกาล',
     ability: 'ตีธรรมดาลดเกราะเป้าหมาย',
     arenaSkills: ['e_orebite', 'e_cliffram', 'wb_quake_dark'],
@@ -134,7 +134,7 @@ export const WORLD_BOSS_ROTATION: IWorldBoss[] = [
     sprite: 'sboss',
     setId: 'shadow_veil',
     element: EnumMonsterLine.SHADOW,
-    hp: 410_000,
+    hp: 450_000,
     skillName: 'ม่านมายา',
     ability: 'หลบเก่งและหายตัวได้',
     arenaSkills: ['e_stormclaw', 'e_mistbite', 'wb_quake_shadow'],
