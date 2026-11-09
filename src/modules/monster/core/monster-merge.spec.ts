@@ -10,6 +10,7 @@ import {
   MERGE_POWER_MULTIPLIER,
 } from './monster-rules'
 import {
+  FUSED_FORMS,
   fusedSpeciesId,
   getSpecies,
   NATURAL_LINES,
@@ -43,10 +44,10 @@ describe('assertCanMerge', () => {
     expect(() => assertCanMerge(a, alt)).not.toThrow()
   })
 
-  it('refuses two different lines while cross-line merging is off', () => {
-    expect(CROSS_LINE_MERGE_ENABLED).toBe(false)
-    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.TIDE))).toThrow('same line')
-    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.LEAF))).toThrow('same line')
+  it('accepts two different lines now that cross-line merging is on', () => {
+    expect(CROSS_LINE_MERGE_ENABLED).toBe(true)
+    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.TIDE))).not.toThrow()
+    expect(() => assertMergeOpen(a, ultimate(EnumMonsterLine.LEAF))).not.toThrow()
     expect(() => assertMergeOpen(a, b)).not.toThrow()
   })
 
@@ -173,5 +174,16 @@ describe('fused life span', () => {
 
     const nearSeven = { ...fused, ageMinutes: FUSED_LIFESPAN_MINUTES - 1, fullness: 4, strength: 4 }
     expect(tick(nearSeven, new Date(NOW.getTime() + 60_000)).state.diedAt).not.toBeNull()
+  })
+})
+
+describe('hybrid fused forms', () => {
+  it('gives every fused form its own pixel-art sprite, cross-line ones included', () => {
+    const sprites = FUSED_FORMS.map(([a, b]) => getSpecies(fusedSpeciesId(a, b)).sprite)
+    expect(sprites.every(Boolean)).toBe(true)
+    expect(new Set(sprites).size).toBe(FUSED_FORMS.length)
+    expect(getSpecies(fusedSpeciesId(EnumMonsterLine.TIDE, EnumMonsterLine.FLAME)).sprite).toBe(
+      'hy_steam'
+    )
   })
 })

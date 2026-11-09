@@ -187,6 +187,23 @@ const AWAKENED_SPRITES: Record<EnumMonsterLine, string> = {
   [EnumMonsterLine.SHADOW]: 'sfused',
 }
 
+// The cross-line fused forms' pixel-art sprites (demo-app sprites/lines/hybrid.ts), by fusedKey pair.
+const HYBRID_SPRITES: Record<string, string> = {
+  'flame+tide': 'hy_steam',
+  'leaf+tide': 'hy_swamp',
+  'flame+leaf': 'hy_wildfire',
+  'earth+flame': 'hy_volcano',
+  'flame+lightning': 'hy_firestorm',
+  'earth+tide': 'hy_mudotter',
+  'lightning+tide': 'hy_stormray',
+  'earth+leaf': 'hy_stoneforest',
+  'leaf+lightning': 'hy_leafstorm',
+  'earth+lightning': 'hy_thunderram',
+  'dark+holy': 'hy_balance',
+  'dark+shadow': 'hy_nightowl',
+  'holy+shadow': 'hy_judge',
+}
+
 const SKILL_POWER = 1.6
 const ULTIMATE_SKILL_POWER = 1.8
 
@@ -427,7 +444,7 @@ const fusedSpecies = (): ISpecies[] =>
       stage: EnumMonsterStage.FUSED,
       name,
       emoji,
-      sprite: a === b ? AWAKENED_SPRITES[a] : null,
+      sprite: a === b ? AWAKENED_SPRITES[a] : HYBRID_SPRITES[fusedKey(a, b)],
       minWeight: 40,
       stats: scaleStats(STAGE_BASE_STATS[EnumMonsterStage.FUSED], {
         hp: lean('hp'),
