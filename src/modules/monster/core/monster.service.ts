@@ -47,6 +47,7 @@ import {
   dexView,
   evolutionPathOf,
   releaseGear,
+  releasePet,
   SELECTED_ORDER,
   toMonsterView,
   withRuleErrors,
@@ -216,7 +217,7 @@ export class MonsterService {
             selectedAt: null,
           })
         )
-        await releaseGear(parent.id, etm)
+        await releasePet(parent.id, etm)
         await etm.save(MonsterLogEntity, {
           monsterId: parent.id,
           type: EnumMonsterLogType.DEATH,
@@ -261,7 +262,7 @@ export class MonsterService {
           selectedAt: null,
         })
       )
-      await releaseGear(monster.id, etm)
+      await releasePet(monster.id, etm)
       await etm.save(MonsterLogEntity, {
         monsterId: monster.id,
         type: EnumMonsterLogType.DEATH,
@@ -428,7 +429,7 @@ export class MonsterService {
     const isDying = !monster.diedAt && !!state.diedAt
     const saved = await etm.save(MonsterEntity, Object.assign(monster, state))
     if (isDying) {
-      await releaseGear(saved.id, etm)
+      await releasePet(saved.id, etm)
     }
     return saved
   }

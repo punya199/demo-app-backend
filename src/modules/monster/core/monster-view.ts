@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common'
 import { EntityManager } from 'typeorm'
 import { EquipmentItemEntity } from '../../../db/entities/equipment-item.entity'
+import { PvpDefenseEntity } from '../../../db/entities/pvp-defense.entity'
+import { SupportUnitEntity } from '../../../db/entities/support-unit.entity'
 import { EnumMonsterStage, MonsterEntity } from '../../../db/entities/monster.entity'
 import { MonsterLogEntity } from '../../../db/entities/monster-log.entity'
 import { toFighter } from '../battle/battle-stats'
@@ -17,6 +19,14 @@ export const releaseGear = (monsterId: string, etm: EntityManager) =>
     { monsterId, equipped: true },
     { equipped: false, monsterId: null }
   )
+
+// A pet that dies, merges or goes home also leaves the arena and the friends' rental list: the
+// frozen copies taken from it are removed. Copies of other living pets stay.
+export const releasePet = async (monsterId: string, etm: EntityManager) => {
+  await releaseGear(monsterId, etm)
+  await etm.softDelete(PvpDefenseEntity, { monsterId })
+  await etm.softDelete(SupportUnitEntity, { monsterId })
+}
 
 export const SELECTED_ORDER = {
   selectedAt: { direction: 'DESC', nulls: 'LAST' },

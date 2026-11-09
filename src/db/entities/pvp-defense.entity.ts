@@ -17,6 +17,10 @@ export class PvpDefenseEntity extends BaseModelEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string
 
+  // The pet this copy was taken from; it is removed when that pet dies, merges or goes home. Null on older rows.
+  @Column({ name: 'monster_id', type: 'uuid', nullable: true })
+  monsterId: string | null
+
   // IFighter from battle-stats.ts
   @Column({ name: 'fighter', type: 'jsonb' })
   fighter: Record<string, unknown>
