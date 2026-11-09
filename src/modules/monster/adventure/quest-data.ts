@@ -1,6 +1,8 @@
 import { EnumMonsterLogType } from '../../../db/entities/monster-log.entity'
 import { IMonsterEvent } from '../core/monster-engine'
 import { getWeek } from '../boss/world-boss-data'
+import { CRAFT_CATALYST_ID, CRAFT_RARE_ID } from '../equipment/craft-materials'
+import { EnumShopItemId } from '../equipment/shop-data'
 
 export enum EnumQuestId {
   FEED = 'feed',
@@ -180,38 +182,107 @@ export const countQuestProgress = (events: IMonsterEvent[]) => {
   return counts
 }
 
-// Daily login: one claim per Thai day, stored as a `daily_login` row in daily_quest_progress. A
-// claim on consecutive days extends the streak; the reward repeats every 7 days. Skipping a day
-// restarts at day 1.
+// Monthly login board: 28 slots. A claim fills the next slot, so the slot is the number of claims
+// this month (missing a day only delays the rest, it never resets progress). One claim per Thai day,
+// stored as a `daily_login` row in daily_quest_progress; the board starts over on the 1st.
 export const LOGIN_QUEST_ID = 'daily_login'
-export const LOGIN_REWARDS = [
-  { coin: 50, gem: 0 },
-  { coin: 50, gem: 0 },
-  { coin: 60, gem: 1 },
-  { coin: 60, gem: 0 },
-  { coin: 80, gem: 1 },
-  { coin: 80, gem: 0 },
-  { coin: 150, gem: 5 },
+export const LOGIN_BOARD_SIZE = 28
+
+export type LoginBox = 'S' | 'M' | 'L'
+export interface ILoginReward {
+  coin: number
+  gem: number
+  items?: { itemId: string; qty: number }[]
+  // Rolled when claimed (see rollLoginBox) and opened on the spot.
+  box?: LoginBox
+  // A costume id from the catalog, granted once (a repeat month is skipped, not paid twice).
+  costume?: string
+}
+
+export const LOGIN_COSTUME_ID = 'loginCrown'
+const MEAT = EnumShopItemId.PREMIUM_MEAT
+const PROTEIN = EnumShopItemId.PROTEIN
+const TEA = EnumShopItemId.DIET_TEA
+const MANUAL = EnumShopItemId.TRAINING_MANUAL
+const r = (coin: number, gem = 0, extra: Partial<ILoginReward> = {}): ILoginReward => ({
+  coin,
+  gem,
+  ...extra,
+})
+const item = (itemId: string, qty = 1) => ({ items: [{ itemId, qty }] })
+
+export const LOGIN_REWARDS: ILoginReward[] = [
+  r(50), // 1
+  r(50), // 2
+  r(50, 0, item(MEAT, 2)), // 3
+  r(60), // 4
+  r(60, 2), // 5
+  r(40, 0, item(MANUAL)), // 6
+  r(0, 0, { box: 'S' }), // 7
+  r(60), // 8
+  r(70), // 9
+  r(70, 3, item(MEAT)), // 10
+  r(70), // 11
+  r(80, 0, item(PROTEIN)), // 12
+  r(80), // 13
+  r(80, 5), // 14
+  r(80, 0, item(PROTEIN, 2)), // 15
+  r(80), // 16
+  r(90, 0, item(MANUAL)), // 17
+  r(90, 3), // 18
+  r(90), // 19
+  r(0, 0, { box: 'M' }), // 20
+  r(100, 5), // 21
+  r(100), // 22
+  r(100, 0, item(TEA, 2)), // 23
+  r(100, 0, item(MANUAL, 2)), // 24
+  r(100, 3), // 25
+  r(100), // 26
+  r(0, 0, { box: 'M' }), // 27
+  r(0, 10, { box: 'L', costume: LOGIN_COSTUME_ID }), // 28
 ]
+
+const between = (rng: () => number, min: number, max: number) =>
+  min + Math.floor(rng() * (max - min + 1))
+
+// What a mystery box pays. S is mostly coin or a snack, M adds gems and a small catalyst chance, L
+// always pays gems and may drop a rare craft core.
+export const rollLoginBox = (size: LoginBox, rng: () => number = Math.random): ILoginReward => {
+  const roll = rng() * 100
+  if (size === 'S') {
+    if (roll < 60) return r(between(rng, 50, 150))
+    if (roll < 75) return r(0, 0, item(MEAT, 2))
+    if (roll < 90) return r(0, 0, item(PROTEIN, 2))
+    return r(0, 0, item(MANUAL))
+  }
+  if (size === 'M') {
+    if (roll < 50) return r(between(rng, 100, 250))
+    if (roll < 80) return r(0, between(rng, 1, 3))
+    if (roll < 95) return r(0, 0, item(MANUAL, 2))
+    return r(0, 0, item(CRAFT_CATALYST_ID))
+  }
+  const rare = rng() < 0.25 ? [{ itemId: CRAFT_RARE_ID.forge, qty: 1 }] : undefined
+  return r(between(rng, 150, 300), between(rng, 3, 6), rare ? { items: rare } : {})
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000
 export const addDays = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)
 
-// `claimed` holds Thai dates (YYYY-MM-DD) with a login claim. `day` is the 1-based position in the
-// 7-day cycle of today's reward (already claimed or next to claim).
+// `claimed` holds this month's Thai dates (YYYY-MM-DD) with a login claim. `day` is the 1-based slot
+// of today's reward (already claimed or next to claim); `reward` is null once all 28 are claimed.
 export const getLoginStatus = (claimed: Set<string>, today: string) => {
   const claimedToday = claimed.has(today)
-  let run = 0
-  for (
-    let date = claimedToday ? today : addDays(today, -1);
-    claimed.has(date);
-    date = addDays(date, -1)
-  ) {
-    run++
+  const count = claimed.size
+  const day = claimedToday ? count : count + 1
+  return {
+    claimedToday,
+    claimed: count,
+    day,
+    reward: LOGIN_REWARDS[day - 1] ?? null,
   }
-  const day = claimedToday
-    ? ((run - 1) % LOGIN_REWARDS.length) + 1
-    : (run % LOGIN_REWARDS.length) + 1
-  return { claimedToday, streak: run, day, reward: LOGIN_REWARDS[day - 1] }
 }
+
+// First and last possible date key of the month holding `date`, for a string range query.
+export const getLoginMonthRange = (date: string) =>
+  [`${date.slice(0, 7)}-01`, `${date.slice(0, 7)}-31`] as const

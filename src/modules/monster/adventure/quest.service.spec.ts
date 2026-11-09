@@ -10,6 +10,7 @@ import {
   DAILY_QUESTS,
   EnumQuestId,
   LOGIN_QUEST_ID,
+  LOGIN_BOARD_SIZE,
   LOGIN_REWARDS,
   WEEKLY_QUESTS,
 } from './quest-data'
@@ -69,7 +70,7 @@ describe('QuestService', () => {
     manager: etm,
     transaction: jest.fn(async (cb: (e: typeof etm) => unknown) => cb(etm)),
   }
-  const walletService = { change: jest.fn() }
+  const walletService = { change: jest.fn(), getBalance: jest.fn() }
   let service: QuestService
   // Rows returned by the two getQuests lookups: [quest rows, login rows].
   let questRows: unknown[]
@@ -84,6 +85,7 @@ describe('QuestService', () => {
       opts.where.questId === LOGIN_QUEST_ID ? loginRows : questRows
     )
     walletService.change.mockImplementation(async (_u, currency) => ({ last: currency }))
+    walletService.getBalance.mockResolvedValue({ coin: 7, gem: 8, raidToken: 0 })
     service = new QuestService(dataSource as never, walletService as never)
   })
   afterEach(() => jest.useRealTimers())
@@ -117,7 +119,7 @@ describe('QuestService', () => {
       expect(res.weekly.resetsAt).toEqual(new Date('2026-05-03T17:00:00Z'))
       expect(res.weekly.quests).toHaveLength(WEEKLY_QUESTS.length)
       expect(res.weekly.quests.find(q => q.id === EnumQuestId.WEEKLY_FEED)?.progress).toBe(9)
-      expect(res.login).toMatchObject({ claimedToday: true, streak: 1, day: 1 })
+      expect(res.login).toMatchObject({ claimedToday: true, claimed: 1, day: 1 })
       expect(res.login.rewards).toBe(LOGIN_REWARDS)
     })
   })
@@ -195,7 +197,7 @@ describe('QuestService', () => {
       expect(walletService.change).not.toHaveBeenCalled()
     })
 
-    it('pays day 1 in coins only', async () => {
+    it('pays slot 1 in coins only', async () => {
       etm.query.mockResolvedValue([{ id: 'row' }])
       const res = await service.claimLogin('u1')
       expect(etm.query.mock.calls[0][1]).toEqual(['u1', TODAY, LOGIN_QUEST_ID, NOW])
@@ -208,32 +210,42 @@ describe('QuestService', () => {
         TODAY,
         etm
       )
-      expect(res.wallet).toEqual({ last: EnumWalletCurrency.COIN })
+      expect(res.wallet).toEqual({ coin: 7, gem: 8, raidToken: 0 })
+      expect(res.granted).toEqual({ coin: 50, gem: 0, items: [], costume: null })
     })
 
-    it('pays coins and a gem on the third day of a streak', async () => {
-      loginRows = [{ questDate: '2026-04-30' }, { questDate: '2026-04-29' }]
+    it('fills the next slot even after a gap: slot 5 pays coins and 2 gems', async () => {
+      // Four claims earlier this month, none yesterday.
+      loginRows = ['01', '02', '03', '05'].map(d => ({ questDate: `2026-04-${d}` }))
       etm.query.mockResolvedValue([{ id: 'row' }])
       const res = await service.claimLogin('u1')
-      expect(walletService.change).toHaveBeenNthCalledWith(
-        1,
-        'u1',
-        EnumWalletCurrency.COIN,
-        60,
-        EnumWalletTransactionReason.LOGIN_REWARD,
-        TODAY,
-        etm
-      )
+      expect(res.granted).toMatchObject({ coin: 60, gem: 2 })
       expect(walletService.change).toHaveBeenNthCalledWith(
         2,
         'u1',
         EnumWalletCurrency.GEM,
-        1,
+        2,
         EnumWalletTransactionReason.LOGIN_REWARD,
         TODAY,
         etm
       )
-      expect(res.wallet).toEqual({ last: EnumWalletCurrency.GEM })
+    })
+
+    it('puts an item slot in the bag', async () => {
+      loginRows = ['01', '02'].map(d => ({ questDate: `2026-04-${d}` }))
+      etm.query.mockResolvedValue([{ id: 'row' }])
+      await service.claimLogin('u1')
+      expect(etm.query.mock.calls[1][1]).toEqual(['u1', 'premium_meat', 2])
+    })
+
+    it('rejects a claim once all 28 slots are taken', async () => {
+      loginRows = Array.from({ length: LOGIN_BOARD_SIZE }, (_, i) => ({
+        questDate: `2026-04-${i}`,
+      }))
+      await expect(service.claimLogin('u1')).rejects.toThrow(
+        new BadRequestException('All login rewards this month were already claimed')
+      )
+      expect(etm.query).not.toHaveBeenCalled()
     })
   })
 })
