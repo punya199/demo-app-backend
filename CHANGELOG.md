@@ -1,3 +1,10 @@
+# [1.51.0](https://github.com/punya199/demo-app-backend/compare/v1.50.0...v1.51.0) (2026-11-09)
+
+
+### Update
+
+* scale skill strength by the stage of its form and give every Fused form its own skill ([aa5a08a](https://github.com/punya199/demo-app-backend/commit/aa5a08a040ce30b8ad37291184fd7bd04cc6a139))
+
 # [1.50.0](https://github.com/punya199/demo-app-backend/compare/v1.49.2...v1.50.0) (2026-11-09)
 
 
