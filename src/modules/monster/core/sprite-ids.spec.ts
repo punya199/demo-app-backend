@@ -16,8 +16,9 @@ describe('sprite ids', () => {
   ].filter((id): id is string => !!id)
 
   it('gives every form, enemy, boss and the dummy its own sprite', () => {
-    // 8 lines x 11 forms, 8 awakened forms, 20 adventure enemies, 6 raid and 7 world bosses, the dummy
-    expect(all).toHaveLength(8 * 11 + 8 + 20 + 6 + 7 + 1)
+    // 8 lines x 11 forms, 8 awakened and 13 cross-line fused forms, 20 adventure enemies, 6 raid and
+    // 7 world bosses, the dummy
+    expect(all).toHaveLength(8 * 11 + 8 + 13 + 20 + 6 + 7 + 1)
     expect(new Set(all).size).toBe(all.length)
   })
 
@@ -30,15 +31,15 @@ describe('sprite ids', () => {
     expect(getSpecies('dark_ultimateAlt').sprite).toBe('batemperor')
   })
 
-  it('draws only the awakened fused forms; hybrids of two lines have no art yet', () => {
+  it('draws every fused form: awakened ones and the hybrids of two lines', () => {
     expect(getSpecies(fusedSpeciesId(EnumMonsterLine.EARTH, EnumMonsterLine.EARTH)).sprite).toBe(
       'efused'
     )
-    expect(
-      getSpecies(fusedSpeciesId(EnumMonsterLine.FLAME, EnumMonsterLine.TIDE)).sprite
-    ).toBeNull()
+    expect(getSpecies(fusedSpeciesId(EnumMonsterLine.FLAME, EnumMonsterLine.TIDE)).sprite).toBe(
+      'hy_steam'
+    )
     const fused = SPECIES.filter(species => species.stage === EnumMonsterStage.FUSED)
-    expect(fused.filter(species => species.sprite)).toHaveLength(8)
+    expect(fused.filter(species => species.sprite)).toHaveLength(21)
   })
 
   it('looks up a stored species id', () => {
