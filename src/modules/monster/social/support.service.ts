@@ -62,12 +62,19 @@ export class SupportService {
       )
       await this.profileService.ensureProfile(userId, etm)
       await etm.query(
-        `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at", "arena_fighter")
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO "support_units" ("user_id", "fighter", "stage", "set_at", "arena_fighter", "monster_id")
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT ("user_id") WHERE deleted_at IS NULL
          DO UPDATE SET "fighter" = $2, "stage" = $3, "set_at" = $4, "arena_fighter" = $5,
-                       "updated_at" = now()`,
-        [userId, JSON.stringify(fighter), monster.stage, now, JSON.stringify(arenaFighter)]
+                       "monster_id" = $6, "updated_at" = now()`,
+        [
+          userId,
+          JSON.stringify(fighter),
+          monster.stage,
+          now,
+          JSON.stringify(arenaFighter),
+          monster.id,
+        ]
       )
     })
     return this.getMine(userId)

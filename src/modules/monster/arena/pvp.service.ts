@@ -141,11 +141,12 @@ export class PvpService {
       }
       await etm.query(
         `INSERT INTO "pvp_defenses"
-           ("user_id", "fighter", "stage", "species_id", "set_at", "arena_fighter")
-         VALUES ($1, $2, $3, $4, $5, $6)
+           ("user_id", "fighter", "stage", "species_id", "set_at", "arena_fighter", "monster_id")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT ("user_id") WHERE deleted_at IS NULL
          DO UPDATE SET "fighter" = $2, "stage" = $3, "species_id" = $4,
-                       "set_at" = $5, "arena_fighter" = $6, "updated_at" = now()`,
+                       "set_at" = $5, "arena_fighter" = $6, "monster_id" = $7,
+                       "updated_at" = now()`,
         [
           userId,
           JSON.stringify(fighter),
@@ -153,6 +154,7 @@ export class PvpService {
           monster.speciesId,
           now,
           JSON.stringify(arenaFighter),
+          monster.id,
         ]
       )
       // Joining the ladder: defenders show up in the standings even before their first fight.

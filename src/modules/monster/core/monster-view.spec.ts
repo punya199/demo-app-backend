@@ -8,10 +8,13 @@ import {
   dexView,
   evolutionPathOf,
   releaseGear,
+  releasePet,
   SELECTED_ORDER,
   toMonsterView,
   withRuleErrors,
 } from './monster-view'
+import { PvpDefenseEntity } from '../../../db/entities/pvp-defense.entity'
+import { SupportUnitEntity } from '../../../db/entities/support-unit.entity'
 import { fakeEtm, NOW, pet } from './core-test-helpers'
 
 describe('withRuleErrors', () => {
@@ -47,6 +50,20 @@ describe('releaseGear', () => {
       { monsterId: 'pet-1', equipped: true },
       { equipped: false, monsterId: null }
     )
+  })
+})
+
+describe('releasePet', () => {
+  it('unequips the gear and removes only the arena and rental copies taken from that pet', async () => {
+    const etm = fakeEtm()
+    await releasePet('pet-1', etm)
+    expect(etm.update).toHaveBeenCalledWith(
+      EquipmentItemEntity,
+      { monsterId: 'pet-1', equipped: true },
+      { equipped: false, monsterId: null }
+    )
+    expect(etm.softDelete).toHaveBeenCalledWith(PvpDefenseEntity, { monsterId: 'pet-1' })
+    expect(etm.softDelete).toHaveBeenCalledWith(SupportUnitEntity, { monsterId: 'pet-1' })
   })
 })
 
