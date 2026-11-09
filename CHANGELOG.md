@@ -1,3 +1,10 @@
+# [1.52.0](https://github.com/punya199/demo-app-backend/compare/v1.51.0...v1.52.0) (2026-11-09)
+
+
+### New
+
+* open cross-element merging and give the 13 hybrid fused forms their pixel art ([10347b4](https://github.com/punya199/demo-app-backend/commit/10347b4d67e966ea4efbfc848af1356f049321a3))
+
 # [1.51.0](https://github.com/punya199/demo-app-backend/compare/v1.50.0...v1.51.0) (2026-11-09)
 
 
