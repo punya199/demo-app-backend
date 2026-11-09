@@ -21,12 +21,6 @@ export class CraftController {
   }
 
   @AuthUser()
-  @Post('skip')
-  async skip(@ReqUser() user: IAppJwtPayload) {
-    return this.craftService.skip(user['user-id'])
-  }
-
-  @AuthUser()
   @Post('claim')
   async claim(@ReqUser() user: IAppJwtPayload) {
     return this.craftService.claim(user['user-id'])

@@ -1,11 +1,6 @@
 // Runs against a real, throwaway Postgres via `yarn test:integration` (see int-test-helpers.ts).
 import dataSource from '../../../config/database.config'
-import {
-  calcCraftSkipCoin,
-  CRAFT_PITY_AFTER_FAILS,
-  findCraftRecipe,
-  ICraftOverview,
-} from './craft-data'
+import { CRAFT_PITY_AFTER_FAILS, findCraftRecipe, ICraftOverview } from './craft-data'
 import { CRAFT_CATALYST_ID } from './craft-materials'
 import { CraftService } from './craft.service'
 import { EnumEquipmentGrade } from './equipment-data'
@@ -138,7 +133,7 @@ describe('craft queue', () => {
     await craft.start(userId, standard.id, false)
     await expect(craft.claim(userId)).rejects.toThrow(/not finished/)
     await finishNow(userId)
-    expect((await craft.getOverview(userId)).queue).toMatchObject({ status: 'ready', skipCoin: 0 })
+    expect((await craft.getOverview(userId)).queue).toMatchObject({ status: 'ready' })
 
     const results = await Promise.allSettled([craft.claim(userId), craft.claim(userId)])
     expect(succeeded(results)).toBe(1)
@@ -185,43 +180,6 @@ describe('craft queue', () => {
     const result = await craft.claim(userId)
     expect(result.item.templateId).toBe('bulwark_weapon')
     expect(await bagCount(userId)).toBe(EQUIPMENT_CAPACITY)
-  })
-
-  it('skips the wait for ceil(2 x coin x left / total) and then claims', async () => {
-    const userId = await readyUser()
-    const started = await craft.start(userId, standard.id, false)
-    const price = started.queue!.skipCoin
-    expect(price).toBeGreaterThan(0)
-    expect(price).toBeLessThanOrEqual(2 * standard.coin)
-    const after = await craft.skip(userId)
-    expect(after.queue).toMatchObject({ status: 'ready', skipCoin: 0 })
-    const spent = 100_000 - standard.coin - after.coin
-    // The clock moved a little between the quote and the skip, so the price can only be lower.
-    expect(spent).toBeGreaterThan(0)
-    expect(spent).toBeLessThanOrEqual(price)
-    const [{ amount, reason }] = await sql<{ amount: number; reason: string }[]>(
-      `SELECT amount, reason FROM wallet_transactions WHERE user_id=$1 AND reason='craft_skip'`,
-      [userId]
-    )
-    expect(reason).toBe('craft_skip')
-    expect(amount).toBe(-spent)
-    // Skipping a finished craft is free and changes nothing.
-    expect((await craft.skip(userId)).coin).toBe(after.coin)
-    await expect(craft.claim(userId)).resolves.toBeDefined()
-    await expect(craft.skip(userId)).rejects.toThrow(/no craft/i)
-  })
-
-  it('refuses a skip it cannot pay for, and leaves the timer alone', async () => {
-    const userId = await readyUser()
-    await craft.start(userId, standard.id, false)
-    await give(userId, 0)
-    await expect(craft.skip(userId)).rejects.toThrow(/coins/)
-    const queue = (await craft.getOverview(userId)).queue!
-    expect(queue.status).toBe('running')
-    const recipe = findCraftRecipe(queue.recipeId)!
-    expect(calcCraftSkipCoin(recipe, new Date(queue.finishAt), new Date(queue.startedAt))).toBe(
-      2 * standard.coin
-    )
   })
 
   it('uses the Catalyst and guarantees the upgrade after 8 failures in a row', async () => {

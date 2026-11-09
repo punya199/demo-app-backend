@@ -87,11 +87,17 @@ import {
   CRAFT_CATALYST_CHANCE,
   CRAFT_PITY_AFTER_FAILS,
   CRAFT_RAID_CORES,
-  CRAFT_SKIP_COIN_MULTIPLIER,
   CRAFT_TIERS,
   CRAFT_WORLD_BOSS,
 } from '../equipment/craft-data'
 import { CRAFT_MATERIAL_DEFS } from '../equipment/craft-materials'
+import {
+  FURNITURE_BONUS,
+  FURNITURE_BUY_COIN,
+  FURNITURE_CRAFT,
+  FURNITURE_ESSENCE,
+  FURNITURE_KINDS,
+} from '../farm/farm-data'
 import { CRAFT_SETS } from '../equipment/craft-sets'
 import {
   ENHANCE_STEPS,
@@ -387,7 +393,6 @@ export const buildWiki = () => ({
     tiers: CRAFT_TIERS,
     catalystChance: CRAFT_CATALYST_CHANCE,
     pityAfterFails: CRAFT_PITY_AFTER_FAILS,
-    skipCoinMultiplier: CRAFT_SKIP_COIN_MULTIPLIER,
     adventureEssence: { ...CRAFT_ADVENTURE_ESSENCE, areaElement: CRAFT_AREA_ELEMENT },
     raidCores: CRAFT_RAID_CORES,
     worldBoss: CRAFT_WORLD_BOSS,
@@ -401,6 +406,16 @@ export const buildWiki = () => ({
       essence: set.essence,
       rare: set.rare,
       unique: set.unique ?? null,
+    })),
+  },
+  // The Farm: one piece of furniture per care timer, bonus on that timer's minutes by tier.
+  farm: {
+    buyCoin: FURNITURE_BUY_COIN,
+    craft: FURNITURE_CRAFT,
+    furniture: FURNITURE_KINDS.map(kind => ({
+      kind,
+      bonus: FURNITURE_BONUS[kind],
+      essence: FURNITURE_ESSENCE[kind],
     })),
   },
   // Boss screens and the training dummy: DEF cut shown next to boss stats uses the arena formula.

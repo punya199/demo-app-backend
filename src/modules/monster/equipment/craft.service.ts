@@ -15,7 +15,6 @@ import {
 import { WalletService } from '../../wallet/wallet.service'
 import {
   buildCraftOverview,
-  calcCraftSkipCoin,
   craftFinishAt,
   findCraftRecipe,
   ICraftRecipe,
@@ -124,31 +123,6 @@ export class CraftService {
     if ((await this.walletService.getBalance(userId, etm)).coin < recipe.coin) {
       throw new BadRequestException('Not enough coins')
     }
-  }
-
-  async skip(userId: string) {
-    const now = new Date()
-    return this.dataSource.transaction(async etm => {
-      const job = await this.findActiveJob(userId, etm, true)
-      const recipe = job && findCraftRecipe(job.recipeId)
-      if (!job || !recipe) {
-        throw new NotFoundException('There is no craft in the queue')
-      }
-      const price = calcCraftSkipCoin(recipe, job.finishAt, now)
-      // Already finished: nothing to pay and nothing to change.
-      if (price > 0) {
-        await this.walletService.change(
-          userId,
-          EnumWalletCurrency.COIN,
-          -price,
-          EnumWalletTransactionReason.CRAFT_SKIP,
-          job.id,
-          etm
-        )
-        await etm.update(CraftJobEntity, { id: job.id }, { finishAt: now })
-      }
-      return this.getOverview(userId, etm)
-    })
   }
 
   async claim(userId: string) {

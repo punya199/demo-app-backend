@@ -21,11 +21,11 @@ import {
   ONLINE_EVOLUTION_MULTIPLIER,
   ONLINE_GRACE_MINUTES,
   ONLINE_STAMINA_REGEN_MULTIPLIER,
-  SICK_AFTER_HUNGRY_MINUTES,
   STAGE_DURATION_MINUTES,
   STAGE_RATES,
   STAMINA_REGEN_PER_HOUR,
 } from '../monster-rules'
+import { IFarmEffects, NO_FARM_EFFECTS } from '../../farm/farm-data'
 import { eggSpeciesId, getSpecies, IEvolutionRule, ISpecies } from '../species-data'
 import { IMonsterEvent, IMonsterState, IMonsterStepResult } from './types'
 
@@ -163,7 +163,8 @@ const step = (
   at: Date,
   events: IMonsterEvent[],
   fullnessDrain: number,
-  poopRate: number
+  poopRate: number,
+  farm: IFarmEffects
 ) => {
   const isOnline = isOnlineAt(state, at)
   const duration = STAGE_DURATION_MINUTES[state.stage]
@@ -190,7 +191,10 @@ const step = (
   const rates = STAGE_RATES[state.stage]
   const careDrain = isExploring(state) ? EXPEDITION_DRAIN_MULTIPLIER : 1
   state.fullness = Math.max(0, state.fullness - (careDrain * fullnessDrain) / rates.fullnessMinutes)
-  state.strength = Math.max(0, state.strength - careDrain / rates.strengthMinutes)
+  state.strength = Math.max(
+    0,
+    state.strength - (careDrain * farm.strengthDrain) / rates.strengthMinutes
+  )
 
   // Nothing piles up at home while the monster is away.
   if (!isExploring(state)) {
@@ -211,7 +215,7 @@ const step = (
     if (isNeglectMistakeMinute(state.hungryMinutes)) {
       addCareMistake(state, 'hungry', at, events)
     }
-    if (state.hungryMinutes === SICK_AFTER_HUNGRY_MINUTES) {
+    if (state.hungryMinutes === farm.sickAfterHungryMinutes) {
       becomeSick(state, 'hungry', at, events)
     }
     if (state.hungryMinutes >= DEATH_AFTER_HUNGRY_MINUTES) {
@@ -267,12 +271,14 @@ const step = (
 // Replays every whole minute between lastTickAt and now. Leftover seconds stay pending for the
 // next tick, so calling this often never loses or double-counts time.
 // `fullnessDrain` scales how fast fullness drops (trainer passives and gear lower it); `poopRate`
-// scales how often it poops (gear can lower it).
+// scales how often it poops (gear can lower it). `farm` carries the Farm furniture effects (drain,
+// poop rate and the hunger-to-sick threshold, see farm-data.ts); it defaults to no furniture.
 export const tick = (
   current: IMonsterState,
   now: Date,
   fullnessDrain = 1,
-  poopRate = 1
+  poopRate = 1,
+  farm: IFarmEffects = NO_FARM_EFFECTS
 ): IMonsterStepResult => {
   const state = { ...current }
   const events: IMonsterEvent[] = []
@@ -288,7 +294,7 @@ export const tick = (
   const start = state.lastTickAt.getTime()
   const simulated = Math.min(elapsedMinutes, MAX_TICK_MINUTES)
   for (let minute = 1; minute <= simulated && !state.diedAt; minute++) {
-    step(state, new Date(start + minute * MINUTE_MS), events, fullnessDrain, poopRate)
+    step(state, new Date(start + minute * MINUTE_MS), events, fullnessDrain, poopRate, farm)
   }
   state.lastTickAt = new Date(start + elapsedMinutes * MINUTE_MS)
   return { state, events }

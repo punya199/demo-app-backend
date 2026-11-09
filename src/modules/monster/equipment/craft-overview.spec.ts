@@ -48,7 +48,7 @@ describe('buildCraftOverview', () => {
     expect(short.recipes[0].canStart).toBe(false)
   })
 
-  it('reports a running job with its skip price and blocks starting another', () => {
+  it('reports a running job and blocks starting another', () => {
     const job = {
       recipeId: recipe.id,
       useCatalyst: true,
@@ -68,13 +68,12 @@ describe('buildCraftOverview', () => {
       startedAt: NOW.toISOString(),
       finishAt: job.finishAt.toISOString(),
       status: 'running',
-      skipCoin: recipe.coin * 2,
     })
     expect(overview.recipes[0].canStart).toBe(false)
     expect(overview.catalyst.pity.find(row => row.step === recipe.step)!.fails).toBe(3)
   })
 
-  it('reports a finished job as ready and free to skip', () => {
+  it('reports a finished job as ready', () => {
     const job = { recipeId: recipe.id, useCatalyst: false, startedAt: NOW, finishAt: NOW }
     const overview = buildCraftOverview({
       job,
@@ -83,7 +82,7 @@ describe('buildCraftOverview', () => {
       coin: 0,
       now: NOW,
     })
-    expect(overview.queue).toMatchObject({ status: 'ready', skipCoin: 0 })
+    expect(overview.queue).toMatchObject({ status: 'ready' })
   })
 
   it('hides the queue when the job names a recipe that no longer exists', () => {
