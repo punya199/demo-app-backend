@@ -75,6 +75,26 @@ export const DODGE_BASE = 50
 export const DODGE_MAX = 75
 export const DODGE_MIN_CD = 4
 export const MAX_BUFF_UPTIME = 50
+// Skill strength by the stage of the form that carries the skill (2026-11-09): a Baby 2 skill is weaker
+// than an Adult's, a Fused form's the strongest. Percent, multiplied into the skill's tuned strength
+// (damage, heal, shield, status length, passive values), wherever the skill is equipped. Dodges and
+// enemy skills are not scaled.
+export const SKILL_TIER_PCT = {
+  baby2: 75,
+  adult: 100,
+  perfect: 120,
+  ultimate: 140,
+  fused: 160,
+} as const
+export const skillTierPct = (src: string) => {
+  if (src.startsWith('fused_')) return SKILL_TIER_PCT.fused
+  const form = src.split('_')[1] ?? ''
+  if (form.startsWith('baby2')) return SKILL_TIER_PCT.baby2
+  if (form.startsWith('adult')) return SKILL_TIER_PCT.adult
+  if (form.startsWith('perfect')) return SKILL_TIER_PCT.perfect
+  if (form.startsWith('ultimate')) return SKILL_TIER_PCT.ultimate
+  return 100
+}
 export const SKILL_DELAY_TICKS = 27
 export const MAX_RESIST = 70
 export const CRIT_CHANCE = 15

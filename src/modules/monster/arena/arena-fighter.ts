@@ -66,13 +66,18 @@ const INNATE_BY_SPECIES = new Map(
   ])
 )
 
-// The form's own skill. A fused form uses its base line's Ultimate skill.
+// The form's own skill. A fused form has its own (fz_*, Fused tier); one without falls back to its
+// base line's Ultimate skill.
 export const arenaInnateOf = (state: Pick<IMonsterState, 'speciesId' | 'line' | 'stage'>) => {
   if (!hasArenaSkills(state.stage)) {
     return null
   }
   if (state.stage === EnumMonsterStage.FUSED) {
-    return INNATE_BY_SPECIES.get(`${state.line}_ultimate`) ?? null
+    return (
+      INNATE_BY_SPECIES.get(state.speciesId) ??
+      INNATE_BY_SPECIES.get(`${state.line}_ultimate`) ??
+      null
+    )
   }
   return INNATE_BY_SPECIES.get(state.speciesId) ?? null
 }

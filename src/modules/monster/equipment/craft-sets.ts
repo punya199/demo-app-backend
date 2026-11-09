@@ -112,7 +112,7 @@ export const CRAFT_SETS: ICraftSet[] = [
     rare: 'rune',
     bonuses: [
       { pieces: 2, pct: { spd: 0.06 } },
-      { pieces: 4, effect: { evasion: 0.1, retort: 0.5 } },
+      { pieces: 4, effect: { evasion: 0.12, retort: 0.5 } },
     ],
   },
   {
@@ -141,7 +141,7 @@ export const CRAFT_SETS: ICraftSet[] = [
     unique: 'storm_sigil',
     bonuses: [
       { pieces: 2, pct: { spd: 0.08 } },
-      { pieces: 4, effect: { slowOnBasic: 40, stunOnBasic: 14, cooldownCut: 0.2 } },
+      { pieces: 4, effect: { slowOnBasic: 40, stunOnBasic: 14, cooldownCut: 0.17 } },
     ],
   },
   {
@@ -169,7 +169,7 @@ export const CRAFT_SETS: ICraftSet[] = [
     rare: 'rune',
     bonuses: [
       { pieces: 2, pct: { hp: 0.08 } },
-      { pieces: 4, effect: { shieldRefresh: 0.05, curseOnBasic: 25 } },
+      { pieces: 4, effect: { shieldRefresh: 0.05, curseOnBasic: 20 } },
     ],
   },
   {

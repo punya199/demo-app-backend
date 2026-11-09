@@ -359,13 +359,13 @@
   "k": 65
  },
  "adv:coast_1": {
-  "k": 186
+  "k": 188
  },
  "adv:coast_2": {
-  "k": 167
+  "k": 163
  },
  "adv:coast_3": {
-  "k": 151
+  "k": 148
  },
  "adv:coast_boss": {
   "k": 101
@@ -374,36 +374,36 @@
   "k": 200
  },
  "adv:volcano_2": {
-  "k": 178
+  "k": 177
  },
  "adv:volcano_3": {
-  "k": 151
+  "k": 152
  },
  "adv:volcano_boss": {
-  "k": 112
+  "k": 113
  },
  "adv:cavern_1": {
-  "k": 299
+  "k": 300
  },
  "adv:cavern_2": {
-  "k": 275
+  "k": 277
  },
  "adv:cavern_3": {
-  "k": 266
+  "k": 272
  },
  "adv:cavern_boss": {
-  "k": 193
+  "k": 196
  },
  "adv:storm_1": {
-  "k": 297
+  "k": 302
  },
  "adv:storm_2": {
-  "k": 285
+  "k": 290
  },
  "adv:storm_3": {
-  "k": 254
+  "k": 259
  },
  "adv:storm_boss": {
-  "k": 159
+  "k": 161
  }
 }

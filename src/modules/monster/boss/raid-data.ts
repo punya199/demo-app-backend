@@ -26,6 +26,8 @@ export interface IRaidDifficulty {
   // set, both on the arena and on the turn engine. Raid fights ignore the element triangle, otherwise a boss would be unbeatable for the
   // line it counters and every line could only collect two of the three sets.
   strength: number
+  // The arena boss's strength when it differs from `strength` (the turn engine's).
+  arenaStrength?: number
   // Grade of the set piece a win drops.
   grade: EnumEquipmentGrade
   // Raid tokens for a win (doubled for the first win of each boss and difficulty).
@@ -55,6 +57,9 @@ export const RAID_DIFFICULTIES: IRaidDifficulty[] = [
     difficulty: EnumRaidDifficulty.NIGHTMARE,
     minStage: EnumMonsterStage.ULTIMATE,
     strength: 1.26,
+    // The skill tiers (2026-11-09) made Ultimate skills x1.4, so the arena boss is retuned to the 30%
+    // target; the turn engine (old fights only) keeps `strength`.
+    arenaStrength: 1.32,
     grade: EnumEquipmentGrade.LEGENDARY,
     raidTokens: 8,
     refineStone: EnumMaterialId.REFINE_LEGENDARY,
@@ -158,7 +163,13 @@ export const getRaidBossArena = (
   boss: IRaidBoss,
   difficulty: IRaidDifficulty
 ): IArenaFighterSpec => ({
-  ...arenaBossSpec(getRaidBossFighter(boss, difficulty), boss.arenaSkills),
+  ...arenaBossSpec(
+    getRaidBossFighter(boss, {
+      ...difficulty,
+      strength: difficulty.arenaStrength ?? difficulty.strength,
+    }),
+    boss.arenaSkills
+  ),
   sprite: boss.sprite,
 })
 

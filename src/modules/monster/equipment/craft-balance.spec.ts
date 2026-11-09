@@ -22,11 +22,13 @@ import {
 //   standard sets 47-53%, flagship sets 47-55%, care sets (caretaker, wayfarer) 40-50%
 //
 // Measured win rates (average against the 7 boss sets) with the numbers in craft-sets.ts.
-// Gate seeds 1-2 (224 fights per set), which is what this spec runs:
-//   bulwark 48.2, evergreen 50.4, executioner 49.6, marksman 49.6, tempo 52.7, mirage 47.3,
-//   venomancer 49.6, tempest_binder 48.2, thornmail 49.6, aegis_oracle 51.8,
-//   caretaker 45.1 (care), wayfarer 46.4 (care)
-// Out-of-sample check, seeds 11-20 and 41-50 (1120 fights per set per run); a set moves about
+// Gate seeds 1-2 (224 fights per set), which is what this spec runs (after the skill tiers,
+// 2026-11-09, which moved mirage, tempest_binder and aegis_oracle out of the band and their 4-piece
+// numbers were retuned):
+//   bulwark 47.3, evergreen 50.4, executioner 51.8, marksman 50.9, tempo 49.6, mirage 47.8,
+//   venomancer 49.1, tempest_binder 53.1, thornmail 52.2, aegis_oracle 52.7,
+//   caretaker 43.8 (care), wayfarer 45.1 (care)
+// Out-of-sample check (before the skill tiers), seeds 11-20 and 41-50 (1120 fights per set per run); a set moves about
 // +-3 points with the seeds, so the pinned seeds are not cherry-picked:
 //   bulwark 52.3/49.0, evergreen 53.4/50.7, executioner 50.1/47.9, marksman 47.3/48.8,
 //   tempo 48.6/47.2, mirage 51.0/50.0, venomancer 50.4/49.1, tempest_binder 52.2/56.1,

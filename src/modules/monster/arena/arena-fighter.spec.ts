@@ -59,10 +59,12 @@ describe('element and innate lookup', () => {
     expect(innateOf(FLAME, BABY_1)).toBeNull()
   })
 
-  it('gives an adult its own innate, a fused form its line ultimate innate, else null', () => {
+  it('gives an adult its own innate, a fused form its own skill (else its line ultimate), else null', () => {
     expect(innateOf(FLAME, ADULT)).toEqual(expect.any(String))
     const fused = { ...stateOf(FLAME, FUSED), speciesId: 'fused_flame_tide' }
-    expect(arenaInnateOf(fused)).toBe(innateOf(FLAME, ULTIMATE))
+    expect(arenaInnateOf(fused)).toBe('fz_flame_tide')
+    const unknown = { ...stateOf(FLAME, FUSED), speciesId: 'fused_nobody' }
+    expect(arenaInnateOf(unknown)).toBe(innateOf(FLAME, ULTIMATE))
     expect(arenaInnateOf({ ...stateOf(FLAME, ADULT), speciesId: 'nobody' })).toBeNull()
     expect(arenaInnateOf({ ...stateOf(FLAME, FUSED), line: 'void' as never })).toBeNull()
   })

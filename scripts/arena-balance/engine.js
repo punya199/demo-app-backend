@@ -90,10 +90,20 @@ const ARENA_ENGINE = (() => {
   }
 
   // A skill with this run's tuning applied (cooldown and strength multipliers in percent).
+  // Skill strength by the stage of the form that carries it (SKILL_TIER_PCT in arena-rules.ts).
+  const TIER = { baby2: 75, adult: 100, perfect: 120, ultimate: 140, fused: 160 }
+  const tierOf = (skill) => {
+    if (skill.slot === 'dodge') return 100
+    if (skill.src.startsWith('fused_')) return TIER.fused
+    const form = skill.src.split('_')[1] || ''
+    const k = Object.keys(TIER).find((s) => form.startsWith(s))
+    return k ? TIER[k] : 100
+  }
   const tuned = (skill, tuning) => {
-    const t = tuning && tuning[skill.id]
+    const tier = tierOf(skill)
+    const t = (tuning && tuning[skill.id]) || (tier !== 100 ? {} : null)
     if (!t) return skill
-    const pow = t.pow ?? 100
+    const pow = Math.round(((t.pow ?? 100) * tier) / 100)
     const out = { ...skill }
     if (t.cd) out.cd = Math.round(skill.cd * t.cd) / 100
     if (skill.power) out.power = Math.round((skill.power * pow) / 100)
@@ -101,7 +111,7 @@ const ARENA_ENGINE = (() => {
     if (skill.shield) out.shield = Math.round((skill.shield * pow) / 100)
     // Strength also stretches status durations (and regen per second), so a skill whose value is
     // its status can be tuned the same way as a damage skill.
-    const dur = t.dur ?? pow
+    const dur = t.dur !== undefined ? Math.round((t.dur * tier) / 100) : pow
     if (skill.fx && dur !== 100) out.fx = skill.fx.map((e) => ({ ...e, dur: Math.round(e.dur * dur) / 100, ...(e.val && { val: Math.round(e.val * dur) / 100 }) }))
     // A self buff is capped at MAX_BUFF_UPTIME of the cooldown; strength the cap cuts off goes into
     // the buff's size instead (up to x2.5), so strong buffs get bigger, not permanent.
