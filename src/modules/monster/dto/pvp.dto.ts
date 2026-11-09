@@ -1,7 +1,8 @@
 import { IsNotEmpty, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator'
 import { PVP_DISPLAY_NAME_MAX, PVP_DISPLAY_NAME_MIN } from '../core/monster-rules'
 
-const SEASON_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
+// Weekly seasons are YYYY-Www (Thai ISO week); old rows keep their YYYY-MM key and may still have unclaimed rewards.
+const SEASON_PATTERN = /^\d{4}-(0[1-9]|1[0-2]|W(0[1-9]|[1-4]\d|5[0-3]))$/
 
 export class SetDefenseBodyDto {
   // The arena name other players see. No markup characters; the page renders it as plain text too.
