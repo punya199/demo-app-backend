@@ -1,3 +1,10 @@
+## [1.49.2](https://github.com/punya199/demo-app-backend/compare/v1.49.1...v1.49.2) (2026-11-09)
+
+
+### Fix
+
+* remove arena defense and support unit when their pet dies, merges or goes home ([33e07fd](https://github.com/punya199/demo-app-backend/commit/33e07fdc0cba9dc450926b83e7de99b1023e670c))
+
 ## [1.49.1](https://github.com/punya199/demo-app-backend/compare/v1.49.0...v1.49.1) (2026-11-09)
 
 
