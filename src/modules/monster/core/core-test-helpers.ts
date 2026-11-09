@@ -23,6 +23,7 @@ export const fakeEtm = () => {
     find: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn().mockResolvedValue(undefined),
+    softDelete: jest.fn().mockResolvedValue(undefined),
     query: jest.fn(),
     save: jest.fn((_entity: unknown, value: unknown) => Promise.resolve(value)),
     createQueryBuilder: jest.fn(),
