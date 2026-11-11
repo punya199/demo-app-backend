@@ -20,7 +20,7 @@ export class ShopService {
     return { items: SHOP_ITEMS }
   }
 
-  async buy(userId: string, itemId: string) {
+  async buy(userId: string, itemId: string, quantity = 1) {
     const item = findShopItem(itemId)
     if (!item) {
       throw new NotFoundException('Item not found')
@@ -31,12 +31,12 @@ export class ShopService {
       const wallet = await this.walletService.change(
         userId,
         EnumWalletCurrency.COIN,
-        -item.price,
+        -item.price * quantity,
         EnumWalletTransactionReason.SHOP_PURCHASE,
         item.id,
         etm
       )
-      await this.inventoryService.add(userId, item.id, etm)
+      await this.inventoryService.add(userId, item.id, etm, quantity)
       return { wallet, ...(await this.inventoryService.getInventory(userId, etm)) }
     })
   }

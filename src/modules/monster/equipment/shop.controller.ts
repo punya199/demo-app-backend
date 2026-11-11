@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common'
 import { AuthUser, ReqUser } from '../../auth/auth.decorator'
 import { IAppJwtPayload } from '../../auth/auth.interface'
 import { BuyMaterialBodyDto } from '../dto/equipment.dto'
-import { ShopBuyBodyDto } from '../dto/shop-buy.dto'
+import { ShopBuyBodyDto, ShopQuantityBodyDto } from '../dto/shop-buy.dto'
 import { EquipmentService } from './equipment.service'
 import { ShopService } from './shop.service'
 
@@ -22,18 +22,18 @@ export class ShopController {
   @AuthUser()
   @Post('buy')
   async buy(@Body() body: ShopBuyBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.shopService.buy(user['user-id'], body.itemId)
+    return this.shopService.buy(user['user-id'], body.itemId, body.quantity)
   }
 
   @AuthUser()
   @Post('buy-box')
-  async buyBox(@ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.buyBox(user['user-id'])
+  async buyBox(@Body() body: ShopQuantityBodyDto, @ReqUser() user: IAppJwtPayload) {
+    return this.equipmentService.buyBox(user['user-id'], body.quantity)
   }
 
   @AuthUser()
   @Post('buy-material')
   async buyMaterial(@Body() body: BuyMaterialBodyDto, @ReqUser() user: IAppJwtPayload) {
-    return this.equipmentService.buyMaterial(user['user-id'], body.itemId)
+    return this.equipmentService.buyMaterial(user['user-id'], body.itemId, body.quantity)
   }
 }

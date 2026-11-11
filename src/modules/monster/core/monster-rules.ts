@@ -130,6 +130,8 @@ export const EQUIPMENT_CAPACITY = 200
 export const EQUIPMENT_BOX_PRICE = 120
 // Chance (out of 10,000) that a manual adventure win drops a piece; auto-battle and expeditions never do.
 export const EQUIPMENT_DROP_CHANCE_BP = 800
+// Shop: the x10 button buys this many at once, at the single price each (no discount).
+export const SHOP_BUY_MAX_QUANTITY = 10
 // Shop materials.
 export const ENHANCE_STONE_PRICE = 40
 

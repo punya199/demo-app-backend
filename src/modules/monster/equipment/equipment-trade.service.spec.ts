@@ -63,7 +63,30 @@ describe('EquipmentService.buyBox', () => {
       expect.anything()
     )
     expect(result.wallet).toEqual({ coin: 7 })
-    expect(result.item.id).toBe('row-new')
+    expect(result.items.map(item => item.id)).toEqual(['row-new'])
+  })
+
+  it('charges ten times the price and rolls ten pieces for x10', async () => {
+    const { service, walletService } = setup()
+    const result = await service.buyBox(USER, 10)
+    expect(walletService.change).toHaveBeenCalledWith(
+      USER,
+      EnumWalletCurrency.COIN,
+      -EQUIPMENT_BOX_PRICE * 10,
+      EnumWalletTransactionReason.EQUIPMENT_BOX,
+      null,
+      expect.anything()
+    )
+    expect(result.items).toHaveLength(10)
+  })
+
+  it('refuses x10 when the bag has fewer than ten free slots', async () => {
+    const { service, etm, walletService } = setup()
+    etm.count.mockResolvedValue(EQUIPMENT_CAPACITY - 9)
+    await expect(service.buyBox(USER, 10)).rejects.toThrow(
+      new BadRequestException('Equipment bag is full')
+    )
+    expect(walletService.change).not.toHaveBeenCalled()
   })
 })
 
@@ -94,7 +117,8 @@ describe('EquipmentService.buyMaterial', () => {
     expect(inventoryService.add).toHaveBeenCalledWith(
       USER,
       EnumMaterialId.PROTECT_SCROLL,
-      expect.anything()
+      expect.anything(),
+      1
     )
     expect(result).toEqual({ wallet: { coin: 7 }, items: [{ itemId: 'x', quantity: 1 }] })
   })
