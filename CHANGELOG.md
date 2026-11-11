@@ -1,3 +1,14 @@
+# [1.57.0](https://github.com/punya199/demo-app-backend/compare/v1.56.0...v1.57.0) (2026-11-11)
+
+
+### New
+
+* pet market to buy and sell perfect+ pets for gems ([2073a1c](https://github.com/punya199/demo-app-backend/commit/2073a1c09c90c6a8218f5f91564ed1bb691a8b90))
+
+### Update
+
+* fixed market error messages so the app can translate them ([159abe0](https://github.com/punya199/demo-app-backend/commit/159abe0b272aac253a005fd5ceb7f8e82d423baf))
+
 # [1.56.0](https://github.com/punya199/demo-app-backend/compare/v1.55.0...v1.56.0) (2026-11-11)
 
 
