@@ -1,7 +1,7 @@
 import { randomInt } from 'crypto'
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import { QueryFailedError } from 'typeorm'
-import { CraftJobEntity } from '../../../db/entities/craft-job.entity'
+import { CraftJobEntity, EnumCraftJobKind } from '../../../db/entities/craft-job.entity'
 import { CraftPityEntity } from '../../../db/entities/craft-pity.entity'
 import { EnumEquipmentLogType, EquipmentLogEntity } from '../../../db/entities/equipment-log.entity'
 import {
@@ -69,7 +69,9 @@ describe('CraftService.getOverview', () => {
     const overview = await service.getOverview(USER)
     expect(etm.findOne).toHaveBeenCalledWith(
       CraftJobEntity,
-      expect.objectContaining({ where: expect.objectContaining({ userId: USER }) })
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: USER, kind: EnumCraftJobKind.EQUIPMENT }),
+      })
     )
     expect(overview.queue?.status).toBe('running')
     expect(overview.coin).toBe(100_000)
@@ -143,6 +145,7 @@ describe('CraftService.start', () => {
     )
     expect(etm.save).toHaveBeenCalledWith(CraftJobEntity, {
       userId: USER,
+      kind: EnumCraftJobKind.EQUIPMENT,
       recipeId: recipe.id,
       useCatalyst: true,
       startedAt: NOW,

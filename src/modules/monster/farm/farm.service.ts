@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { DataSource, EntityManager, IsNull, QueryFailedError } from 'typeorm'
-import { CraftJobEntity } from '../../../db/entities/craft-job.entity'
+import { CraftJobEntity, EnumCraftJobKind } from '../../../db/entities/craft-job.entity'
 import { PlayerFurnitureEntity } from '../../../db/entities/player-furniture.entity'
 import {
   EnumWalletCurrency,
@@ -57,7 +57,7 @@ export interface IFarmFurnitureView {
 
 export interface IFarmView {
   furniture: IFarmFurnitureView[]
-  // The furniture craft in the queue, if any (the queue is shared with equipment crafts).
+  // The furniture craft in the furniture queue, if any (equipment crafts have their own queue).
   queue: {
     kind: EnumFurnitureKind
     toTier: number
@@ -65,8 +65,6 @@ export interface IFarmView {
     finishAt: string
     status: 'running' | 'ready'
   } | null
-  // True while an equipment craft holds the queue, so a furniture craft cannot start.
-  queueBusy: boolean
   // The timer minutes in effect: fullness and strength drain, poop rate and hunger-to-sick.
   effects: ReturnType<typeof farmEffects>
   coin: number
@@ -85,7 +83,7 @@ export class FarmService {
 
   private findActiveJob(userId: string, etm: EntityManager, lock = false) {
     return etm.findOne(CraftJobEntity, {
-      where: { userId, claimedAt: IsNull() },
+      where: { userId, kind: EnumCraftJobKind.FURNITURE, claimedAt: IsNull() },
       ...(lock && { lock: { mode: 'pessimistic_write' as const } }),
     })
   }
@@ -141,7 +139,6 @@ export class FarmService {
               status: job.finishAt.getTime() <= now.getTime() ? 'ready' : 'running',
             }
           : null,
-      queueBusy: !!job && !jobRecipe,
       effects: farmEffects(tiers),
       coin,
     }
@@ -178,7 +175,7 @@ export class FarmService {
     })
   }
 
-  // Tiers 2 and 3: start a craft in the shared queue (the same one job per player as equipment).
+  // Tiers 2 and 3: start a craft in the furniture queue (one job per player, apart from equipment).
   async startUpgrade(userId: string, kind: EnumFurnitureKind) {
     const now = new Date()
     return this.dataSource.transaction(async etm => {
@@ -209,6 +206,7 @@ export class FarmService {
       try {
         await etm.save(CraftJobEntity, {
           userId,
+          kind: EnumCraftJobKind.FURNITURE,
           recipeId: recipe.id,
           useCatalyst: false,
           startedAt: now,

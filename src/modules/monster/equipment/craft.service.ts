@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { DataSource, EntityManager, IsNull, QueryFailedError } from 'typeorm'
-import { CraftJobEntity } from '../../../db/entities/craft-job.entity'
+import { CraftJobEntity, EnumCraftJobKind } from '../../../db/entities/craft-job.entity'
 import { CraftPityEntity } from '../../../db/entities/craft-pity.entity'
 import { EnumEquipmentLogType, EquipmentLogEntity } from '../../../db/entities/equipment-log.entity'
 import {
@@ -43,7 +43,7 @@ export class CraftService {
 
   private findActiveJob(userId: string, etm: EntityManager, lock = false) {
     return etm.findOne(CraftJobEntity, {
-      where: { userId, claimedAt: IsNull() },
+      where: { userId, kind: EnumCraftJobKind.EQUIPMENT, claimedAt: IsNull() },
       ...(lock && { lock: { mode: 'pessimistic_write' as const } }),
     })
   }
@@ -90,9 +90,10 @@ export class CraftService {
         }
       }
       try {
-        // The unique partial index (one unclaimed job per player) decides a race.
+        // The unique partial index (one unclaimed job per player and kind) decides a race.
         await etm.save(CraftJobEntity, {
           userId,
+          kind: EnumCraftJobKind.EQUIPMENT,
           recipeId: recipe.id,
           useCatalyst,
           startedAt: now,
