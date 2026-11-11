@@ -11,7 +11,13 @@ export const PVP_STAGES = [
   EnumMonsterStage.ULTIMATE,
 ]
 
-export const isPvpStage = (stage: EnumMonsterStage) => PVP_STAGES.includes(stage)
+// A merged Fused pet fights too: it is matched with other Fused defenders only, and until enough
+// exist it meets the Ultimate rivals (the strongest form that has tuned NPCs).
+export const isPvpStage = (stage: EnumMonsterStage) =>
+  PVP_STAGES.includes(stage) || stage === EnumMonsterStage.FUSED
+
+export const npcStageOf = (stage: string) =>
+  stage === (EnumMonsterStage.FUSED as string) ? (EnumMonsterStage.ULTIMATE as string) : stage
 
 export interface IPvpNpc {
   id: string

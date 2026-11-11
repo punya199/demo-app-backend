@@ -122,6 +122,7 @@ import {
   RAID_FIRST_CLEAR_MULTIPLIER,
 } from '../boss/raid-data'
 import { K_ATTACKER, K_DEFENDER, MIN_RATING, START_RATING } from '../arena/elo'
+import { EnumMonsterStage } from '../../../db/entities/monster.entity'
 import { PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from '../arena/pvp-data'
 import { getExpeditionBaseRate } from '../adventure/idle-data'
 import { DAILY_QUESTS, WEEKLY_QUESTS } from '../adventure/quest-data'
@@ -350,7 +351,7 @@ export const buildWiki = () => ({
     rentalOwnerDailyCap: rules.RENTAL_OWNER_DAILY_CAP,
   },
   pvp: {
-    stages: PVP_STAGES,
+    stages: [...PVP_STAGES, EnumMonsterStage.FUSED],
     startRating: START_RATING,
     minRating: MIN_RATING,
     kAttacker: K_ATTACKER,

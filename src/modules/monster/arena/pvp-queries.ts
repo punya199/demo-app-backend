@@ -10,7 +10,7 @@ import { getQuestResetAt } from '../adventure/quest-data'
 import { arenaSpecOfFighter } from './arena-fighter'
 import { IArenaFighterSpec } from './arena-types'
 import { START_RATING } from './elo'
-import { PVP_NPCS } from './pvp-data'
+import { npcStageOf, PVP_NPCS } from './pvp-data'
 import { ILoadout } from '../equipment/costume-data'
 import { IPvpCandidate } from './pvp-matchmaking'
 
@@ -128,7 +128,7 @@ export async function loadCandidates(
     rating: row.rating,
     isNpc: false,
   }))
-  const npcs = PVP_NPCS.filter(npc => (npc.stage as string) === stage).map(npc => ({
+  const npcs = PVP_NPCS.filter(npc => (npc.stage as string) === npcStageOf(stage)).map(npc => ({
     id: npc.id,
     userId: null,
     displayName: npc.fighter.name,
