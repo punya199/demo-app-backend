@@ -144,7 +144,7 @@ describe('pet market', () => {
 
   it('blocks reselling a bought pet during the cooldown, and a buyer at the pet cap', async () => {
     const boughtId = await petOf(buyer)
-    await expect(market.create(buyer, boughtId, 1000)).rejects.toThrow(/resold|between/)
+    await expect(market.create(buyer, boughtId, 1000)).rejects.toThrow(/resold|range/)
     expect(MARKET_MAX_BUYS_PER_DAY).toBeGreaterThan(0)
   })
 })

@@ -170,13 +170,11 @@ export class MarketService {
         where: { sellerId: userId, status: EnumPetListingStatus.ACTIVE },
       })
       if (active >= MARKET_MAX_ACTIVE_LISTINGS) {
-        throw new BadRequestException(
-          `You can have at most ${MARKET_MAX_ACTIVE_LISTINGS} listings at once`
-        )
+        throw new BadRequestException('You have too many active listings')
       }
       const band = priceBand(referenceValue(pet.stage, pet.line, pet.potential))
       if (price < band.min || price > band.max) {
-        throw new BadRequestException(`Price must be between ${band.min} and ${band.max} gems`)
+        throw new BadRequestException('Price is outside the allowed range')
       }
       // Frozen from here: gear goes back to the bag and the arena and support copies are removed.
       await releasePet(pet.id, etm)
@@ -226,9 +224,7 @@ export class MarketService {
         throw new BadRequestException('You can not buy your own monster')
       }
       if ((await this.countBoughtToday(userId, now, etm)) >= MARKET_MAX_BUYS_PER_DAY) {
-        throw new BadRequestException(
-          `You can buy at most ${MARKET_MAX_BUYS_PER_DAY} monsters a day`
-        )
+        throw new BadRequestException('Daily market purchase limit reached')
       }
 
       // Both wallets first, in user-id order, then the buyer's pets: same order as renting.
