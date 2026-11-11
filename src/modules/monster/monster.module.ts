@@ -6,6 +6,7 @@ import { MonsterCoreModule } from './core/core.module'
 import { MonsterEquipmentModule } from './equipment/equipment.module'
 import { MonsterFarmModule } from './farm/farm.module'
 import { MonsterInventoryModule } from './inventory/inventory.module'
+import { MonsterMarketModule } from './market/market.module'
 import { MonsterPassiveModule } from './passive/passive.module'
 import { MonsterSocialModule } from './social/social.module'
 
@@ -21,6 +22,7 @@ import { MonsterSocialModule } from './social/social.module'
     MonsterPassiveModule,
     MonsterSocialModule,
     MonsterFarmModule,
+    MonsterMarketModule,
   ],
 })
 export class MonsterModule {}

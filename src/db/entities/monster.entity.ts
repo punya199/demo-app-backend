@@ -165,6 +165,15 @@ export class MonsterEntity extends BaseModelEntity {
   @Column({ name: 'skill_loadout', type: 'jsonb', nullable: true })
   skillLoadout: { s1: string | null; s2: string | null; dodge: string | null } | null
 
+  // Frozen while a market listing holds it: no ticks, no actions, hidden from the owner's living
+  // pets (see MarketService). Hatch and market purchases still count it against the pet cap.
+  @Column({ name: 'is_listed', type: 'boolean', default: false })
+  isListed: boolean
+
+  // Set when bought on the market: it can not be listed again before this time.
+  @Column({ name: 'market_bound_until', type: 'timestamp with time zone', nullable: true })
+  marketBoundUntil: Date | null
+
   @Column({ name: 'died_at', type: 'timestamp with time zone', nullable: true })
   diedAt: Date | null
 

@@ -22,6 +22,7 @@ export const fakeEtm = () => {
   const etm = {
     find: jest.fn(),
     findOne: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
     update: jest.fn().mockResolvedValue(undefined),
     softDelete: jest.fn().mockResolvedValue(undefined),
     query: jest.fn(),

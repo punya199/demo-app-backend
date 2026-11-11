@@ -91,7 +91,11 @@ export class MonsterService {
     return this.dataSource.transaction(async etm => {
       // Tick first: a monster still marked alive in the DB may have died since it was last read.
       const living = await this.lockAndTickLiving(userId, now, etm)
-      if (living.length >= MAX_LIVING_MONSTERS) {
+      // Pets frozen on the market still count, so a cancelled listing always has room to return.
+      const listed = await etm.count(MonsterEntity, {
+        where: { ownerId: userId, diedAt: IsNull(), isListed: true },
+      })
+      if (living.length + listed >= MAX_LIVING_MONSTERS) {
         throw new BadRequestException(`You can raise at most ${MAX_LIVING_MONSTERS} monsters`)
       }
 
@@ -357,7 +361,7 @@ export class MonsterService {
   // Every living pet, selected one first, without locking or ticking (read-only displays).
   async getLiving(userId: string, etm: EntityManager) {
     return etm.find(MonsterEntity, {
-      where: { ownerId: userId, diedAt: IsNull() },
+      where: { ownerId: userId, diedAt: IsNull(), isListed: false },
       order: SELECTED_ORDER,
     })
   }
@@ -366,7 +370,7 @@ export class MonsterService {
   // read-only displays such as the equipment screen's stat totals.
   async getLatestAlive(userId: string, etm: EntityManager) {
     const monster = await etm.findOne(MonsterEntity, {
-      where: { ownerId: userId, diedAt: IsNull() },
+      where: { ownerId: userId, diedAt: IsNull(), isListed: false },
       order: SELECTED_ORDER,
     })
     return monster && monster.stage !== EnumMonsterStage.EGG ? monster : null
@@ -377,7 +381,7 @@ export class MonsterService {
   // Monsters that died while away are left out (tick() already saved their death).
   async lockAndTickLiving(userId: string, now: Date, etm: EntityManager) {
     const rows = await etm.find(MonsterEntity, {
-      where: { ownerId: userId, diedAt: IsNull() },
+      where: { ownerId: userId, diedAt: IsNull(), isListed: false },
       order: SELECTED_ORDER,
       lock: { mode: 'pessimistic_write' },
     })
@@ -409,7 +413,10 @@ export class MonsterService {
     if (living.length) {
       return living[0]
     }
-    return etm.findOne(MonsterEntity, { where: { ownerId: userId }, order: { bornAt: 'DESC' } })
+    return etm.findOne(MonsterEntity, {
+      where: { ownerId: userId, isListed: false },
+      order: { bornAt: 'DESC' },
+    })
   }
 
   // The monster an action targets: the given living one, or the selected one.
