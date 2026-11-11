@@ -1,3 +1,10 @@
+# [1.55.0](https://github.com/punya199/demo-app-backend/compare/v1.54.0...v1.55.0) (2026-11-11)
+
+
+### New
+
+* add optional quantity (1-10) to shop buy, buy-box and buy-material ([04839b6](https://github.com/punya199/demo-app-backend/commit/04839b6d2c54e6d778c64753bd685277cb3ca70b))
+
 # [1.54.0](https://github.com/punya199/demo-app-backend/compare/v1.53.1...v1.54.0) (2026-11-11)
 
 
