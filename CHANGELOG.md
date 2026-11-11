@@ -1,3 +1,11 @@
+## [1.53.1](https://github.com/punya199/demo-app-backend/compare/v1.53.0...v1.53.1) (2026-11-11)
+
+
+### Fix
+
+* add tests for taking First Strike off a saved passive tree ([a158fa7](https://github.com/punya199/demo-app-backend/commit/a158fa7a3101de7f951d37ef758d2f8b9a42e9c7))
+* let merged Fused pets play PvP and be set as support units ([cd87b6a](https://github.com/punya199/demo-app-backend/commit/cd87b6a1deb5c4f1b469af727dbb6915957e4afa))
+
 # [1.53.0](https://github.com/punya199/demo-app-backend/compare/v1.52.0...v1.53.0) (2026-11-09)
 
 
