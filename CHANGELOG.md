@@ -1,3 +1,10 @@
+# [1.56.0](https://github.com/punya199/demo-app-backend/compare/v1.55.0...v1.56.0) (2026-11-11)
+
+
+### Update
+
+* rebalance PvP NPC arena strength for geared players (#51) ([34ff533](https://github.com/punya199/demo-app-backend/commit/34ff5333b0966e21c71e3707994cf34f9faeb62d)), closes [#51](https://github.com/punya199/demo-app-backend/issues/51)
+
 # [1.55.0](https://github.com/punya199/demo-app-backend/compare/v1.54.0...v1.55.0) (2026-11-11)
 
 
