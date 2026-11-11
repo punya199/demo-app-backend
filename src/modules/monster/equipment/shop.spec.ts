@@ -52,8 +52,22 @@ describe('ShopService', () => {
       'protein',
       expect.anything()
     )
-    expect(inventoryService.add).toHaveBeenCalledWith(USER, 'protein', expect.anything())
+    expect(inventoryService.add).toHaveBeenCalledWith(USER, 'protein', expect.anything(), 1)
     expect(result).toEqual({ wallet: { coin: 5 }, items: [{ itemId: 'protein', quantity: 1 }] })
+  })
+
+  it('charges the single price times the quantity for x10', async () => {
+    const { service, walletService, inventoryService } = setup()
+    await service.buy(USER, EnumShopItemId.PROTEIN, 10)
+    expect(walletService.change).toHaveBeenCalledWith(
+      USER,
+      EnumWalletCurrency.COIN,
+      -150,
+      EnumWalletTransactionReason.SHOP_PURCHASE,
+      'protein',
+      expect.anything()
+    )
+    expect(inventoryService.add).toHaveBeenCalledWith(USER, 'protein', expect.anything(), 10)
   })
 })
 
@@ -72,12 +86,12 @@ describe('ShopController', () => {
   it('delegates every route with the caller id', async () => {
     expect(controller.getItems()).toEqual({ items: [] })
     expect(await controller.buy({ itemId: 'protein' } as never, user)).toBe('bought')
-    expect(shop.buy).toHaveBeenCalledWith(USER, 'protein')
-    expect(await controller.buyBox(user)).toBe('box')
-    expect(equipment.buyBox).toHaveBeenCalledWith(USER)
+    expect(shop.buy).toHaveBeenCalledWith(USER, 'protein', undefined)
+    expect(await controller.buyBox({ quantity: 10 } as never, user)).toBe('box')
+    expect(equipment.buyBox).toHaveBeenCalledWith(USER, 10)
     expect(await controller.buyMaterial({ itemId: 'enhance_stone' } as never, user)).toBe(
       'material'
     )
-    expect(equipment.buyMaterial).toHaveBeenCalledWith(USER, 'enhance_stone')
+    expect(equipment.buyMaterial).toHaveBeenCalledWith(USER, 'enhance_stone', undefined)
   })
 })

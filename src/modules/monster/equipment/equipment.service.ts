@@ -276,26 +276,30 @@ export class EquipmentService {
   }
 
   // Charges for the box only if the bag has room, so a full bag never costs coins.
-  async buyBox(userId: string) {
+  async buyBox(userId: string, quantity = 1) {
     return this.dataSource.transaction(async etm => {
       const count = await etm.count(EquipmentItemEntity, { where: { userId } })
-      if (count >= EQUIPMENT_CAPACITY) {
+      if (count + quantity > EQUIPMENT_CAPACITY) {
         throw new BadRequestException('Equipment bag is full')
       }
       const wallet = await this.walletService.change(
         userId,
         EnumWalletCurrency.COIN,
-        -EQUIPMENT_BOX_PRICE,
+        -EQUIPMENT_BOX_PRICE * quantity,
         EnumWalletTransactionReason.EQUIPMENT_BOX,
         null,
         etm
       )
-      const row = (await grantEquipment(userId, rollGrade(BOX_GRADE_RATES, rand()), 'box', etm))!
-      return { wallet, item: toEquipmentView(row) }
+      const items: ReturnType<typeof toEquipmentView>[] = []
+      for (let i = 0; i < quantity; i++) {
+        const row = (await grantEquipment(userId, rollGrade(BOX_GRADE_RATES, rand()), 'box', etm))!
+        items.push(toEquipmentView(row))
+      }
+      return { wallet, items }
     })
   }
 
-  async buyMaterial(userId: string, materialId: EnumMaterialId) {
+  async buyMaterial(userId: string, materialId: EnumMaterialId, quantity = 1) {
     const material = findMaterial(materialId)
     // Drop-only materials (craft) are never for sale.
     if (!material?.sellable) {
@@ -305,12 +309,12 @@ export class EquipmentService {
       const wallet = await this.walletService.change(
         userId,
         MATERIAL_CURRENCY[material.currency],
-        -material.price,
+        -material.price * quantity,
         EnumWalletTransactionReason.SHOP_PURCHASE,
         material.id,
         etm
       )
-      await this.inventoryService.add(userId, material.id, etm)
+      await this.inventoryService.add(userId, material.id, etm, quantity)
       return { wallet, ...(await this.inventoryService.getInventory(userId, etm)) }
     })
   }

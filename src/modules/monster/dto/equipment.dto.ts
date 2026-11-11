@@ -12,6 +12,7 @@ import {
 } from 'class-validator'
 import { EnumEquipmentSlot, EnumMaterialId, StatKey, STAT_KEYS } from '../equipment/equipment-data'
 import { EQUIPMENT_CAPACITY } from '../core/monster-rules'
+import { ShopQuantityBodyDto } from './shop-buy.dto'
 
 export class EquipmentIdBodyDto {
   @IsNotEmpty()
@@ -69,7 +70,7 @@ export class UnequipBodyDto {
   monsterId?: string
 }
 
-export class BuyMaterialBodyDto {
+export class BuyMaterialBodyDto extends ShopQuantityBodyDto {
   @IsNotEmpty()
   @IsEnum(EnumMaterialId)
   itemId: EnumMaterialId

@@ -60,7 +60,7 @@ describe('equipment and enhancing', () => {
     await give(userId, 1000)
     const box = await equipment.buyBox(userId)
     expect((await wallet.getBalance(userId)).coin).toBe(1000 - 120)
-    expect(box.item.slot).toBeDefined()
+    expect(box.items[0].slot).toBeDefined()
   })
 
   it('wears one piece per slot and will not dismantle a worn piece', async () => {
