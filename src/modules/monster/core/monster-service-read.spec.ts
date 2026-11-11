@@ -46,7 +46,7 @@ describe('MonsterService reads and simple writes', () => {
       expect(result.monsters.map(m => m.id)).toEqual(['old', 'young'])
       expect(result.maxMonsters).toBe(MAX_LIVING_MONSTERS)
       expect(etm.find).toHaveBeenCalledWith(MonsterEntity, {
-        where: { ownerId: 'user-1', diedAt: IsNull() },
+        where: { ownerId: 'user-1', diedAt: IsNull(), isListed: false },
         order: SELECTED_ORDER,
         lock: { mode: 'pessimistic_write' },
       })
@@ -60,7 +60,7 @@ describe('MonsterService reads and simple writes', () => {
       expect(result.monster?.id).toBe('dead')
       expect(result.monsters).toEqual([])
       expect(etm.findOne).toHaveBeenCalledWith(MonsterEntity, {
-        where: { ownerId: 'user-1' },
+        where: { ownerId: 'user-1', isListed: false },
         order: { bornAt: 'DESC' },
       })
     })
@@ -268,7 +268,7 @@ describe('MonsterService reads and simple writes', () => {
       etm.find.mockResolvedValue([pet()])
       await service.getLiving('user-1', etm)
       expect(etm.find).toHaveBeenCalledWith(MonsterEntity, {
-        where: { ownerId: 'user-1', diedAt: IsNull() },
+        where: { ownerId: 'user-1', diedAt: IsNull(), isListed: false },
         order: SELECTED_ORDER,
       })
     })

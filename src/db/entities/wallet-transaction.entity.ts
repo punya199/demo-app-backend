@@ -37,6 +37,8 @@ export enum EnumWalletTransactionReason {
   // No longer sold: the craft coin skip was removed (old ledger rows keep this reason).
   CRAFT_SKIP = 'craft_skip',
   FARM_FURNITURE = 'farm_furniture',
+  PET_MARKET_BUY = 'pet_market_buy',
+  PET_MARKET_SELL = 'pet_market_sell',
 }
 
 @Entity({

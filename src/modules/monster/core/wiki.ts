@@ -135,6 +135,17 @@ import {
   SPECIES,
   SPIRITUAL_LINES,
 } from './species-data'
+import {
+  MARKET_DAY_MS,
+  MARKET_FEE_RATE,
+  MARKET_LISTING_MS,
+  MARKET_MAX_ACTIVE_LISTINGS,
+  MARKET_MAX_BUYS_PER_DAY,
+  MARKET_PRICE_MAX_RATIO,
+  MARKET_PRICE_MIN_RATIO,
+  MARKET_RESALE_COOLDOWN_MS,
+  MARKET_STAGES,
+} from '../market/market-rules'
 import { PET_CORE_ITEM_PREFIX, PET_CORES_PER_RETURN, RETURN_HOME_STAGES } from './pet-core'
 
 // Everything the in-game guide explains, read straight from the rule constants and game data so
@@ -431,5 +442,17 @@ export const buildWiki = () => ({
     stages: RETURN_HOME_STAGES,
     perReturn: PET_CORES_PER_RETURN,
     itemPrefix: PET_CORE_ITEM_PREFIX,
+  },
+  // Pet market: pets sold player to player for gems.
+  market: {
+    stages: MARKET_STAGES,
+    feeRate: MARKET_FEE_RATE,
+    priceMinRatio: MARKET_PRICE_MIN_RATIO,
+    priceMaxRatio: MARKET_PRICE_MAX_RATIO,
+    listingHours: MARKET_LISTING_MS / 3_600_000,
+    maxActiveListings: MARKET_MAX_ACTIVE_LISTINGS,
+    resaleCooldownHours: MARKET_RESALE_COOLDOWN_MS / 3_600_000,
+    maxBuysPerDay: MARKET_MAX_BUYS_PER_DAY,
+    buyWindowHours: MARKET_DAY_MS / 3_600_000,
   },
 })
