@@ -46,11 +46,15 @@ const NPC_STRENGTH: Record<string, number[]> = {
   [EnumMonsterStage.ULTIMATE]: [1.2, 1.225, 1.275],
 }
 
-// Tuned (pvp-data.spec.ts) for the same 75% / 50% / 25% in the arena.
+// Tuned (pvp-data.spec.ts) for the same 75% / 50% / 25% in the arena, against a mid-tier player:
+// a well-cared pet in a full Standard craft set (epic +5), averaged over every line. The arena is
+// what a challenger really fights, and gear is what the old (bare pet) numbers left out. The win
+// rate falls about 2 points per point of strength, and the tiers differ in element and base
+// stats (so the three numbers are not in order): retune with the fixture, never by hand.
 const NPC_ARENA_STRENGTH: Record<string, number[]> = {
-  [EnumMonsterStage.ADULT]: [110, 109, 115],
-  [EnumMonsterStage.PERFECT]: [105, 105, 112],
-  [EnumMonsterStage.ULTIMATE]: [104, 102, 115],
+  [EnumMonsterStage.ADULT]: [301, 296, 314],
+  [EnumMonsterStage.PERFECT]: [229, 231, 239],
+  [EnumMonsterStage.ULTIMATE]: [194, 193, 218],
 }
 
 export const PVP_NPCS: IPvpNpc[] = PVP_STAGES.flatMap(stage =>

@@ -2,7 +2,7 @@ import { EnumMonsterLine, EnumMonsterStage } from '../../../db/entities/monster.
 import { simulateBattle } from '../battle/battle-engine'
 import { IFighter, toFighter } from '../battle/battle-stats'
 import { createEgg } from '../core/monster-engine'
-import { arenaWinRate, wellCaredArenaFighter } from './arena-test-helpers'
+import { arenaWinRate, MID_TIER_GEAR, wellCaredArenaFighter } from './arena-test-helpers'
 import { PVP_SEASON_MIN_FIGHTS } from '../core/monster-rules'
 import {
   getNpcArena,
@@ -42,15 +42,17 @@ const winRate = (player: IFighter, enemy: IFighter, fights = 300) => {
 }
 
 describe('arena rivals', () => {
-  it.each(PVP_STAGES)('climb from about 75% to about 25%: %s', stage => {
-    const rates = PVP_NPCS.filter(npc => npc.stage === stage).map(npc => {
-      const perLine = LINES.map(line =>
-        arenaWinRate(wellCaredArenaFighter(line, stage), getNpcArena(npc), 40)
-      )
-      return perLine.reduce((sum, rate) => sum + rate, 0) / perLine.length
-    })
+  jest.setTimeout(120_000)
+
+  // Against a mid-tier player (full Standard craft set, epic +5), averaged over every line.
+  it.each(PVP_STAGES)('climb from about 75% to about 25% for a geared player: %s', stage => {
     ;[0.75, 0.5, 0.25].forEach((target, index) => {
-      expect(Math.abs(rates[index] - target)).toBeLessThanOrEqual(0.2)
+      const npc = PVP_NPCS.filter(n => n.stage === stage)[index]
+      const perLine = Object.values(EnumMonsterLine).map(line =>
+        arenaWinRate(wellCaredArenaFighter(line, stage, MID_TIER_GEAR), getNpcArena(npc), 60)
+      )
+      const rate = perLine.reduce((sum, value) => sum + value, 0) / perLine.length
+      expect(Math.abs(rate - target)).toBeLessThanOrEqual(0.07)
     })
   })
 
