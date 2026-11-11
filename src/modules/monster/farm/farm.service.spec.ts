@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
-import { CraftJobEntity } from '../../../db/entities/craft-job.entity'
+import { CraftJobEntity, EnumCraftJobKind } from '../../../db/entities/craft-job.entity'
 import { PlayerFurnitureEntity } from '../../../db/entities/player-furniture.entity'
 import {
   EnumWalletCurrency,
@@ -99,6 +99,7 @@ describe('FarmService.startUpgrade', () => {
     expect(etm.save).toHaveBeenCalledWith(
       CraftJobEntity,
       expect.objectContaining({
+        kind: EnumCraftJobKind.FURNITURE,
         recipeId: bed2.id,
         useCatalyst: false,
         finishAt: new Date(NOW.getTime() + bed2.minutes * 60_000),
@@ -106,9 +107,21 @@ describe('FarmService.startUpgrade', () => {
     )
   })
 
-  it('shares the one craft queue with equipment', async () => {
+  it('only looks at the furniture queue, so an equipment craft never blocks it', async () => {
+    const { service, etm } = setup({ bed: 1 })
+    await service.startUpgrade(USER, EnumFurnitureKind.BED)
+    expect(etm.findOne).toHaveBeenCalledWith(
+      CraftJobEntity,
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: USER, kind: EnumCraftJobKind.FURNITURE }),
+      })
+    )
+    expect(etm.save).toHaveBeenCalled()
+  })
+
+  it('refuses a second furniture craft while one is queued', async () => {
     const { service, etm, walletService } = setup({ bed: 1 })
-    etm.findOne.mockResolvedValue({ recipeId: 'something', finishAt: NOW, startedAt: NOW })
+    etm.findOne.mockResolvedValue({ recipeId: bed2.id, finishAt: NOW, startedAt: NOW })
     await expect(service.startUpgrade(USER, EnumFurnitureKind.BED)).rejects.toBeInstanceOf(
       ConflictException
     )

@@ -2,18 +2,28 @@ import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm'
 import { BaseModelEntity } from './base-model.entity'
 import { UserEntity } from './user.entity'
 
-// One craft in the player's single queue slot (rules in craft-data.ts, flow in craft.service.ts).
-// The unique partial index is the queue: one unclaimed job per player. Times are server clock only.
+// Equipment crafts and Farm furniture crafts run in separate queues: a player has one slot of each.
+export enum EnumCraftJobKind {
+  EQUIPMENT = 'equipment',
+  FURNITURE = 'furniture',
+}
+
+// One craft in one of the player's queue slots (rules in craft-data.ts / farm-data.ts, flow in
+// craft.service.ts / farm.service.ts). The unique partial index is the queue: one unclaimed job per
+// player and kind. Times are server clock only.
 @Entity({
   name: 'craft_jobs',
 })
-@Index('IDX_craft_jobs_user_id_active', ['userId'], {
+@Index('IDX_craft_jobs_user_id_kind_active', ['userId', 'kind'], {
   unique: true,
   where: 'claimed_at IS NULL AND deleted_at IS NULL',
 })
 export class CraftJobEntity extends BaseModelEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string
+
+  @Column({ name: 'kind', type: 'varchar', default: EnumCraftJobKind.EQUIPMENT })
+  kind: EnumCraftJobKind
 
   // `${setId}:${slot}`, see craftRecipeId.
   @Column({ name: 'recipe_id', type: 'varchar' })

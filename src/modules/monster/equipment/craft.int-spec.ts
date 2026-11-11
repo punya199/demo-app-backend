@@ -4,6 +4,8 @@ import { CRAFT_PITY_AFTER_FAILS, findCraftRecipe, ICraftOverview } from './craft
 import { CRAFT_CATALYST_ID } from './craft-materials'
 import { CraftService } from './craft.service'
 import { EnumEquipmentGrade } from './equipment-data'
+import { EnumFurnitureKind, findFurnitureRecipe, furnitureRecipeId } from '../farm/farm-data'
+import { FarmService } from '../farm/farm.service'
 import { InventoryService } from '../inventory/inventory.service'
 import {
   buildCore,
@@ -22,6 +24,7 @@ describe('craft queue', () => {
   const { wallet, monsters } = buildCore()
   const inventory = new InventoryService(dataSource, monsters)
   const craft = new CraftService(dataSource, inventory, wallet)
+  const farm = new FarmService(dataSource, monsters, inventory, wallet)
   const standard = findCraftRecipe('bulwark:weapon')!
   const flagship = findCraftRecipe('evergreen:weapon')!
 
@@ -115,6 +118,35 @@ describe('craft queue', () => {
       [userId]
     )
     expect(n).toBe(1)
+  })
+
+  it('runs an equipment craft and a furniture craft side by side, one slot each', async () => {
+    const userId = await readyUser()
+    const bed2 = findFurnitureRecipe(furnitureRecipeId(EnumFurnitureKind.BED, 2))!
+    for (const need of bed2.materials) await stock(userId, need.itemId, need.qty * 2)
+    await farm.buy(userId, EnumFurnitureKind.BED)
+
+    await craft.start(userId, standard.id, false)
+    const afterStart = await farm.startUpgrade(userId, EnumFurnitureKind.BED)
+    expect(afterStart.queue).toMatchObject({ kind: 'bed', toTier: 2, status: 'running' })
+    expect(await craft.getOverview(userId)).toMatchObject({ queue: { status: 'running' } })
+    const [{ n }] = await sql<{ n: number }[]>(
+      `SELECT count(*)::int n FROM craft_jobs WHERE user_id=$1 AND claimed_at IS NULL`,
+      [userId]
+    )
+    expect(n).toBe(2)
+
+    // Each kind still holds only one job.
+    await stockFor(userId)
+    await expect(craft.start(userId, standard.id, false)).rejects.toThrow(/already/)
+    await expect(farm.startUpgrade(userId, EnumFurnitureKind.BED)).rejects.toThrow()
+
+    await finishNow(userId)
+    const claimed = await farm.claim(userId)
+    expect(claimed.queue).toBeNull()
+    expect(claimed.furniture.find(item => item.kind === EnumFurnitureKind.BED)?.tier).toBe(2)
+    // The equipment craft is untouched by the furniture claim.
+    expect((await craft.getOverview(userId)).queue).not.toBeNull()
   })
 
   it('lets only one of several simultaneous starts through, charging once', async () => {
