@@ -4,7 +4,15 @@ import { IFighter, toFighter } from '../battle/battle-stats'
 import { createEgg } from '../core/monster-engine'
 import { arenaWinRate, wellCaredArenaFighter } from './arena-test-helpers'
 import { PVP_SEASON_MIN_FIGHTS } from '../core/monster-rules'
-import { getNpcArena, getSeasonReward, PVP_NPCS, PVP_SEASON_REWARDS, PVP_STAGES } from './pvp-data'
+import {
+  getNpcArena,
+  getSeasonReward,
+  isPvpStage,
+  npcStageOf,
+  PVP_NPCS,
+  PVP_SEASON_REWARDS,
+  PVP_STAGES,
+} from './pvp-data'
 
 const NOW = new Date('2026-01-01T03:00:00Z')
 const SPECIES: Record<string, string> = {
@@ -107,5 +115,17 @@ describe('getSeasonReward without a catch-all tier', () => {
     } finally {
       PVP_SEASON_REWARDS.push(...saved)
     }
+  })
+})
+
+describe('Fused pets in the arena', () => {
+  it('may fight, and meet the Ultimate rivals', () => {
+    expect(isPvpStage(EnumMonsterStage.FUSED)).toBe(true)
+    expect(isPvpStage(EnumMonsterStage.BABY_2)).toBe(false)
+    expect(npcStageOf(EnumMonsterStage.FUSED)).toBe(EnumMonsterStage.ULTIMATE)
+    expect(npcStageOf(EnumMonsterStage.ADULT)).toBe(EnumMonsterStage.ADULT)
+    expect(
+      PVP_NPCS.some(npc => npc.stage === (npcStageOf(EnumMonsterStage.FUSED) as EnumMonsterStage))
+    ).toBe(true)
   })
 })

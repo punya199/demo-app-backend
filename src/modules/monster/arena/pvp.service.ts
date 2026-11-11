@@ -29,7 +29,7 @@ import {
   PVP_WIN_COIN,
 } from '../core/monster-rules'
 import { toMonsterView, withRuleErrors, MonsterService } from '../core/monster.service'
-import { findPvpNpc, getNpcArena, getSeasonReward, isPvpStage } from './pvp-data'
+import { findPvpNpc, getNpcArena, getSeasonReward, isPvpStage, npcStageOf } from './pvp-data'
 import { isEligibleOpponent, pickOpponents } from './pvp-matchmaking'
 import {
   arenaDefenseOf,
@@ -224,7 +224,8 @@ export class PvpService {
           : null
       }
       const opponentStage: string | undefined = npc ? npc.stage : defense?.stage
-      if (opponentStage !== (monster.stage as string) || defense?.userId === userId) {
+      const ownStage = npc ? npcStageOf(monster.stage) : (monster.stage as string)
+      if (opponentStage !== ownStage || defense?.userId === userId) {
         throw new BadRequestException('Opponent is not available')
       }
 
