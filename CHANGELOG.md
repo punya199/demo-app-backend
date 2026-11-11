@@ -1,3 +1,10 @@
+# [1.54.0](https://github.com/punya199/demo-app-backend/compare/v1.53.1...v1.54.0) (2026-11-11)
+
+
+### Update
+
+* run furniture crafts in their own queue, apart from equipment crafts ([f6c5ce0](https://github.com/punya199/demo-app-backend/commit/f6c5ce0118e6f7f072696ce44cea3be591dacadf))
+
 ## [1.53.1](https://github.com/punya199/demo-app-backend/compare/v1.53.0...v1.53.1) (2026-11-11)
 
 
