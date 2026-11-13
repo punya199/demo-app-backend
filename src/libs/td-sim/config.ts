@@ -113,6 +113,10 @@ export const STAR_DAMAGE_PCT: readonly number[] = [100, 115, 130, 150, 175]
 export const STRONG_SKILL_STAR = 3
 export const STRONG_SKILL_COOLDOWN_PCT = 70
 
+/** Gear mod level: a hero's upgrade level (0 to MAX_GEAR_MOD), bought with coins by the backend. Damage multiplier (percent) per mod level; index 0 is level 0. */
+export const GEAR_MOD_DAMAGE_PCT: readonly number[] = [100, 108, 116, 124, 132, 140]
+export const MAX_GEAR_MOD = GEAR_MOD_DAMAGE_PCT.length - 1
+
 /** A battle's summon pool is the player's owned heroes (with star levels). A player who owns none plays with this pool. */
 export const STARTER_POOL: readonly { hero: HeroId; star: number }[] = [
   { hero: 'archer', star: 1 },

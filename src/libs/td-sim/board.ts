@@ -1,5 +1,6 @@
 import {
   COLS,
+  GEAR_MOD_DAMAGE_PCT,
   HEROES,
   LEVEL_OUTPUT_PCT,
   MAX_CRIT_PCT,
@@ -48,7 +49,7 @@ export function touchingSides(tile: number, gears: readonly Gear[]): number {
   return neighbors(tile).filter((n) => gears.some((g) => g.tile === n)).length
 }
 
-/** A gear's damage per shot and crit chance (percent), from its star, level, touching sides, tile and resonance. */
+/** A gear's damage per shot and crit chance (percent), from its star, mod, level, touching sides, tile and resonance. */
 export function outputOf(gear: Gear, gears: readonly Gear[]): { damage: number; critPct: number } {
   const sidesPct = 100 + SIDE_OUTPUT_PCT * touchingSides(gear.tile, gears)
   const tilePct = PENALTY_TILES.includes(gear.tile) ? PENALTY_OUTPUT_PCT : 100
@@ -57,12 +58,13 @@ export function outputOf(gear: Gear, gears: readonly Gear[]): { damage: number; 
     LEVEL_OUTPUT_PCT[gear.level - 1] *
     sidesPct *
     tilePct *
-    STAR_DAMAGE_PCT[gear.star - 1]
+    STAR_DAMAGE_PCT[gear.star - 1] *
+    GEAR_MOD_DAMAGE_PCT[gear.mod ?? 0]
   const matching = neighbors(gear.tile).filter((n) =>
     gears.some((g) => g.tile === n && g.hero === gear.hero)
   ).length
   return {
-    damage: Math.max(1, Math.round(raw / 100_000_000)),
+    damage: Math.max(1, Math.round(raw / 10_000_000_000)),
     critPct: Math.min(MAX_CRIT_PCT, matching * RESONANCE_CRIT_PCT),
   }
 }

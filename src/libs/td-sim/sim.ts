@@ -20,6 +20,7 @@ import {
   INCOME_EVERY,
   LANE_LENGTH,
   MAX_CRIT_PCT,
+  MAX_GEAR_MOD,
   MAX_LEVEL,
   MAX_STAR,
   ROUNDS,
@@ -60,6 +61,8 @@ export interface Gear {
   hero: HeroId
   /** 1 to MAX_STAR, copied from the battle's pool; merging keeps it. */
   star: number
+  /** 0 to MAX_GEAR_MOD, copied from the battle's pool; merging keeps it. Missing means 0. */
+  mod?: number
   /** 1 to MAX_LEVEL; merging two identical gears gives level + 1. */
   level: number
   /** Charge units still needed before the next shot (hero.cooldown * CHARGE_SCALE when empty). Only linked gears charge. */
@@ -70,6 +73,8 @@ export interface Gear {
 export interface PoolEntry {
   hero: HeroId
   star: number
+  /** Gear mod level 0 to MAX_GEAR_MOD; omitted means 0. */
+  mod?: number
 }
 
 /** Charge units a gear needs for a shot; the stronger skill (from STRONG_SKILL_STAR) reloads faster. */
@@ -216,8 +221,15 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
     const free = onBoard(input.tile) && !gears.some((g) => g.tile === input.tile)
     if (!free || gold < SUMMON_COST) continue
     gold -= SUMMON_COST
-    const { hero, star } = state.pool[rng.int(state.pool.length)]
-    gears.push({ tile: input.tile, hero, star, level: 1, cooldown: fullCooldown(hero, star) })
+    const { hero, star, mod } = state.pool[rng.int(state.pool.length)]
+    gears.push({
+      tile: input.tile,
+      hero,
+      star,
+      mod: mod ?? 0,
+      level: 1,
+      cooldown: fullCooldown(hero, star),
+    })
   }
   if (state.tick % INCOME_EVERY === 0) gold += 1
 
@@ -306,6 +318,8 @@ function assertValidPool(pool: unknown): void {
       throw new RangeError('pool has an unknown hero')
     if (!Number.isInteger(p.star) || p.star! < 1 || p.star! > MAX_STAR)
       throw new RangeError('pool star must be an integer from 1 to MAX_STAR')
+    if (p.mod !== undefined && (!Number.isInteger(p.mod) || p.mod < 0 || p.mod > MAX_GEAR_MOD))
+      throw new RangeError('pool mod must be an integer from 0 to MAX_GEAR_MOD')
   }
 }
 
@@ -367,8 +381,8 @@ export function hashState(state: SimState): string {
     state.offer,
     state.skills,
     state.enemies.map((e) => [e.id, e.kind, e.pos, e.hp]),
-    state.gears.map((g) => [g.tile, g.hero, g.star, g.level, g.cooldown]),
-    state.pool.map((p) => [p.hero, p.star]),
+    state.gears.map((g) => [g.tile, g.hero, g.star, g.mod ?? 0, g.level, g.cooldown]),
+    state.pool.map((p) => [p.hero, p.star, p.mod ?? 0]),
   ])
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i++) {
