@@ -249,4 +249,32 @@ describe('td battle', () => {
       expect(await gemsOf(userId)).toBe(STAGE_FIRST_CLEAR_GEMS[0])
     })
   })
+
+  describe('ledger one-shot backstop', () => {
+    const insert = (userId: string, reason: string, currency = 'coins') =>
+      sql(
+        `INSERT INTO td.currency_ledger (user_id, currency, amount, reason) VALUES ($1,$2,5,$3)`,
+        [userId, currency, reason]
+      )
+
+    it('refuses a second battle payout or stage first clear for the same user and key', async () => {
+      const userId = await createUser('td')
+      await insert(userId, 'td_battle:b-1')
+      await expect(insert(userId, 'td_battle:b-1')).rejects.toThrow()
+      await insert(userId, 'td_stage_first_clear:1', 'gems')
+      await expect(insert(userId, 'td_stage_first_clear:1', 'gems')).rejects.toThrow()
+      // another user, or another key, is fine
+      await insert(await createUser('td'), 'td_battle:b-1')
+      await insert(userId, 'td_battle:b-2')
+    })
+
+    it('leaves repeatable reasons alone', async () => {
+      const userId = await createUser('td')
+      for (const reason of ['td_sweep:1', 'gacha_duplicate', 'star_up:h1', 'relic_unlock:r1']) {
+        await insert(userId, reason)
+        await insert(userId, reason, 'shards')
+        await insert(userId, reason)
+      }
+    })
+  })
 })
