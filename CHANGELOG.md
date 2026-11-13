@@ -1,3 +1,53 @@
+# [1.58.0](https://github.com/punya199/demo-app-backend/compare/v1.57.0...v1.58.0) (2026-11-13)
+
+
+### Fix
+
+* log a sanitised exception summary instead of the raw exception (PDPA) ([c5376d9](https://github.com/punya199/demo-app-backend/commit/c5376d9d255143010df98cd300e70d3fe68fc260))
+* reject oversized td battle finish bodies at 128 KB before validation ([daacab2](https://github.com/punya199/demo-app-backend/commit/daacab214aaffab308c292fb0118825eb69608fe))
+* replay td battle logs outside the transaction, scope the session lookup to the user and close sessions with invalid logs ([c1a9264](https://github.com/punya199/demo-app-backend/commit/c1a9264222a3af161f26d85562b9f9cdc9f02719))
+* serve td profile reads without a transaction or row lock ([40979c9](https://github.com/punya199/demo-app-backend/commit/40979c95b97f292933067ce8f90b7f66fdc8e745))
+* share one td rate limiter across routes and evict idle users ([15eaf24](https://github.com/punya199/demo-app-backend/commit/15eaf24f4548ca195e7a04da111202cd21bfed7f))
+* td battle result type narrowing so the build passes ([eee87af](https://github.com/punya199/demo-app-backend/commit/eee87af19878b1830e26876f3270cd9fb79232ab))
+
+### New
+
+* partial unique index backstopping one-shot td ledger payouts ([8743c93](https://github.com/punya199/demo-app-backend/commit/8743c937dc1382d8709bfa66944585c8ba1860ef))
+* td battle replay verification and coin reward from the replayed result ([838e27a](https://github.com/punya199/demo-app-backend/commit/838e27a6c87b834b80fc031cebc89ba9748bf197))
+* td battle start and finish endpoints, battle_session migration and int-spec ([9c273d0](https://github.com/punya199/demo-app-backend/commit/9c273d0bda0695f74890812c6b0e1fe89cc311c6))
+* td composite indexes for ledger, battle session and pull queries ([d2dc9b0](https://github.com/punya199/demo-app-backend/commit/d2dc9b0e15b41db60ecc0037e7e2aa2b8e011d29))
+* td cores API (core table and migration, first-clear stage cores, equip into 4 slots, ledger-paid promotion, equipped cores snapshotted with the battle session and replayed by the server) ([7cb2bb3](https://github.com/punya199/demo-app-backend/commit/7cb2bb3f5613e90793f982cb11262c6aa26285e4))
+* td gacha config, seeded roll and pull planning ([4f55518](https://github.com/punya199/demo-app-backend/commit/4f5551884bb30c3d0eb67bbbe0ff18d18ed9dec8))
+* td gacha tables, pull service and endpoints ([c0bbd2e](https://github.com/punya199/demo-app-backend/commit/c0bbd2e4e7eb8a703cefe627450adacf7771e7f8))
+* td gear mod upgrade endpoint, battle pool carries mod levels, integration spec (written, not run) ([fab2405](https://github.com/punya199/demo-app-backend/commit/fab2405daea45379cbc93f59b70f9fdbafe47f8b))
+* td gear mod upgrade rules, gear_mod table and migration, mods carried in the battle pool ([19cd933](https://github.com/punya199/demo-app-backend/commit/19cd9333d74e14310e1054534b29080e04607a89))
+* td goals API (goal_claim table and migration, daily goals, 7-day track, achievements claimed once through the ledger), integration spec written, not run ([f164d6c](https://github.com/punya199/demo-app-backend/commit/f164d6c22c0a496c3f34893c5103be8008fc5131))
+* td goals rules (daily goals, 7-day track, achievements as pure plans, one config, UTC day boundary) ([18d7d48](https://github.com/punya199/demo-app-backend/commit/18d7d48316841db0f9afbd66673bd4ba84c0dc4b))
+* td hero star-up and pool snapshot integration spec (written, not run) ([ae0cb89](https://github.com/punya199/demo-app-backend/commit/ae0cb8914da799af42cfaa4bba6d5c13c89c1cc0))
+* td hero star-up endpoint, battle pool snapshot column and migration ([abeff03](https://github.com/punya199/demo-app-backend/commit/abeff0389b9df9f0894598207a1132a536c4fb3e))
+* td hero star-up rules and owned-hero battle pool, replay uses the stored snapshot ([1494b53](https://github.com/punya199/demo-app-backend/commit/1494b538af4e07a335e9a1671433673ef23f03eb))
+* td lazy energy regeneration ([2038e6b](https://github.com/punya199/demo-app-backend/commit/2038e6be21da0c9ba70eff81b4cd2516ae5f24c9))
+* td relics API (relic table and migration, ledger-paid unlock for the matching hero and core element, unlocked relics snapshotted with the battle session and replayed) ([6c8fc1e](https://github.com/punya199/demo-app-backend/commit/6c8fc1eded1aff99f26e88ffaf1256ff796c1d29))
+* td replay uses the session stage and reports HQ health and stars ([e4bcee9](https://github.com/punya199/demo-app-backend/commit/e4bcee9b91565912e73f0ebc33a7b9043117d21e))
+* td schema migration, player profile and energy endpoint ([4b92554](https://github.com/punya199/demo-app-backend/commit/4b92554054f963b5c9c2736f91e269bfe3f362a3))
+* td stage rules (stars from replayed HQ health, unlock chain, first-clear gems plan) ([027b18b](https://github.com/punya199/demo-app-backend/commit/027b18b3abaef7eee69f790ea7d8c5b4daef2d9c))
+* td stages API (stage_progress table and migration, battle start takes a stage id, first-clear gems through the ledger, GET /td/stages), integration spec written, not run ([f44b788](https://github.com/punya199/demo-app-backend/commit/f44b7888fc17b75ab5766bbf80c4be5a05ba430b))
+* td sweep API (3-star stage, energy spent, coins and shards paid via ledger, no gems) ([4b65586](https://github.com/punya199/demo-app-backend/commit/4b6558638ba15a8ce8beb0b25df692a08dad4334))
+* td-sim synced copy and golden smoke test ([77b86a0](https://github.com/punya199/demo-app-backend/commit/77b86a042e7f0161063d8a606a11afb3ddf5b6db))
+
+### Update
+
+* eslint ignores the synced td-sim copy ([4cbe773](https://github.com/punya199/demo-app-backend/commit/4cbe773b6b4be5bafb67d9c8946354ae84c5e472))
+* format td battle service ([8e101d8](https://github.com/punya199/demo-app-backend/commit/8e101d818fa79520031d187ba43cb82df26eea1e))
+* resync td-sim (boss leak loses, replay input and draft-tick caps, merge needs equal mod) and align DTO limits ([dddbe16](https://github.com/punya199/demo-app-backend/commit/dddbe162feaf3b1dd47ceefe3af378cddfc728b9))
+* resync td-sim copy (fullCooldown export) ([fd80b9c](https://github.com/punya199/demo-app-backend/commit/fd80b9c06f12a15c8bfd60cc103bb35c2b7c9fa4))
+* resync td-sim copy (gear mod level); golden hash now e2675163 ([e226fce](https://github.com/punya199/demo-app-backend/commit/e226fced2333d3ccefe2244a0b7809a7fef1b2ce))
+* resync td-sim copy (stages; golden hash now 90918d58) ([f28e9fa](https://github.com/punya199/demo-app-backend/commit/f28e9fa8d3490545de1ff3b9f390e0e1a1c2414c))
+* resync td-sim copy with the frontend (hero pool, stars); golden hash now bbe1c4eb ([a39284a](https://github.com/punya199/demo-app-backend/commit/a39284ad2d8af7ddefb1c1410e33190fd5a89cc8))
+* resync td-sim copy with the frontend (rounds, boss, skills, draft); golden hash now 6d77f6ed ([edd41c5](https://github.com/punya199/demo-app-backend/commit/edd41c564572ea3032fc2263c897be7c2994a4ab))
+* sync td-sim elements and cores into the backend copy, golden hashes checked here too ([4877f46](https://github.com/punya199/demo-app-backend/commit/4877f46bfd0174b8f34d8c2f89181ce6e77c0eef))
+* sync td-sim relics into the backend copy, golden hashes rebaselined ([deba978](https://github.com/punya199/demo-app-backend/commit/deba9785b63972422ad3e72b01491797c5ae5533))
+
 # [1.57.0](https://github.com/punya199/demo-app-backend/compare/v1.56.0...v1.57.0) (2026-11-11)
 
 
