@@ -18,6 +18,7 @@ const session = (patch: Partial<IBattleSession> = {}): IBattleSession => ({
   seed: 7,
   status: 'started',
   pool: null,
+  stage: 1,
   expiresAt: new Date(NOW.getTime() + BATTLE_TTL_MS),
   ...patch,
 })
@@ -166,5 +167,35 @@ describe('gear mod snapshot', () => {
 
   it('an upgraded hero survives at least as long as the same hero un-upgraded', () => {
     expect(log(MODDED).round).toBeGreaterThanOrEqual(log(BASE).round)
+  })
+})
+
+describe('stage in the replay', () => {
+  it('replays with the stage the session was started on', () => {
+    const log = (stage: number) => {
+      let state = createState(7, undefined, stage)
+      const inputs: SimInput[] = []
+      while (state.status === 'running' && state.tick < DEFAULT_MAX_TICKS) {
+        const now: SimInput[] =
+          state.phase === 'draft' ? [{ tick: state.tick, type: 'pick', index: 0 }] : []
+        inputs.push(...now)
+        state = step(state, now)
+      }
+      return { ticks: state.tick, inputs, hash: hashState(state) }
+    }
+    const stage2 = log(2)
+    const req = { userId: 'u1', seed: 7, ticks: stage2.ticks, inputs: stage2.inputs }
+    expect(evaluateFinish(session({ stage: 2 }), req, NOW).hash).toBe(stage2.hash)
+    // the same log is not the same battle on another stage
+    const other = () => evaluateFinish(session({ stage: 1 }), req, NOW).hash
+    expect(statusOf(other) === 422 || other() !== stage2.hash).toBe(true)
+  })
+
+  it('reports the HQ health left and stars from the replay only', () => {
+    const r = finish(session())
+    expect(r.hp).toBe(0)
+    expect(r.stars).toBe(0)
+    const forged = finish(session(), { stars: 3, hp: 10 })
+    expect(forged.stars).toBe(0)
   })
 })

@@ -7,6 +7,7 @@ import {
   SimInput,
   SimState,
 } from '../../libs/td-sim'
+import { starsFor } from './stage'
 import { COINS_PER_ROUND, COINS_WIN_BONUS } from './battle.config'
 
 export interface IBattleSession {
@@ -16,6 +17,8 @@ export interface IBattleSession {
   status: 'started' | 'finished'
   /** Owned-hero snapshot taken at battle start; null (older rows) means the starter pool. */
   pool: PoolEntry[] | null
+  /** 1 to STAGE_COUNT, chosen at battle start. */
+  stage: number
   expiresAt: Date
 }
 
@@ -29,6 +32,10 @@ export interface IFinishRequest {
 export interface IBattleResult {
   status: 'won' | 'lost'
   round: number
+  /** HQ health left at the end, from the replay. */
+  hp: number
+  /** 0 for a loss, else 1 to 3 from the HQ health left. */
+  stars: number
   coins: number
   hash: string
 }
@@ -61,6 +68,7 @@ export const evaluateFinish = (
         ticks: req.ticks,
         inputs: req.inputs,
         pool: session.pool ?? undefined,
+        stage: session.stage,
       },
       { maxTicks: DEFAULT_MAX_TICKS }
     )
@@ -77,6 +85,8 @@ export const evaluateFinish = (
   return {
     status: state.status,
     round: state.round,
+    hp: state.hp,
+    stars: starsFor(state.status, state.hp),
     coins: coinsFor(state),
     hash: hashState(state),
   }
