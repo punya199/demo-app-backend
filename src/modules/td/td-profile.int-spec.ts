@@ -5,6 +5,7 @@ import { Server } from 'http'
 import request from 'supertest'
 import dataSource from '../../config/database.config'
 import { AddTdSchema1794600000000 } from '../../db/migrations/1794600000000-add-td-schema'
+import { AddTdGacha1794700000000 } from '../../db/migrations/1794700000000-add-td-gacha'
 import { createTestingApp } from '../../testing/create-testing-app'
 import { JwtAccessTokenAuthGuard } from '../authentication/guard/jwt-access-token-auth.guard'
 import {
@@ -52,13 +53,16 @@ describe('td schema and profile', () => {
 
     it('can be reverted and applied again', async () => {
       const migration = new AddTdSchema1794600000000()
+      const gacha = new AddTdGacha1794700000000()
       const queryRunner = dataSource.createQueryRunner()
       try {
+        await gacha.down(queryRunner)
         await migration.down(queryRunner)
         const gone = await sql(`SELECT 1 FROM information_schema.schemata WHERE schema_name='td'`)
         expect(gone).toHaveLength(0)
       } finally {
         await migration.up(queryRunner)
+        await gacha.up(queryRunner)
         await queryRunner.release()
       }
       const back = await sql(`SELECT 1 FROM information_schema.schemata WHERE schema_name='td'`)
