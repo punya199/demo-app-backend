@@ -4,7 +4,10 @@ import {
   CHARGE_BASE,
   CHARGE_PER_SIDE,
   CHARGE_SCALE,
+  CORE_RARITIES,
+  CORE_SLOTS,
   CRIT_OUTPUT_PCT,
+  ELEMENTS,
   DRAFT_SIZE,
   ENEMIES,
   ENEMY_BASE_HP,
@@ -33,10 +36,13 @@ import {
   SUMMON_COST,
   TILE_COUNT,
   type BossDef,
+  type CoreRarity,
+  type Element,
   type EnemyKind,
   type HeroId,
   type SkillId,
 } from './config'
+import { advantagePct, coreBonusPct, ENEMY_ELEMENT, HERO_ELEMENT } from './elements'
 import { createRng } from './rng'
 
 /** Fixed timestep: one tick is 50 ms of game time. Rendering interpolates; the sim never reads a clock. */
@@ -81,6 +87,12 @@ export const fullCooldown = (hero: HeroId, star: number): number =>
       100
   )
 
+/** One equipped core as the battle sees it. */
+export interface CoreEntry {
+  element: Element
+  rarity: CoreRarity
+}
+
 export interface Enemy {
   id: number
   kind: EnemyKind
@@ -113,6 +125,8 @@ export interface SimState {
   gears: Gear[]
   /** The summon pool, snapshotted when the battle starts; never changes during a run. */
   pool: PoolEntry[]
+  /** The equipped cores, snapshotted when the battle starts; never changes during a run. */
+  cores: CoreEntry[]
 }
 
 export interface Replay {
@@ -123,12 +137,15 @@ export interface Replay {
   pool?: PoolEntry[]
   /** 1 to STAGE_COUNT; omitted means stage 1. */
   stage?: number
+  /** Equipped-core snapshot taken at battle start; omitted means none. */
+  cores?: CoreEntry[]
 }
 
 export function createState(
   seed: number,
   pool: readonly PoolEntry[] = STARTER_POOL,
-  stage = 1
+  stage = 1,
+  cores: readonly CoreEntry[] = []
 ): SimState {
   return {
     stage,
@@ -147,6 +164,7 @@ export function createState(
     enemies: [],
     gears: [],
     pool: pool.map((p) => ({ ...p })),
+    cores: cores.map((c) => ({ ...c })),
   }
 }
 
@@ -160,15 +178,19 @@ function scaledHp(kind: EnemyKind, round: number, stage: number): number {
   return Math.max(1, Math.floor((base * (100 + HP_GROWTH_PCT * round)) / 100))
 }
 
-/** Damage one hit deals to an enemy after the boss's weakness and shield, then armor (a hit always does at least 1). */
+/** Damage one hit deals to an enemy after cores, elemental advantage, the boss's weakness and shield, then armor (a hit always does at least 1). */
 function hitDamage(
   raw: number,
   hero: HeroId,
   target: Enemy,
   roundTick: number,
-  boss: BossDef
+  boss: BossDef,
+  cores: readonly CoreEntry[]
 ): number {
-  let dmg = raw
+  const element = HERO_ELEMENT[hero]
+  const targetElement = target.kind === 'boss' ? boss.element : ENEMY_ELEMENT[target.kind]
+  let dmg = Math.floor((raw * coreBonusPct(cores, element)) / 100)
+  dmg = Math.floor((dmg * advantagePct(element, targetElement)) / 100)
   if (target.kind === 'boss') {
     if (hero === boss.weakHero) dmg = Math.floor((dmg * boss.weakPct) / 100)
     if (roundTick % boss.shieldEvery < boss.shieldTicks)
@@ -284,7 +306,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
     const crit = critPct > 0 && rng.int(100) < critPct
     let raw = Math.max(1, Math.floor((out.damage * powerPct) / 100))
     if (crit) raw = Math.floor((raw * CRIT_OUTPUT_PCT) / 100)
-    target.hp -= hitDamage(raw, gear.hero, target, roundTick, boss)
+    target.hp -= hitDamage(raw, gear.hero, target, roundTick, boss, state.cores)
     gear.cooldown = fullCooldown(gear.hero, gear.star)
     if (target.hp <= 0) {
       gold += ENEMIES[target.kind].reward + bounty
@@ -333,8 +355,21 @@ function assertValidPool(pool: unknown): void {
   }
 }
 
+function assertValidCores(cores: unknown): void {
+  if (!Array.isArray(cores) || cores.length > CORE_SLOTS)
+    throw new RangeError(`cores must be a list of at most ${CORE_SLOTS}`)
+  for (const c of cores as Partial<CoreEntry>[]) {
+    if (
+      !ELEMENTS.includes(c?.element as Element) ||
+      !CORE_RARITIES.includes(c?.rarity as CoreRarity)
+    )
+      throw new RangeError('core has an unknown element or rarity')
+  }
+}
+
 function assertValidReplay(replay: Replay, maxTicks: number): void {
   const { seed, ticks, inputs } = replay
+  if (replay.cores !== undefined) assertValidCores(replay.cores)
   if (replay.pool !== undefined) assertValidPool(replay.pool)
   if (
     replay.stage !== undefined &&
@@ -369,7 +404,7 @@ function assertValidReplay(replay: Replay, maxTicks: number): void {
 /** Replay a battle from its seed and input log. Throws RangeError on a malformed or over-long log. */
 export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): SimState {
   assertValidReplay(replay, opts.maxTicks ?? DEFAULT_MAX_TICKS)
-  let state = createState(replay.seed, replay.pool, replay.stage)
+  let state = createState(replay.seed, replay.pool, replay.stage, replay.cores)
   let i = 0
   while (state.tick < replay.ticks && state.status === 'running') {
     const now: SimInput[] = []
@@ -399,6 +434,7 @@ export function hashState(state: SimState): string {
     state.enemies.map((e) => [e.id, e.kind, e.pos, e.hp]),
     state.gears.map((g) => [g.tile, g.hero, g.star, g.mod ?? 0, g.level, g.cooldown]),
     state.pool.map((p) => [p.hero, p.star, p.mod ?? 0]),
+    state.cores.map((c) => [c.element, c.rarity]),
   ])
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i++) {

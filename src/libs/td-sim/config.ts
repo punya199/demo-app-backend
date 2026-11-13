@@ -69,6 +69,8 @@ export interface BossDef {
   shieldPct: number
   weakHero: HeroId
   weakPct: number
+  /** The boss's element; it takes elemental advantage damage like any enemy. */
+  element: Element
 }
 export interface StageDef {
   rounds: readonly { every: number; enemies: readonly EnemyKind[] }[]
@@ -88,6 +90,7 @@ export const STAGES: readonly StageDef[] = [
       shieldPct: BOSS_SHIELD_DAMAGE_PCT,
       weakHero: BOSS_WEAK_HERO,
       weakPct: BOSS_WEAK_DAMAGE_PCT,
+      element: 'nature',
     },
   },
   {
@@ -111,6 +114,7 @@ export const STAGES: readonly StageDef[] = [
       shieldPct: 25,
       weakHero: 'knight',
       weakPct: 200,
+      element: 'ice',
     },
   },
   {
@@ -134,6 +138,7 @@ export const STAGES: readonly StageDef[] = [
       shieldPct: 20,
       weakHero: 'archer',
       weakPct: 250,
+      element: 'fire',
     },
   },
 ]
@@ -227,3 +232,28 @@ export const MAX_LEVEL = LEVEL_OUTPUT_PCT.length
 export const RESONANCE_CRIT_PCT = 15
 export const MAX_CRIT_PCT = 60
 export const CRIT_OUTPUT_PCT = 200
+
+/** Elements. Fire beats nature, nature beats ice, ice beats fire; physical is neutral. Each hero and each enemy kind has one (see elements.ts). */
+export type Element = 'fire' | 'ice' | 'nature' | 'physical'
+export const ELEMENTS: readonly Element[] = ['fire', 'ice', 'nature', 'physical']
+/** What each element beats; null means it beats nothing and nothing beats it. */
+export const ELEMENT_BEATS: Record<Element, Element | null> = {
+  fire: 'nature',
+  nature: 'ice',
+  ice: 'fire',
+  physical: null,
+}
+/** Damage multiplier (percent) for an attacker whose element beats the target's, and for one the target's element beats. */
+export const ADVANTAGE_PCT = 150
+export const DISADVANTAGE_PCT = 75
+
+/** Cores: the player has CORE_SLOTS slots; an equipped core adds CORE_DAMAGE_PCT[rarity] percent damage to heroes of its element (cores of one element add up). */
+export type CoreRarity = 'common' | 'rare' | 'epic' | 'legendary'
+export const CORE_RARITIES: readonly CoreRarity[] = ['common', 'rare', 'epic', 'legendary']
+export const CORE_SLOTS = 4
+export const CORE_DAMAGE_PCT: Record<CoreRarity, number> = {
+  common: 10,
+  rare: 20,
+  epic: 35,
+  legendary: 50,
+}
