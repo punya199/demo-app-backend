@@ -22,5 +22,8 @@ export const regenerateEnergy = (energy: number, updatedAt: Date, now: Date): IE
   if (energy + gained >= ENERGY_CAP) {
     return { energy: ENERGY_CAP, updatedAt: now }
   }
-  return { energy: energy + gained, updatedAt: new Date(updatedAt.getTime() + gained * ENERGY_REGEN_MS) }
+  return {
+    energy: energy + gained,
+    updatedAt: new Date(updatedAt.getTime() + gained * ENERGY_REGEN_MS),
+  }
 }
