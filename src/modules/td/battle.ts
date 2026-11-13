@@ -1,5 +1,12 @@
 import { HttpException, HttpStatus } from '@nestjs/common'
-import { DEFAULT_MAX_TICKS, hashState, runReplay, SimInput, SimState } from '../../libs/td-sim'
+import {
+  DEFAULT_MAX_TICKS,
+  hashState,
+  PoolEntry,
+  runReplay,
+  SimInput,
+  SimState,
+} from '../../libs/td-sim'
 import { COINS_PER_ROUND, COINS_WIN_BONUS } from './battle.config'
 
 export interface IBattleSession {
@@ -7,6 +14,8 @@ export interface IBattleSession {
   userId: string
   seed: number
   status: 'started' | 'finished'
+  /** Owned-hero snapshot taken at battle start; null (older rows) means the starter pool. */
+  pool: PoolEntry[] | null
   expiresAt: Date
 }
 
@@ -47,7 +56,12 @@ export const evaluateFinish = (
   let state: SimState
   try {
     state = runReplay(
-      { seed: session.seed, ticks: req.ticks, inputs: req.inputs },
+      {
+        seed: session.seed,
+        ticks: req.ticks,
+        inputs: req.inputs,
+        pool: session.pool ?? undefined,
+      },
       { maxTicks: DEFAULT_MAX_TICKS }
     )
   } catch (error) {

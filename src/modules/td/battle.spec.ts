@@ -1,5 +1,13 @@
 import { HttpException } from '@nestjs/common'
-import { createState, DEFAULT_MAX_TICKS, GOLDEN_REPLAY, SimInput, step } from '../../libs/td-sim'
+import {
+  createState,
+  DEFAULT_MAX_TICKS,
+  GOLDEN_REPLAY,
+  hashState,
+  PoolEntry,
+  SimInput,
+  step,
+} from '../../libs/td-sim'
 import { BATTLE_TTL_MS, COINS_PER_ROUND, COINS_WIN_BONUS } from './battle.config'
 import { IBattleSession, coinsFor, evaluateFinish } from './battle'
 
@@ -9,6 +17,7 @@ const session = (patch: Partial<IBattleSession> = {}): IBattleSession => ({
   userId: 'u1',
   seed: 7,
   status: 'started',
+  pool: null,
   expiresAt: new Date(NOW.getTime() + BATTLE_TTL_MS),
   ...patch,
 })
@@ -86,5 +95,40 @@ describe('evaluateFinish', () => {
 
   it('is deterministic: the same log gives the same hash', () => {
     expect(finish(session()).hash).toBe(finish(session()).hash)
+  })
+})
+
+describe('hero pool snapshot', () => {
+  const POOL: PoolEntry[] = [{ hero: 'sun-oracle', star: 3 }]
+  it('a session without a stored pool replays with the starter pool', () => {
+    const log = losing
+    const a = evaluateFinish(session({ pool: null }), { userId: 'u1', seed: 7, ...log }, NOW)
+    const b = evaluateFinish(
+      session({ pool: [...createState(7).pool] }),
+      { userId: 'u1', seed: 7, ...log },
+      NOW
+    )
+    expect(a.hash).toBe(b.hash)
+  })
+
+  it('a log made with one pool is judged by the snapshot, not by whatever the player owns later', () => {
+    const log = (() => {
+      let state = createState(7, POOL)
+      const logged: SimInput[] = []
+      while (state.status === 'running' && state.tick < DEFAULT_MAX_TICKS) {
+        const now: SimInput[] =
+          state.phase === 'draft'
+            ? [{ tick: state.tick, type: 'pick', index: 0 }]
+            : state.tick % 40 === 0 && state.tick < 400
+              ? [{ tick: state.tick, type: 'summon', tile: (state.tick / 40) % 30 }]
+              : []
+        logged.push(...now)
+        state = step(state, now)
+      }
+      return { ticks: state.tick, inputs: logged, hash: hashState(state) }
+    })()
+    const req = { userId: 'u1', seed: 7, ticks: log.ticks, inputs: log.inputs }
+    expect(evaluateFinish(session({ pool: POOL }), req, NOW).hash).toBe(log.hash)
+    expect(evaluateFinish(session({ pool: null }), req, NOW).hash).not.toBe(log.hash)
   })
 })
