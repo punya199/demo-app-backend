@@ -1,3 +1,5 @@
+export * from './board'
+export * from './config'
 export * from './golden'
 export * from './rng'
 export * from './sim'
