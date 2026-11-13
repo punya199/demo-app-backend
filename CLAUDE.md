@@ -79,6 +79,18 @@ Adventure, raid, PvP and world boss fights run in the real-time arena (`arena/ar
 
 Distinct from the rest of the app: it treats a specific Google Sheet as the primary datastore for ledger entries/withdrawals/wages (via `googleapis`, `src/modules/paojiao-ledger/google-sheets-client.ts` + `ledger-sheet-parser.ts`), with only the category-name list (`LedgerItemEntity`) backed by Postgres. It's gated off entirely when `GOOGLE_SHEETS_*` env vars are unset (`isGoogleSheetsConfigured()` / `assertGoogleSheetsConfigured()` in `paojiao-ledger.service.ts`) — no silent fallback to fake data on failure, by design (see the comment on `getLedger()`). Sheet writes use targeted `values.update` on precomputed row/column ranges, never `values.append`, because several logical tables are packed into the same row-number space at different column offsets; the module keeps extensive inline comments explaining these row/column invariants — read them before touching write logic there.
 
+### td module (`src/modules/td`)
+
+Tower Defense backend. Spec: `docs/tower-defense/SPEC.md` in the `demo-app` repo.
+
+- **Own Postgres schema `td`, never `public`.** Entities link to the user by id only (no cross-schema FK). Migrations are hand-written and revertible, and nothing runs them automatically (`migrationsRun` is off), so run `yarn migration:run` yourself on each database.
+- **Server-authoritative battles**: `finish` replays the client's seed and input log with `src/libs/td-sim` and ignores any client-reported result. The replay runs before the transaction opens, and any 422 on finish closes the session as `invalid`.
+- **`src/libs/td-sim` is a synced copy of the frontend's `td-sim/`.** Never edit it by hand; it is in the eslint ignore list. Resync with `scripts/sync-td-sim.mjs` in the `demo-app` repo.
+- **Money goes through `td.currency_ledger`**, append-only; balances are derived, never stored. One-shot payouts are backed by a partial unique index on `(user_id, reason)`. Spends and claims take the player's profile row lock inside a transaction.
+- All td routes share one `TdRateLimitGuard` instance (per user across td; in-memory, so per server instance) and use strict DTOs; the finish route also has its own small body-size limit.
+- `GET /td/profile` is read-only; spend paths create the profile row.
+- Integration specs (`*.int-spec.ts`) follow the same throwaway-database rule as above: `yarn test:db:up && yarn test:integration`.
+
 ### File uploads
 
 `src/modules/attachment/` handles uploads via `multer`, storing files in S3-compatible storage through `src/utils/s3-client.ts` (`@aws-sdk/client-s3`, configured with `AWS_ENDPOINT`/`AWS_REGION`/credentials from `appConfig` — points at a non-AWS S3-compatible endpoint in this setup, not necessarily real AWS).
