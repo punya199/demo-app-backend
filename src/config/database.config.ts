@@ -39,6 +39,17 @@ import { PollEntity } from '../db/entities/poll.entity'
 import { UserEntity } from '../db/entities/user.entity'
 import { WalletTransactionEntity } from '../db/entities/wallet-transaction.entity'
 import { WalletEntity } from '../db/entities/wallet.entity'
+import { TdBattleSessionEntity } from '../db/entities/td/td-battle-session.entity'
+import { TdCoreEntity } from '../db/entities/td/td-core.entity'
+import { TdRelicEntity } from '../db/entities/td/td-relic.entity'
+import { TdGachaPityEntity } from '../db/entities/td/td-gacha-pity.entity'
+import { TdGachaPullEntity } from '../db/entities/td/td-gacha-pull.entity'
+import { TdGearModEntity } from '../db/entities/td/td-gear-mod.entity'
+import { TdHeroOwnedEntity } from '../db/entities/td/td-hero-owned.entity'
+import { TdCurrencyLedgerEntity } from '../db/entities/td/td-currency-ledger.entity'
+import { TdGoalClaimEntity } from '../db/entities/td/td-goal-claim.entity'
+import { TdStageProgressEntity } from '../db/entities/td/td-stage-progress.entity'
+import { TdPlayerProfileEntity } from '../db/entities/td/td-player-profile.entity'
 import { AuditSubscriber } from '../db/subscribers/audit.subscriber'
 import appConfig from './app-config'
 
@@ -85,6 +96,17 @@ export const entities = [
   CraftPityEntity,
   PlayerFurnitureEntity,
   PetListingEntity,
+  TdPlayerProfileEntity,
+  TdCurrencyLedgerEntity,
+  TdGearModEntity,
+  TdHeroOwnedEntity,
+  TdGachaPityEntity,
+  TdGachaPullEntity,
+  TdBattleSessionEntity,
+  TdStageProgressEntity,
+  TdGoalClaimEntity,
+  TdCoreEntity,
+  TdRelicEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

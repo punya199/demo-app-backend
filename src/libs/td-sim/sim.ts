@@ -1,0 +1,490 @@
+import { canMerge, linkedTiles, outputOf, touchingSides } from './board'
+import {
+  BOSS_ROUND,
+  CHARGE_BASE,
+  CHARGE_PER_SIDE,
+  CHARGE_SCALE,
+  CORE_RARITIES,
+  CORE_SLOTS,
+  CRIT_OUTPUT_PCT,
+  ELEMENTS,
+  DRAFT_SIZE,
+  ENEMIES,
+  ENEMY_BASE_HP,
+  HEROES,
+  HP_GROWTH_PCT,
+  INCOME_EVERY,
+  LANE_LENGTH,
+  MAX_CRIT_PCT,
+  MAX_GEAR_MOD,
+  MAX_STAR,
+  RELICS,
+  RELIC_IDS,
+  RELIC_SKILL_DAMAGE_PCT,
+  STAGES,
+  STAGE_COUNT,
+  SKILL_BANK_GOLD,
+  SKILL_BOUNTY,
+  SKILL_CRIT_PCT,
+  SKILL_HASTE_PCT,
+  SKILL_IDS,
+  SKILL_POWER_PCT,
+  SKILL_REPAIR_HP,
+  STARTER_POOL,
+  START_GOLD,
+  START_HP,
+  STRONG_SKILL_COOLDOWN_PCT,
+  STRONG_SKILL_STAR,
+  SUMMON_COST,
+  TILE_COUNT,
+  type BossDef,
+  type CoreRarity,
+  type Element,
+  type EnemyKind,
+  type HeroId,
+  type RelicId,
+  type SkillId,
+} from './config'
+import { advantagePct, coreBonusPct, ENEMY_ELEMENT, HERO_ELEMENT } from './elements'
+import { createRng } from './rng'
+
+/** Fixed timestep: one tick is 50 ms of game time. Rendering interpolates; the sim never reads a clock. */
+export const TICK_MS = 50
+/** Server-side ceiling on replay length (about 10 minutes of game time). */
+export const DEFAULT_MAX_TICKS = 12_000
+/** Idle time spent in skill drafts (one per cleared round) does not count against DEFAULT_MAX_TICKS, but is capped on its own: about 1 minute per draft. */
+export const MAX_DRAFT_TICKS = BOSS_ROUND * 1200
+/** Longest accepted input log; the backend finish DTO caps the body at the same number. */
+export const MAX_REPLAY_INPUTS = 2000
+
+export type SimInput =
+  | { tick: number; type: 'summon'; tile: number }
+  /** Merge the gear on `from` into the identical gear on `to`. */
+  | { tick: number; type: 'merge'; from: number; to: number }
+  /** Take the `index`-th skill of the current draft offer. */
+  | { tick: number; type: 'pick'; index: number }
+
+export interface Gear {
+  tile: number
+  hero: HeroId
+  /** 1 to MAX_STAR, copied from the battle's pool; merging keeps it. */
+  star: number
+  /** 0 to MAX_GEAR_MOD, copied from the battle's pool; merging keeps it. Missing means 0. */
+  mod?: number
+  /** 1 to MAX_LEVEL; merging two identical gears gives level + 1. */
+  level: number
+  /** Charge units still needed before the next shot (hero.cooldown * CHARGE_SCALE when empty). Only linked gears charge. */
+  cooldown: number
+}
+
+/** One owned hero as the battle sees it. */
+export interface PoolEntry {
+  hero: HeroId
+  star: number
+  /** Gear mod level 0 to MAX_GEAR_MOD; omitted means 0. */
+  mod?: number
+}
+
+/** Charge units a gear needs for a shot; the stronger skill (from STRONG_SKILL_STAR) reloads faster. */
+export const fullCooldown = (hero: HeroId, star: number): number =>
+  Math.floor(
+    (HEROES[hero].cooldown *
+      CHARGE_SCALE *
+      (star >= STRONG_SKILL_STAR ? STRONG_SKILL_COOLDOWN_PCT : 100)) /
+      100
+  )
+
+/** One equipped core as the battle sees it. */
+export interface CoreEntry {
+  element: Element
+  rarity: CoreRarity
+}
+
+export interface Enemy {
+  id: number
+  kind: EnemyKind
+  /** Lane-units walked, 0 to LANE_LENGTH. */
+  pos: number
+  hp: number
+}
+
+export interface SimState {
+  /** 1 to STAGE_COUNT: selects the enemy mix and the boss. */
+  stage: number
+  tick: number
+  rng: number
+  gold: number
+  hp: number
+  status: 'running' | 'lost' | 'won'
+  /** Enemies spawned over the whole run; the next enemy id. */
+  spawned: number
+  /** 0 to BOSS_ROUND. */
+  round: number
+  /** 'draft': the round is over and the player picks a skill; the world is frozen until they do. */
+  phase: 'fight' | 'draft'
+  /** Ticks since the round started, and enemies of this round spawned so far. */
+  roundTick: number
+  roundSpawned: number
+  offer: SkillId[]
+  /** Skills picked so far; a skill picked twice stacks. */
+  skills: SkillId[]
+  enemies: Enemy[]
+  gears: Gear[]
+  /** The summon pool, snapshotted when the battle starts; never changes during a run. */
+  pool: PoolEntry[]
+  /** The equipped cores, snapshotted when the battle starts; never changes during a run. */
+  cores: CoreEntry[]
+  /** The unlocked relics, snapshotted when the battle starts; their skills join the draft. */
+  relics: RelicId[]
+}
+
+export interface Replay {
+  seed: number
+  ticks: number
+  inputs: SimInput[]
+  /** Owned-hero snapshot taken at battle start; omitted means the starter pool. */
+  pool?: PoolEntry[]
+  /** 1 to STAGE_COUNT; omitted means stage 1. */
+  stage?: number
+  /** Equipped-core snapshot taken at battle start; omitted means none. */
+  cores?: CoreEntry[]
+  /** Unlocked-relic snapshot taken at battle start; omitted means none. */
+  relics?: RelicId[]
+}
+
+export function createState(
+  seed: number,
+  pool: readonly PoolEntry[] = STARTER_POOL,
+  stage = 1,
+  cores: readonly CoreEntry[] = [],
+  relics: readonly RelicId[] = []
+): SimState {
+  return {
+    stage,
+    tick: 0,
+    rng: seed >>> 0,
+    gold: START_GOLD,
+    hp: START_HP,
+    status: 'running',
+    spawned: 0,
+    round: 0,
+    phase: 'fight',
+    roundTick: 0,
+    roundSpawned: 0,
+    offer: [],
+    skills: [],
+    enemies: [],
+    gears: [],
+    pool: pool.map((p) => ({ ...p })),
+    cores: cores.map((c) => ({ ...c })),
+    relics: [...relics],
+  }
+}
+
+const stacks = (skills: readonly SkillId[], id: SkillId) => skills.filter((k) => k === id).length
+
+const stageOf = (stage: number) => STAGES[stage - 1] ?? STAGES[0]
+
+function scaledHp(kind: EnemyKind, round: number, stage: number): number {
+  const hpPct = kind === 'boss' ? stageOf(stage).boss.hpPct : ENEMIES[kind].hpPct
+  const base = (ENEMY_BASE_HP * hpPct) / 100
+  return Math.max(1, Math.floor((base * (100 + HP_GROWTH_PCT * round)) / 100))
+}
+
+/** Damage one hit deals to an enemy after cores, elemental advantage, the boss's weakness and shield, then armor (a hit always does at least 1). */
+function hitDamage(
+  raw: number,
+  hero: HeroId,
+  target: Enemy,
+  roundTick: number,
+  boss: BossDef,
+  cores: readonly CoreEntry[]
+): number {
+  const element = HERO_ELEMENT[hero]
+  const targetElement = target.kind === 'boss' ? boss.element : ENEMY_ELEMENT[target.kind]
+  let dmg = Math.floor((raw * coreBonusPct(cores, element)) / 100)
+  dmg = Math.floor((dmg * advantagePct(element, targetElement)) / 100)
+  if (target.kind === 'boss') {
+    if (hero === boss.weakHero) dmg = Math.floor((dmg * boss.weakPct) / 100)
+    if (roundTick % boss.shieldEvery < boss.shieldTicks)
+      dmg = Math.floor((dmg * boss.shieldPct) / 100)
+  }
+  return Math.max(1, dmg - ENEMIES[target.kind].armor)
+}
+
+/** The skills a draft can offer: the base skills, then the exclusive skill of each unlocked relic. */
+export const draftPool = (relics: readonly RelicId[]): SkillId[] => [
+  ...SKILL_IDS,
+  ...relics.map((r) => RELICS[r].skill),
+]
+
+/** Percent damage multiplier for `hero` from the relic skills picked so far. */
+const relicPct = (skills: readonly SkillId[], relics: readonly RelicId[], hero: HeroId): number =>
+  100 +
+  RELIC_SKILL_DAMAGE_PCT *
+    relics.reduce((n, r) => n + (RELICS[r].hero === hero ? stacks(skills, RELICS[r].skill) : 0), 0)
+
+/** A draw of DRAFT_SIZE distinct skills (partial Fisher-Yates on the seeded rng). */
+function drawOffer(rng: ReturnType<typeof createRng>, relics: readonly RelicId[]): SkillId[] {
+  const pool = draftPool(relics)
+  for (let i = 0; i < DRAFT_SIZE; i++) {
+    const j = i + rng.int(pool.length - i)
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, DRAFT_SIZE)
+}
+
+function stepDraft(state: SimState, inputs: readonly SimInput[]): SimState {
+  const pick = inputs.find(
+    (i) =>
+      i.type === 'pick' && Number.isInteger(i.index) && i.index >= 0 && i.index < state.offer.length
+  )
+  const tick = state.tick + 1
+  if (!pick || pick.type !== 'pick') return { ...state, tick }
+  const skill = state.offer[pick.index]
+  return {
+    ...state,
+    tick,
+    gold: state.gold + (skill === 'bank' ? SKILL_BANK_GOLD : 0),
+    hp: Math.min(START_HP, state.hp + (skill === 'repair' ? SKILL_REPAIR_HP : 0)),
+    phase: 'fight',
+    round: state.round + 1,
+    roundTick: 0,
+    roundSpawned: 0,
+    offer: [],
+    skills: [...state.skills, skill],
+  }
+}
+
+/** Advance one tick, applying the inputs stamped with the current tick. */
+export function step(state: SimState, inputs: readonly SimInput[]): SimState {
+  if (state.status !== 'running') return state
+  if (state.phase === 'draft') return stepDraft(state, inputs)
+  const rng = createRng(0, state.rng)
+  let gold = state.gold
+  const gears = [...state.gears]
+  const onBoard = (t: unknown): t is number =>
+    Number.isInteger(t) && (t as number) >= 0 && (t as number) < TILE_COUNT
+  for (const input of inputs) {
+    if (input.type === 'pick') continue
+    if (input.type === 'merge') {
+      const from = gears.findIndex((g) => g.tile === input.from)
+      const to = gears.findIndex((g) => g.tile === input.to)
+      if (from < 0 || to < 0 || from === to) continue
+      const a = gears[from]
+      const b = gears[to]
+      if (!canMerge(a, b)) continue
+      gears[to] = { ...b, level: b.level + 1, cooldown: fullCooldown(b.hero, b.star) }
+      gears.splice(from, 1)
+      continue
+    }
+    const free = onBoard(input.tile) && !gears.some((g) => g.tile === input.tile)
+    if (!free || gold < SUMMON_COST) continue
+    gold -= SUMMON_COST
+    const { hero, star, mod } = state.pool[rng.int(state.pool.length)]
+    gears.push({
+      tile: input.tile,
+      hero,
+      star,
+      mod: mod ?? 0,
+      level: 1,
+      cooldown: fullCooldown(hero, star),
+    })
+  }
+  if (state.tick % INCOME_EVERY === 0) gold += 1
+
+  const { rounds, boss } = stageOf(state.stage)
+  const plan = rounds[state.round]
+  const roundTick = state.roundTick
+  let spawned = state.spawned
+  let roundSpawned = state.roundSpawned
+  let enemies = state.enemies.map((e) => ({ ...e }))
+  const spawn = (kind: EnemyKind) =>
+    enemies.push({ id: spawned++, kind, pos: 0, hp: scaledHp(kind, state.round, state.stage) })
+  if (roundSpawned < plan.enemies.length && roundTick % plan.every === 0) {
+    spawn(plan.enemies[roundSpawned++])
+  }
+  // boss skill: while it lives it calls grunts at the start of the lane
+  if (roundTick > 0 && roundTick % boss.callEvery === 0 && enemies.some((e) => e.kind === 'boss')) {
+    for (let i = 0; i < boss.callCount; i++) spawn(boss.callKind)
+  }
+
+  // ponytail: gears reach the whole lane and always hit the front-most enemy; range and targeting rules come later.
+  const firing = gears.map((g) => ({ ...g }))
+  const linked = linkedTiles(firing)
+  const powerPct = 100 + SKILL_POWER_PCT * stacks(state.skills, 'power')
+  const hastePct = 100 + SKILL_HASTE_PCT * stacks(state.skills, 'haste')
+  const critBonus = SKILL_CRIT_PCT * stacks(state.skills, 'crit')
+  const bounty = SKILL_BOUNTY * stacks(state.skills, 'bounty')
+  for (const gear of firing) {
+    if (!linked.has(gear.tile)) continue
+    if (gear.cooldown > 0) {
+      const gain = CHARGE_BASE + CHARGE_PER_SIDE * touchingSides(gear.tile, firing)
+      gear.cooldown = Math.max(0, gear.cooldown - Math.floor((gain * hastePct) / 100))
+      continue
+    }
+    let target: Enemy | undefined
+    for (const e of enemies) if (!target || e.pos > target.pos) target = e
+    if (!target) continue
+    const out = outputOf(gear, firing)
+    const critPct = Math.min(MAX_CRIT_PCT, out.critPct + critBonus)
+    const crit = critPct > 0 && rng.int(100) < critPct
+    let raw = Math.max(1, Math.floor((out.damage * powerPct) / 100))
+    raw = Math.floor((raw * relicPct(state.skills, state.relics, gear.hero)) / 100)
+    if (crit) raw = Math.floor((raw * CRIT_OUTPUT_PCT) / 100)
+    target.hp -= hitDamage(raw, gear.hero, target, roundTick, boss, state.cores)
+    gear.cooldown = fullCooldown(gear.hero, gear.star)
+    if (target.hp <= 0) {
+      gold += ENEMIES[target.kind].reward + bounty
+      enemies = enemies.filter((e) => e !== target)
+    }
+  }
+
+  enemies = enemies.map((e) => ({ ...e, pos: e.pos + ENEMIES[e.kind].speed }))
+  let leaked = 0
+  for (const e of enemies) if (e.pos >= LANE_LENGTH) leaked += ENEMIES[e.kind].leak
+  // a boss that reaches the HQ ends the run: "boss absent" must only ever mean "boss killed"
+  const bossLeaked = enemies.some((e) => e.kind === 'boss' && e.pos >= LANE_LENGTH)
+  enemies = enemies.filter((e) => e.pos < LANE_LENGTH)
+  const hp = bossLeaked ? 0 : Math.max(0, state.hp - leaked)
+
+  const roundDone = roundSpawned >= plan.enemies.length && !enemies.some((e) => e.kind === 'boss')
+  const cleared = roundDone && (state.round === BOSS_ROUND || enemies.length === 0)
+  const status = hp === 0 ? 'lost' : cleared && state.round === BOSS_ROUND ? 'won' : 'running'
+  const drafting = status === 'running' && cleared
+  const offer = drafting ? drawOffer(rng, state.relics) : state.offer
+
+  return {
+    ...state,
+    tick: state.tick + 1,
+    rng: rng.state(),
+    gold,
+    hp,
+    status,
+    spawned,
+    phase: drafting ? 'draft' : 'fight',
+    roundTick: roundTick + 1,
+    roundSpawned,
+    offer,
+    enemies,
+    gears: firing,
+  }
+}
+
+function assertValidPool(pool: unknown): void {
+  if (!Array.isArray(pool) || pool.length === 0) throw new RangeError('pool must not be empty')
+  for (const p of pool as Partial<PoolEntry>[]) {
+    if (typeof p?.hero !== 'string' || !Object.prototype.hasOwnProperty.call(HEROES, p.hero))
+      throw new RangeError('pool has an unknown hero')
+    if (!Number.isInteger(p.star) || p.star! < 1 || p.star! > MAX_STAR)
+      throw new RangeError('pool star must be an integer from 1 to MAX_STAR')
+    if (p.mod !== undefined && (!Number.isInteger(p.mod) || p.mod < 0 || p.mod > MAX_GEAR_MOD))
+      throw new RangeError('pool mod must be an integer from 0 to MAX_GEAR_MOD')
+  }
+}
+
+function assertValidCores(cores: unknown): void {
+  if (!Array.isArray(cores) || cores.length > CORE_SLOTS)
+    throw new RangeError(`cores must be a list of at most ${CORE_SLOTS}`)
+  for (const c of cores as Partial<CoreEntry>[]) {
+    if (
+      !ELEMENTS.includes(c?.element as Element) ||
+      !CORE_RARITIES.includes(c?.rarity as CoreRarity)
+    )
+      throw new RangeError('core has an unknown element or rarity')
+  }
+}
+
+function assertValidRelics(relics: unknown): void {
+  if (
+    !Array.isArray(relics) ||
+    relics.some((r, i) => !RELIC_IDS.includes(r as RelicId) || relics.indexOf(r) !== i)
+  )
+    throw new RangeError('relics must be a list of distinct known relics')
+}
+
+function assertValidReplay(replay: Replay, maxTicks: number): void {
+  const { seed, ticks, inputs } = replay
+  if (replay.relics !== undefined) assertValidRelics(replay.relics)
+  if (replay.cores !== undefined) assertValidCores(replay.cores)
+  if (replay.pool !== undefined) assertValidPool(replay.pool)
+  if (
+    replay.stage !== undefined &&
+    (!Number.isInteger(replay.stage) || replay.stage < 1 || replay.stage > STAGE_COUNT)
+  )
+    throw new RangeError('stage must be an integer from 1 to STAGE_COUNT')
+  if (!Number.isInteger(seed)) throw new RangeError('seed must be an integer')
+  if (!Number.isInteger(ticks) || ticks < 0 || ticks > maxTicks + MAX_DRAFT_TICKS) {
+    throw new RangeError(`ticks must be an integer in [0, ${maxTicks + MAX_DRAFT_TICKS}]`)
+  }
+  if (!Array.isArray(inputs) || inputs.length > MAX_REPLAY_INPUTS)
+    throw new RangeError(`inputs must be a list of at most ${MAX_REPLAY_INPUTS}`)
+  let prev = 0
+  for (const input of inputs) {
+    if (input?.type !== 'summon' && input?.type !== 'merge' && input?.type !== 'pick')
+      throw new RangeError('unknown input type')
+    if (!Number.isInteger(input.tick) || input.tick < prev || input.tick >= ticks) {
+      throw new RangeError('input ticks must be integers, in order, and within the replay')
+    }
+    if (input.type === 'pick') {
+      if (!Number.isInteger(input.index) || input.index < 0 || input.index >= DRAFT_SIZE)
+        throw new RangeError('pick index must be a draft slot')
+      prev = input.tick
+      continue
+    }
+    const tiles = input.type === 'summon' ? [input.tile] : [input.from, input.to]
+    if (!tiles.every((t) => Number.isInteger(t) && t >= 0 && t < TILE_COUNT)) {
+      throw new RangeError('input tiles must be integers on the board')
+    }
+    prev = input.tick
+  }
+}
+
+/** Replay a battle from its seed and input log. Throws RangeError on a malformed or over-long log. */
+export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): SimState {
+  assertValidReplay(replay, opts.maxTicks ?? DEFAULT_MAX_TICKS)
+  let state = createState(replay.seed, replay.pool, replay.stage, replay.cores, replay.relics)
+  let i = 0
+  let fightTicks = 0
+  let draftTicks = 0
+  while (state.tick < replay.ticks && state.status === 'running') {
+    if (state.phase === 'draft') draftTicks++
+    else fightTicks++
+    if (fightTicks > (opts.maxTicks ?? DEFAULT_MAX_TICKS) || draftTicks > MAX_DRAFT_TICKS)
+      throw new RangeError('replay is too long')
+    const now: SimInput[] = []
+    while (i < replay.inputs.length && replay.inputs[i].tick === state.tick)
+      now.push(replay.inputs[i++])
+    state = step(state, now)
+  }
+  return state
+}
+
+/** FNV-1a over a fixed-order string form of the state: a cheap, engine-independent fingerprint. */
+export function hashState(state: SimState): string {
+  const text = JSON.stringify([
+    state.stage,
+    state.tick,
+    state.rng,
+    state.gold,
+    state.hp,
+    state.status,
+    state.spawned,
+    state.round,
+    state.phase,
+    state.roundTick,
+    state.roundSpawned,
+    state.offer,
+    state.skills,
+    state.enemies.map((e) => [e.id, e.kind, e.pos, e.hp]),
+    state.gears.map((g) => [g.tile, g.hero, g.star, g.mod ?? 0, g.level, g.cooldown]),
+    state.pool.map((p) => [p.hero, p.star, p.mod ?? 0]),
+    state.cores.map((c) => [c.element, c.rarity]),
+    state.relics,
+  ])
+  let h = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0
+  }
+  return h.toString(16).padStart(8, '0')
+}
