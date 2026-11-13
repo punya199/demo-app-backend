@@ -45,6 +45,7 @@ import { TdGachaPullEntity } from '../db/entities/td/td-gacha-pull.entity'
 import { TdGearModEntity } from '../db/entities/td/td-gear-mod.entity'
 import { TdHeroOwnedEntity } from '../db/entities/td/td-hero-owned.entity'
 import { TdCurrencyLedgerEntity } from '../db/entities/td/td-currency-ledger.entity'
+import { TdGoalClaimEntity } from '../db/entities/td/td-goal-claim.entity'
 import { TdStageProgressEntity } from '../db/entities/td/td-stage-progress.entity'
 import { TdPlayerProfileEntity } from '../db/entities/td/td-player-profile.entity'
 import { AuditSubscriber } from '../db/subscribers/audit.subscriber'
@@ -101,6 +102,7 @@ export const entities = [
   TdGachaPullEntity,
   TdBattleSessionEntity,
   TdStageProgressEntity,
+  TdGoalClaimEntity,
 ]
 
 export const subscribers = [AuditSubscriber]
