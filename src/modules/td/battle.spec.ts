@@ -6,6 +6,8 @@ import {
   GOLDEN_REPLAY,
   hashState,
   PoolEntry,
+  RELICS,
+  RelicId,
   SimInput,
   step,
 } from '../../libs/td-sim'
@@ -20,6 +22,7 @@ const session = (patch: Partial<IBattleSession> = {}): IBattleSession => ({
   status: 'started',
   pool: null,
   cores: null,
+  relics: null,
   stage: 1,
   expiresAt: new Date(NOW.getTime() + BATTLE_TTL_MS),
   ...patch,
@@ -238,5 +241,57 @@ describe('equipped core snapshot', () => {
     const log = botLog([])
     const r = evaluateFinish(session({ cores: null }), { userId: 'u1', seed: 7, ...log }, NOW)
     expect(r.hash).toBe(log.hash)
+  })
+})
+
+describe('unlocked relic snapshot', () => {
+  const RELIC_IDS_ON: RelicId[] = ['ember-brand']
+  const POOL: PoolEntry[] = [{ hero: RELICS['ember-brand'].hero, star: 1 }]
+  // A bot that builds a chain and takes the relic skill whenever a draft offers it.
+  const botLog = (relics: RelicId[]) => {
+    let state = createState(7, POOL, 1, [], relics)
+    const inputs: SimInput[] = []
+    const tiles = [27, 22, 26, 28, 21, 23]
+    while (state.status === 'running' && state.tick < DEFAULT_MAX_TICKS) {
+      const at = state.offer.indexOf(RELICS['ember-brand'].skill)
+      const now: SimInput[] =
+        state.phase === 'draft'
+          ? [{ tick: state.tick, type: 'pick', index: Math.max(0, at) }]
+          : state.tick % 30 === 0 && state.tick / 30 < tiles.length
+            ? [{ tick: state.tick, type: 'summon', tile: tiles[state.tick / 30] }]
+            : []
+      inputs.push(...now)
+      state = step(state, now)
+    }
+    return { ticks: state.tick, inputs, hash: hashState(state), skills: state.skills }
+  }
+  const replay = (relics: RelicId[] | null, log: ReturnType<typeof botLog>) =>
+    evaluateFinish(
+      session({ pool: POOL, relics }),
+      { userId: 'u1', seed: 7, ticks: log.ticks, inputs: log.inputs },
+      NOW
+    )
+
+  it('the server replay matches a client that played with the same relics, exactly', () => {
+    const log = botLog(RELIC_IDS_ON)
+    expect(log.skills).toContain(RELICS['ember-brand'].skill)
+    expect(replay(RELIC_IDS_ON, log).hash).toBe(log.hash)
+  })
+
+  it('a log made with a relic is not accepted as if it had none (the snapshot decides)', () => {
+    const log = botLog(RELIC_IDS_ON)
+    // the draft offers differ, so the log either replays to another state or does not finish
+    let hash: string | undefined
+    try {
+      hash = replay(null, log).hash
+    } catch {
+      hash = undefined
+    }
+    expect(hash).not.toBe(log.hash)
+  })
+
+  it('a session without stored relics (older rows) replays with none', () => {
+    const log = botLog([])
+    expect(replay(null, log).hash).toBe(log.hash)
   })
 })

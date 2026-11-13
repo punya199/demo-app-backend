@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm'
 
-import { CoreEntry, PoolEntry } from '../../../libs/td-sim'
+import { CoreEntry, PoolEntry, RelicId } from '../../../libs/td-sim'
 
 // One row per started battle. The id is the single-use battle id: `finish` flips status to
 // 'finished' under a row lock, so a second finish is refused. Rows are kept as the audit trail.
@@ -30,6 +30,10 @@ export class TdBattleSessionEntity {
   // Equipped-core snapshot taken at battle start; the replay uses exactly this. Null on older rows.
   @Column({ name: 'cores', type: 'jsonb', nullable: true })
   cores: CoreEntry[] | null
+
+  // Unlocked-relic snapshot taken at battle start; the replay uses exactly this. Null on older rows.
+  @Column({ name: 'relics', type: 'jsonb', nullable: true })
+  relics: RelicId[] | null
 
   // The stage this battle was started on (1 to STAGE_COUNT); the replay plays that stage.
   @Column({ name: 'stage_id', type: 'integer', default: 1 })

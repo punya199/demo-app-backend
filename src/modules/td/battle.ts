@@ -4,6 +4,7 @@ import {
   DEFAULT_MAX_TICKS,
   hashState,
   PoolEntry,
+  RelicId,
   runReplay,
   SimInput,
   SimState,
@@ -20,6 +21,8 @@ export interface IBattleSession {
   pool: PoolEntry[] | null
   /** Equipped-core snapshot taken at battle start; null (older rows) means none. */
   cores: CoreEntry[] | null
+  /** Unlocked-relic snapshot taken at battle start; null (older rows) means none. */
+  relics: RelicId[] | null
   /** 1 to STAGE_COUNT, chosen at battle start. */
   stage: number
   expiresAt: Date
@@ -72,6 +75,7 @@ export const evaluateFinish = (
         inputs: req.inputs,
         pool: session.pool ?? undefined,
         cores: session.cores ?? undefined,
+        relics: session.relics ?? undefined,
         stage: session.stage,
       },
       { maxTicks: DEFAULT_MAX_TICKS }

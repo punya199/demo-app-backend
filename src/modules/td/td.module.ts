@@ -12,6 +12,8 @@ import { TdHeroController } from './td-hero.controller'
 import { TdStageController } from './td-stage.controller'
 import { TdProfileController } from './td-profile.controller'
 import { TdProfileService } from './td-profile.service'
+import { TdRelicController } from './td-relic.controller'
+import { TdRelicService } from './td-relic.service'
 
 @Module({
   controllers: [
@@ -23,8 +25,23 @@ import { TdProfileService } from './td-profile.service'
     TdStageController,
     TdGoalsController,
     TdCoreController,
+    TdRelicController,
   ],
-  providers: [TdProfileService, TdGachaService, TdBattleService, TdGoalsService, TdCoreService],
-  exports: [TdProfileService, TdGachaService, TdBattleService, TdGoalsService, TdCoreService],
+  providers: [
+    TdProfileService,
+    TdGachaService,
+    TdBattleService,
+    TdGoalsService,
+    TdCoreService,
+    TdRelicService,
+  ],
+  exports: [
+    TdProfileService,
+    TdGachaService,
+    TdBattleService,
+    TdGoalsService,
+    TdCoreService,
+    TdRelicService,
+  ],
 })
 export class TdModule {}

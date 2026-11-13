@@ -41,6 +41,7 @@ import { WalletTransactionEntity } from '../db/entities/wallet-transaction.entit
 import { WalletEntity } from '../db/entities/wallet.entity'
 import { TdBattleSessionEntity } from '../db/entities/td/td-battle-session.entity'
 import { TdCoreEntity } from '../db/entities/td/td-core.entity'
+import { TdRelicEntity } from '../db/entities/td/td-relic.entity'
 import { TdGachaPityEntity } from '../db/entities/td/td-gacha-pity.entity'
 import { TdGachaPullEntity } from '../db/entities/td/td-gacha-pull.entity'
 import { TdGearModEntity } from '../db/entities/td/td-gear-mod.entity'
@@ -105,6 +106,7 @@ export const entities = [
   TdStageProgressEntity,
   TdGoalClaimEntity,
   TdCoreEntity,
+  TdRelicEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

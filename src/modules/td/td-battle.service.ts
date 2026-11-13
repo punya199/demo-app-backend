@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm'
 import { SimInput } from '../../libs/td-sim'
 import { TdCoreEntity } from '../../db/entities/td/td-core.entity'
 import { TdGearModEntity } from '../../db/entities/td/td-gear-mod.entity'
+import { TdRelicEntity } from '../../db/entities/td/td-relic.entity'
 import { TdHeroOwnedEntity } from '../../db/entities/td/td-hero-owned.entity'
 import { TdBattleSessionEntity } from '../../db/entities/td/td-battle-session.entity'
 import {
@@ -17,6 +18,7 @@ import { BATTLE_TTL_MS } from './battle.config'
 import { battleCores } from './core'
 import { modLevels } from './gear'
 import { buildPool } from './hero'
+import { battleRelics } from './relic'
 import { ENERGY_CAP, regenerateEnergy, STAGE_ENERGY_COST } from './energy'
 import { assertStageUnlocked, planStageClear } from './stage'
 import { grantStageCore } from './td-core.service'
@@ -58,6 +60,8 @@ export class TdBattleService {
       )
       // Snapshot of the equipped cores; stored with the pool so the replay ignores later changes.
       const cores = battleCores(await etm.find(TdCoreEntity, { where: { userId } }))
+      // Snapshot of the unlocked relics; stored too, so a later unlock never changes this replay.
+      const relics = battleRelics(await etm.find(TdRelicEntity, { where: { userId } }))
       const seed = randomInt(0, 2 ** 32)
       const session = await etm.save(
         etm.create(TdBattleSessionEntity, {
@@ -65,11 +69,12 @@ export class TdBattleService {
           seed: String(seed),
           heroPool: pool,
           cores,
+          relics,
           stageId,
           expiresAt: new Date(now.getTime() + BATTLE_TTL_MS),
         })
       )
-      return { battleId: session.id, seed, stageId, pool, cores, expiresAt: session.expiresAt }
+      return { battleId: session.id, seed, stageId, pool, cores, relics, expiresAt: session.expiresAt }
     })
   }
 
@@ -97,6 +102,7 @@ export class TdBattleService {
           status: session.status as 'started' | 'finished',
           pool: session.heroPool,
           cores: session.cores,
+          relics: session.relics,
           stage: session.stageId,
           expiresAt: session.expiresAt,
         },
