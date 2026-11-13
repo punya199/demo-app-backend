@@ -1,13 +1,6 @@
 import { linkedTiles, outputOf, touchingSides } from './board'
 import {
-  BOSS_CALL_COUNT,
-  BOSS_CALL_EVERY,
   BOSS_ROUND,
-  BOSS_SHIELD_DAMAGE_PCT,
-  BOSS_SHIELD_EVERY,
-  BOSS_SHIELD_TICKS,
-  BOSS_WEAK_DAMAGE_PCT,
-  BOSS_WEAK_HERO,
   CHARGE_BASE,
   CHARGE_PER_SIDE,
   CHARGE_SCALE,
@@ -23,7 +16,8 @@ import {
   MAX_GEAR_MOD,
   MAX_LEVEL,
   MAX_STAR,
-  ROUNDS,
+  STAGES,
+  STAGE_COUNT,
   SKILL_BANK_GOLD,
   SKILL_BOUNTY,
   SKILL_CRIT_PCT,
@@ -38,6 +32,7 @@ import {
   STRONG_SKILL_STAR,
   SUMMON_COST,
   TILE_COUNT,
+  type BossDef,
   type EnemyKind,
   type HeroId,
   type SkillId,
@@ -95,6 +90,8 @@ export interface Enemy {
 }
 
 export interface SimState {
+  /** 1 to STAGE_COUNT: selects the enemy mix and the boss. */
+  stage: number
   tick: number
   rng: number
   gold: number
@@ -124,10 +121,17 @@ export interface Replay {
   inputs: SimInput[]
   /** Owned-hero snapshot taken at battle start; omitted means the starter pool. */
   pool?: PoolEntry[]
+  /** 1 to STAGE_COUNT; omitted means stage 1. */
+  stage?: number
 }
 
-export function createState(seed: number, pool: readonly PoolEntry[] = STARTER_POOL): SimState {
+export function createState(
+  seed: number,
+  pool: readonly PoolEntry[] = STARTER_POOL,
+  stage = 1
+): SimState {
   return {
+    stage,
     tick: 0,
     rng: seed >>> 0,
     gold: START_GOLD,
@@ -148,18 +152,27 @@ export function createState(seed: number, pool: readonly PoolEntry[] = STARTER_P
 
 const stacks = (skills: readonly SkillId[], id: SkillId) => skills.filter((k) => k === id).length
 
-function scaledHp(kind: EnemyKind, round: number): number {
-  const base = (ENEMY_BASE_HP * ENEMIES[kind].hpPct) / 100
+const stageOf = (stage: number) => STAGES[stage - 1] ?? STAGES[0]
+
+function scaledHp(kind: EnemyKind, round: number, stage: number): number {
+  const hpPct = kind === 'boss' ? stageOf(stage).boss.hpPct : ENEMIES[kind].hpPct
+  const base = (ENEMY_BASE_HP * hpPct) / 100
   return Math.max(1, Math.floor((base * (100 + HP_GROWTH_PCT * round)) / 100))
 }
 
 /** Damage one hit deals to an enemy after the boss's weakness and shield, then armor (a hit always does at least 1). */
-function hitDamage(raw: number, hero: HeroId, target: Enemy, roundTick: number): number {
+function hitDamage(
+  raw: number,
+  hero: HeroId,
+  target: Enemy,
+  roundTick: number,
+  boss: BossDef
+): number {
   let dmg = raw
   if (target.kind === 'boss') {
-    if (hero === BOSS_WEAK_HERO) dmg = Math.floor((dmg * BOSS_WEAK_DAMAGE_PCT) / 100)
-    if (roundTick % BOSS_SHIELD_EVERY < BOSS_SHIELD_TICKS)
-      dmg = Math.floor((dmg * BOSS_SHIELD_DAMAGE_PCT) / 100)
+    if (hero === boss.weakHero) dmg = Math.floor((dmg * boss.weakPct) / 100)
+    if (roundTick % boss.shieldEvery < boss.shieldTicks)
+      dmg = Math.floor((dmg * boss.shieldPct) / 100)
   }
   return Math.max(1, dmg - ENEMIES[target.kind].armor)
 }
@@ -233,23 +246,20 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
   }
   if (state.tick % INCOME_EVERY === 0) gold += 1
 
-  const plan = ROUNDS[state.round]
+  const { rounds, boss } = stageOf(state.stage)
+  const plan = rounds[state.round]
   const roundTick = state.roundTick
   let spawned = state.spawned
   let roundSpawned = state.roundSpawned
   let enemies = state.enemies.map((e) => ({ ...e }))
   const spawn = (kind: EnemyKind) =>
-    enemies.push({ id: spawned++, kind, pos: 0, hp: scaledHp(kind, state.round) })
+    enemies.push({ id: spawned++, kind, pos: 0, hp: scaledHp(kind, state.round, state.stage) })
   if (roundSpawned < plan.enemies.length && roundTick % plan.every === 0) {
     spawn(plan.enemies[roundSpawned++])
   }
   // boss skill: while it lives it calls grunts at the start of the lane
-  if (
-    roundTick > 0 &&
-    roundTick % BOSS_CALL_EVERY === 0 &&
-    enemies.some((e) => e.kind === 'boss')
-  ) {
-    for (let i = 0; i < BOSS_CALL_COUNT; i++) spawn('grunt')
+  if (roundTick > 0 && roundTick % boss.callEvery === 0 && enemies.some((e) => e.kind === 'boss')) {
+    for (let i = 0; i < boss.callCount; i++) spawn(boss.callKind)
   }
 
   // ponytail: gears reach the whole lane and always hit the front-most enemy; range and targeting rules come later.
@@ -274,7 +284,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
     const crit = critPct > 0 && rng.int(100) < critPct
     let raw = Math.max(1, Math.floor((out.damage * powerPct) / 100))
     if (crit) raw = Math.floor((raw * CRIT_OUTPUT_PCT) / 100)
-    target.hp -= hitDamage(raw, gear.hero, target, roundTick)
+    target.hp -= hitDamage(raw, gear.hero, target, roundTick, boss)
     gear.cooldown = fullCooldown(gear.hero, gear.star)
     if (target.hp <= 0) {
       gold += ENEMIES[target.kind].reward + bounty
@@ -326,6 +336,11 @@ function assertValidPool(pool: unknown): void {
 function assertValidReplay(replay: Replay, maxTicks: number): void {
   const { seed, ticks, inputs } = replay
   if (replay.pool !== undefined) assertValidPool(replay.pool)
+  if (
+    replay.stage !== undefined &&
+    (!Number.isInteger(replay.stage) || replay.stage < 1 || replay.stage > STAGE_COUNT)
+  )
+    throw new RangeError('stage must be an integer from 1 to STAGE_COUNT')
   if (!Number.isInteger(seed)) throw new RangeError('seed must be an integer')
   if (!Number.isInteger(ticks) || ticks < 0 || ticks > maxTicks) {
     throw new RangeError(`ticks must be an integer in [0, ${maxTicks}]`)
@@ -354,7 +369,7 @@ function assertValidReplay(replay: Replay, maxTicks: number): void {
 /** Replay a battle from its seed and input log. Throws RangeError on a malformed or over-long log. */
 export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): SimState {
   assertValidReplay(replay, opts.maxTicks ?? DEFAULT_MAX_TICKS)
-  let state = createState(replay.seed, replay.pool)
+  let state = createState(replay.seed, replay.pool, replay.stage)
   let i = 0
   while (state.tick < replay.ticks && state.status === 'running') {
     const now: SimInput[] = []
@@ -368,6 +383,7 @@ export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): Sim
 /** FNV-1a over a fixed-order string form of the state: a cheap, engine-independent fingerprint. */
 export function hashState(state: SimState): string {
   const text = JSON.stringify([
+    state.stage,
     state.tick,
     state.rng,
     state.gold,

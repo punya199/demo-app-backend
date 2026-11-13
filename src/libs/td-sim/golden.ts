@@ -28,5 +28,5 @@ export const GOLDEN_REPLAY: Replay = {
   ],
 }
 
-/** Rebaselined on purpose in ticket 10: gears and pool entries carry a gear mod level, which joins the hashed state (mod 0 plays the same rules as before). Ticket 09: gears carry a star and the state carries the hero pool, so the hash input changed (the starter pool plays the same rules as before). Earlier: ticket 04 added rounds, the boss, skills and the draft. */
-export const GOLDEN_HASH = 'e2675163'
+/** Rebaselined on purpose in ticket 11: the stage joins the hashed state (stage 1 plays the same rules as before). Ticket 10: gears and pool entries carry a gear mod level, which joins the hashed state (mod 0 plays the same rules as before). Ticket 09: gears carry a star and the state carries the hero pool, so the hash input changed (the starter pool plays the same rules as before). Earlier: ticket 04 added rounds, the boss, skills and the draft. */
+export const GOLDEN_HASH = '90918d58'

@@ -57,6 +57,88 @@ export const BOSS_SHIELD_DAMAGE_PCT = 25
 export const BOSS_WEAK_HERO: HeroId = 'mage'
 export const BOSS_WEAK_DAMAGE_PCT = 200
 
+/** One stage: its 7 rounds plus the boss round, and its boss's skill pattern. Stage 1 is the original stage (ROUNDS and the BOSS_* values above). */
+export interface BossDef {
+  /** Percent of the scaled base hp. */
+  hpPct: number
+  callKind: EnemyKind
+  callEvery: number
+  callCount: number
+  shieldEvery: number
+  shieldTicks: number
+  shieldPct: number
+  weakHero: HeroId
+  weakPct: number
+}
+export interface StageDef {
+  rounds: readonly { every: number; enemies: readonly EnemyKind[] }[]
+  boss: BossDef
+}
+const BOSS_ONLY = { every: 1, enemies: ['boss'] as EnemyKind[] }
+export const STAGES: readonly StageDef[] = [
+  {
+    rounds: ROUNDS,
+    boss: {
+      hpPct: ENEMIES.boss.hpPct,
+      callKind: 'grunt',
+      callEvery: BOSS_CALL_EVERY,
+      callCount: BOSS_CALL_COUNT,
+      shieldEvery: BOSS_SHIELD_EVERY,
+      shieldTicks: BOSS_SHIELD_TICKS,
+      shieldPct: BOSS_SHIELD_DAMAGE_PCT,
+      weakHero: BOSS_WEAK_HERO,
+      weakPct: BOSS_WEAK_DAMAGE_PCT,
+    },
+  },
+  {
+    rounds: [
+      { every: 40, enemies: [...rep('armored', 4), ...rep('runner', 4)] },
+      { every: 36, enemies: [...rep('tank', 2), ...rep('grunt', 6)] },
+      { every: 34, enemies: [...rep('swarmer', 10), ...rep('armored', 4)] },
+      { every: 40, enemies: [...rep('elite', 1), ...rep('armored', 5), ...rep('runner', 4)] },
+      { every: 36, enemies: [...rep('tank', 4), ...rep('armored', 4), ...rep('swarmer', 6)] },
+      { every: 32, enemies: [...rep('elite', 2), ...rep('tank', 2), ...rep('runner', 6)] },
+      { every: 28, enemies: [...rep('elite', 3), ...rep('armored', 5), ...rep('swarmer', 8)] },
+      BOSS_ONLY,
+    ],
+    boss: {
+      hpPct: 8000,
+      callKind: 'armored',
+      callEvery: 140,
+      callCount: 2,
+      shieldEvery: 200,
+      shieldTicks: 70,
+      shieldPct: 25,
+      weakHero: 'knight',
+      weakPct: 200,
+    },
+  },
+  {
+    rounds: [
+      { every: 36, enemies: [...rep('runner', 8), ...rep('armored', 4)] },
+      { every: 34, enemies: [...rep('elite', 2), ...rep('grunt', 6)] },
+      { every: 32, enemies: [...rep('swarmer', 12), ...rep('tank', 2)] },
+      { every: 36, enemies: [...rep('elite', 2), ...rep('armored', 5), ...rep('runner', 5)] },
+      { every: 32, enemies: [...rep('tank', 4), ...rep('elite', 2), ...rep('swarmer', 6)] },
+      { every: 30, enemies: [...rep('elite', 3), ...rep('armored', 5), ...rep('runner', 6)] },
+      { every: 26, enemies: [...rep('elite', 4), ...rep('tank', 3), ...rep('swarmer', 10)] },
+      BOSS_ONLY,
+    ],
+    boss: {
+      hpPct: 10000,
+      callKind: 'runner',
+      callEvery: 120,
+      callCount: 4,
+      shieldEvery: 180,
+      shieldTicks: 60,
+      shieldPct: 20,
+      weakHero: 'archer',
+      weakPct: 250,
+    },
+  },
+]
+export const STAGE_COUNT = STAGES.length
+
 export type SkillId = 'power' | 'haste' | 'crit' | 'bounty' | 'bank' | 'repair'
 export const SKILL_IDS: readonly SkillId[] = ['power', 'haste', 'crit', 'bounty', 'bank', 'repair']
 export const DRAFT_SIZE = 3
