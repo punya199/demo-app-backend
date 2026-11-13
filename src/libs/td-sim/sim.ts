@@ -19,6 +19,9 @@ import {
   MAX_GEAR_MOD,
   MAX_LEVEL,
   MAX_STAR,
+  RELICS,
+  RELIC_IDS,
+  RELIC_SKILL_DAMAGE_PCT,
   STAGES,
   STAGE_COUNT,
   SKILL_BANK_GOLD,
@@ -40,6 +43,7 @@ import {
   type Element,
   type EnemyKind,
   type HeroId,
+  type RelicId,
   type SkillId,
 } from './config'
 import { advantagePct, coreBonusPct, ENEMY_ELEMENT, HERO_ELEMENT } from './elements'
@@ -127,6 +131,8 @@ export interface SimState {
   pool: PoolEntry[]
   /** The equipped cores, snapshotted when the battle starts; never changes during a run. */
   cores: CoreEntry[]
+  /** The unlocked relics, snapshotted when the battle starts; their skills join the draft. */
+  relics: RelicId[]
 }
 
 export interface Replay {
@@ -139,13 +145,16 @@ export interface Replay {
   stage?: number
   /** Equipped-core snapshot taken at battle start; omitted means none. */
   cores?: CoreEntry[]
+  /** Unlocked-relic snapshot taken at battle start; omitted means none. */
+  relics?: RelicId[]
 }
 
 export function createState(
   seed: number,
   pool: readonly PoolEntry[] = STARTER_POOL,
   stage = 1,
-  cores: readonly CoreEntry[] = []
+  cores: readonly CoreEntry[] = [],
+  relics: readonly RelicId[] = []
 ): SimState {
   return {
     stage,
@@ -165,6 +174,7 @@ export function createState(
     gears: [],
     pool: pool.map((p) => ({ ...p })),
     cores: cores.map((c) => ({ ...c })),
+    relics: [...relics],
   }
 }
 
@@ -199,9 +209,21 @@ function hitDamage(
   return Math.max(1, dmg - ENEMIES[target.kind].armor)
 }
 
+/** The skills a draft can offer: the base skills, then the exclusive skill of each unlocked relic. */
+export const draftPool = (relics: readonly RelicId[]): SkillId[] => [
+  ...SKILL_IDS,
+  ...relics.map((r) => RELICS[r].skill),
+]
+
+/** Percent damage multiplier for `hero` from the relic skills picked so far. */
+const relicPct = (skills: readonly SkillId[], relics: readonly RelicId[], hero: HeroId): number =>
+  100 +
+  RELIC_SKILL_DAMAGE_PCT *
+    relics.reduce((n, r) => n + (RELICS[r].hero === hero ? stacks(skills, RELICS[r].skill) : 0), 0)
+
 /** A draw of DRAFT_SIZE distinct skills (partial Fisher-Yates on the seeded rng). */
-function drawOffer(rng: ReturnType<typeof createRng>): SkillId[] {
-  const pool = [...SKILL_IDS]
+function drawOffer(rng: ReturnType<typeof createRng>, relics: readonly RelicId[]): SkillId[] {
+  const pool = draftPool(relics)
   for (let i = 0; i < DRAFT_SIZE; i++) {
     const j = i + rng.int(pool.length - i)
     ;[pool[i], pool[j]] = [pool[j], pool[i]]
@@ -305,6 +327,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
     const critPct = Math.min(MAX_CRIT_PCT, out.critPct + critBonus)
     const crit = critPct > 0 && rng.int(100) < critPct
     let raw = Math.max(1, Math.floor((out.damage * powerPct) / 100))
+    raw = Math.floor((raw * relicPct(state.skills, state.relics, gear.hero)) / 100)
     if (crit) raw = Math.floor((raw * CRIT_OUTPUT_PCT) / 100)
     target.hp -= hitDamage(raw, gear.hero, target, roundTick, boss, state.cores)
     gear.cooldown = fullCooldown(gear.hero, gear.star)
@@ -324,7 +347,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
   const cleared = roundDone && (state.round === BOSS_ROUND || enemies.length === 0)
   const status = hp === 0 ? 'lost' : cleared && state.round === BOSS_ROUND ? 'won' : 'running'
   const drafting = status === 'running' && cleared
-  const offer = drafting ? drawOffer(rng) : state.offer
+  const offer = drafting ? drawOffer(rng, state.relics) : state.offer
 
   return {
     ...state,
@@ -367,8 +390,17 @@ function assertValidCores(cores: unknown): void {
   }
 }
 
+function assertValidRelics(relics: unknown): void {
+  if (
+    !Array.isArray(relics) ||
+    relics.some((r, i) => !RELIC_IDS.includes(r as RelicId) || relics.indexOf(r) !== i)
+  )
+    throw new RangeError('relics must be a list of distinct known relics')
+}
+
 function assertValidReplay(replay: Replay, maxTicks: number): void {
   const { seed, ticks, inputs } = replay
+  if (replay.relics !== undefined) assertValidRelics(replay.relics)
   if (replay.cores !== undefined) assertValidCores(replay.cores)
   if (replay.pool !== undefined) assertValidPool(replay.pool)
   if (
@@ -404,7 +436,7 @@ function assertValidReplay(replay: Replay, maxTicks: number): void {
 /** Replay a battle from its seed and input log. Throws RangeError on a malformed or over-long log. */
 export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): SimState {
   assertValidReplay(replay, opts.maxTicks ?? DEFAULT_MAX_TICKS)
-  let state = createState(replay.seed, replay.pool, replay.stage, replay.cores)
+  let state = createState(replay.seed, replay.pool, replay.stage, replay.cores, replay.relics)
   let i = 0
   while (state.tick < replay.ticks && state.status === 'running') {
     const now: SimInput[] = []
@@ -435,6 +467,7 @@ export function hashState(state: SimState): string {
     state.gears.map((g) => [g.tile, g.hero, g.star, g.mod ?? 0, g.level, g.cooldown]),
     state.pool.map((p) => [p.hero, p.star, p.mod ?? 0]),
     state.cores.map((c) => [c.element, c.rarity]),
+    state.relics,
   ])
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i++) {

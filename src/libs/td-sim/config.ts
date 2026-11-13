@@ -144,7 +144,18 @@ export const STAGES: readonly StageDef[] = [
 ]
 export const STAGE_COUNT = STAGES.length
 
-export type SkillId = 'power' | 'haste' | 'crit' | 'bounty' | 'bank' | 'repair'
+export type SkillId =
+  | 'power'
+  | 'haste'
+  | 'crit'
+  | 'bounty'
+  | 'bank'
+  | 'repair'
+  | 'ember-surge'
+  | 'glacial-edge'
+  | 'verdant-bloom'
+  | 'void-rend'
+/** The skills every draft can offer. Relic skills (see RELICS) join the draft only once the relic is unlocked. */
 export const SKILL_IDS: readonly SkillId[] = ['power', 'haste', 'crit', 'bounty', 'bank', 'repair']
 export const DRAFT_SIZE = 3
 /** Per stack: power and haste are percent, crit is added crit percent, bounty is extra kill gold, bank is gold now, repair is HQ health now. */
@@ -257,3 +268,23 @@ export const CORE_DAMAGE_PCT: Record<CoreRarity, number> = {
   epic: 35,
   legendary: 50,
 }
+
+/**
+ * Relics: unlocking a relic adds its exclusive skill to the draft; each stack picked adds
+ * RELIC_SKILL_DAMAGE_PCT percent damage to that relic's hero. Matching rule (enforced by the
+ * backend at unlock): the player owns `hero` and owns a core of `element`, the hero's own element.
+ */
+export type RelicId = 'ember-brand' | 'frost-sigil' | 'grove-totem' | 'void-shard'
+export const RELIC_IDS: readonly RelicId[] = [
+  'ember-brand',
+  'frost-sigil',
+  'grove-totem',
+  'void-shard',
+]
+export const RELICS: Record<RelicId, { hero: HeroId; element: Element; skill: SkillId }> = {
+  'ember-brand': { hero: 'cinder-witch', element: 'fire', skill: 'ember-surge' },
+  'frost-sigil': { hero: 'frost-herald', element: 'ice', skill: 'glacial-edge' },
+  'grove-totem': { hero: 'moss-healer', element: 'nature', skill: 'verdant-bloom' },
+  'void-shard': { hero: 'void-blade', element: 'physical', skill: 'void-rend' },
+}
+export const RELIC_SKILL_DAMAGE_PCT = 50

@@ -28,8 +28,8 @@ export const GOLDEN_REPLAY: Replay = {
   ],
 }
 
-/** Rebaselined on purpose in ticket 13: elements and cores (advantage damage, hero and enemy elements, cores in the hashed state). Ticket 11: the stage joins the hashed state (stage 1 plays the same rules as before). Ticket 10: gears and pool entries carry a gear mod level, which joins the hashed state (mod 0 plays the same rules as before). Ticket 09: gears carry a star and the state carries the hero pool, so the hash input changed (the starter pool plays the same rules as before). Earlier: ticket 04 added rounds, the boss, skills and the draft. */
-export const GOLDEN_HASH = 'e11269a0'
+/** Rebaselined on purpose in ticket 14: the unlocked relics join the hashed state (no relics plays the same rules as before). Ticket 13: elements and cores (advantage damage, hero and enemy elements, cores in the hashed state). Ticket 11: the stage joins the hashed state (stage 1 plays the same rules as before). Ticket 10: gears and pool entries carry a gear mod level, which joins the hashed state (mod 0 plays the same rules as before). Ticket 09: gears carry a star and the state carries the hero pool, so the hash input changed (the starter pool plays the same rules as before). Earlier: ticket 04 added rounds, the boss, skills and the draft. */
+export const GOLDEN_HASH = 'd81a4496'
 
 /** Elemental balance replay: a mixed-element pool, two equipped cores, stage 1 (nature boss). Pins elemental advantage and core bonuses; change GOLDEN_ELEMENT_HASH only on purpose. */
 export const GOLDEN_ELEMENT_REPLAY: Replay = {
@@ -61,4 +61,4 @@ export const GOLDEN_ELEMENT_REPLAY: Replay = {
     { tick: 1100, type: 'pick', index: 2 },
   ],
 }
-export const GOLDEN_ELEMENT_HASH = '4b00150f'
+export const GOLDEN_ELEMENT_HASH = '8c9be05f'
