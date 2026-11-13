@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { randomInt } from 'crypto'
 import { DataSource } from 'typeorm'
 import { SimInput } from '../../libs/td-sim'
+import { TdCoreEntity } from '../../db/entities/td/td-core.entity'
 import { TdGearModEntity } from '../../db/entities/td/td-gear-mod.entity'
 import { TdHeroOwnedEntity } from '../../db/entities/td/td-hero-owned.entity'
 import { TdBattleSessionEntity } from '../../db/entities/td/td-battle-session.entity'
@@ -13,10 +14,12 @@ import { TdPlayerProfileEntity } from '../../db/entities/td/td-player-profile.en
 import { TdStageProgressEntity } from '../../db/entities/td/td-stage-progress.entity'
 import { evaluateFinish } from './battle'
 import { BATTLE_TTL_MS } from './battle.config'
+import { battleCores } from './core'
 import { modLevels } from './gear'
 import { buildPool } from './hero'
 import { ENERGY_CAP, regenerateEnergy, STAGE_ENERGY_COST } from './energy'
 import { assertStageUnlocked, planStageClear } from './stage'
+import { grantStageCore } from './td-core.service'
 import { TdBattleFinishDto } from './dto/td-battle-finish.dto'
 
 @Injectable()
@@ -53,17 +56,20 @@ export class TdBattleService {
         await etm.find(TdHeroOwnedEntity, { where: { userId } }),
         modLevels(await etm.find(TdGearModEntity, { where: { userId } }))
       )
+      // Snapshot of the equipped cores; stored with the pool so the replay ignores later changes.
+      const cores = battleCores(await etm.find(TdCoreEntity, { where: { userId } }))
       const seed = randomInt(0, 2 ** 32)
       const session = await etm.save(
         etm.create(TdBattleSessionEntity, {
           userId,
           seed: String(seed),
           heroPool: pool,
+          cores,
           stageId,
           expiresAt: new Date(now.getTime() + BATTLE_TTL_MS),
         })
       )
-      return { battleId: session.id, seed, stageId, pool, expiresAt: session.expiresAt }
+      return { battleId: session.id, seed, stageId, pool, cores, expiresAt: session.expiresAt }
     })
   }
 
@@ -90,6 +96,7 @@ export class TdBattleService {
           seed: Number(session.seed),
           status: session.status as 'started' | 'finished',
           pool: session.heroPool,
+          cores: session.cores,
           stage: session.stageId,
           expiresAt: session.expiresAt,
         },
@@ -114,6 +121,7 @@ export class TdBattleService {
       // First clear: the stage_progress row is created at most once (unique key), and only the
       // transaction that created it pays the gems, so a concurrent or repeated clear cannot pay twice.
       let gems = 0
+      let core: { element: string; rarity: string } | null = null
       let stars = 0
       if (result.stars > 0) {
         const created = await etm
@@ -134,6 +142,7 @@ export class TdBattleService {
             amount: gems,
             reason: `td_stage_first_clear:${session.stageId}`,
           })
+          core = await grantStageCore(etm, userId, session.stageId)
         } else {
           const existing = await etm.findOneOrFail(TdStageProgressEntity, {
             where: { userId, stageId: session.stageId },
@@ -161,6 +170,7 @@ export class TdBattleService {
         bestStars: stars,
         firstClear: gems > 0,
         gems,
+        core,
         balances: { coins: Number(row?.total ?? 0) },
       }
     })

@@ -2,6 +2,7 @@ import { HttpException } from '@nestjs/common'
 import {
   createState,
   DEFAULT_MAX_TICKS,
+  CoreEntry,
   GOLDEN_REPLAY,
   hashState,
   PoolEntry,
@@ -18,6 +19,7 @@ const session = (patch: Partial<IBattleSession> = {}): IBattleSession => ({
   seed: 7,
   status: 'started',
   pool: null,
+  cores: null,
   stage: 1,
   expiresAt: new Date(NOW.getTime() + BATTLE_TTL_MS),
   ...patch,
@@ -197,5 +199,44 @@ describe('stage in the replay', () => {
     expect(r.stars).toBe(0)
     const forged = finish(session(), { stars: 3, hp: 10 })
     expect(forged.stars).toBe(0)
+  })
+})
+
+describe('equipped core snapshot', () => {
+  const CORES: CoreEntry[] = [{ element: 'physical', rarity: 'legendary' }]
+  // A bot that builds a linked chain from the source and takes the first draft offer, played with the given cores.
+  const botLog = (cores: CoreEntry[]) => {
+    let state = createState(7, undefined, 1, cores)
+    const inputs: SimInput[] = []
+    const tiles = [27, 22, 26, 28, 21, 23]
+    while (state.status === 'running' && state.tick < DEFAULT_MAX_TICKS) {
+      const now: SimInput[] =
+        state.phase === 'draft'
+          ? [{ tick: state.tick, type: 'pick', index: 0 }]
+          : state.tick % 30 === 0 && state.tick / 30 < tiles.length
+            ? [{ tick: state.tick, type: 'summon', tile: tiles[state.tick / 30] }]
+            : []
+      inputs.push(...now)
+      state = step(state, now)
+    }
+    return { ticks: state.tick, inputs, hash: hashState(state) }
+  }
+
+  it('the server replay matches a client that played with the same cores, exactly', () => {
+    const log = botLog(CORES)
+    const r = evaluateFinish(session({ cores: CORES }), { userId: 'u1', seed: 7, ...log }, NOW)
+    expect(r.hash).toBe(log.hash)
+  })
+
+  it('a log made with cores is not accepted as if it had none (the snapshot decides)', () => {
+    const log = botLog(CORES)
+    const r = evaluateFinish(session({ cores: null }), { userId: 'u1', seed: 7, ...log }, NOW)
+    expect(r.hash).not.toBe(log.hash)
+  })
+
+  it('a session without stored cores (older rows) replays with none', () => {
+    const log = botLog([])
+    const r = evaluateFinish(session({ cores: null }), { userId: 'u1', seed: 7, ...log }, NOW)
+    expect(r.hash).toBe(log.hash)
   })
 })

@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus } from '@nestjs/common'
 import {
+  CoreEntry,
   DEFAULT_MAX_TICKS,
   hashState,
   PoolEntry,
@@ -17,6 +18,8 @@ export interface IBattleSession {
   status: 'started' | 'finished'
   /** Owned-hero snapshot taken at battle start; null (older rows) means the starter pool. */
   pool: PoolEntry[] | null
+  /** Equipped-core snapshot taken at battle start; null (older rows) means none. */
+  cores: CoreEntry[] | null
   /** 1 to STAGE_COUNT, chosen at battle start. */
   stage: number
   expiresAt: Date
@@ -68,6 +71,7 @@ export const evaluateFinish = (
         ticks: req.ticks,
         inputs: req.inputs,
         pool: session.pool ?? undefined,
+        cores: session.cores ?? undefined,
         stage: session.stage,
       },
       { maxTicks: DEFAULT_MAX_TICKS }
