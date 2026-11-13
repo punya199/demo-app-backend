@@ -2,7 +2,7 @@
 import { HttpException } from '@nestjs/common'
 import dataSource from '../../config/database.config'
 import { AddTdBattleSession1794800000000 } from '../../db/migrations/1794800000000-add-td-battle-session'
-import { createState, DEFAULT_MAX_TICKS, SimInput, step } from '../../libs/td-sim'
+import { createState, DEFAULT_MAX_TICKS, MAX_DRAFT_TICKS, SimInput, step } from '../../libs/td-sim'
 import { createUser, sql, startTestDatabase, stopTestDatabase } from '../monster/int-test-helpers'
 import * as battleRules from './battle'
 import { STAGE_FIRST_CLEAR_GEMS } from './stage.config'
@@ -121,7 +121,12 @@ describe('td battle', () => {
     // over the tick cap
     expect(
       await statusOf(
-        service.finish(userId, battleId, { ...good, ticks: DEFAULT_MAX_TICKS + 1 }, T0)
+        service.finish(
+          userId,
+          battleId,
+          { ...good, ticks: DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS + 1 },
+          T0
+        )
       )
     ).toBe(422)
     expect(await coinsOf(userId)).toBe(0)

@@ -9,13 +9,20 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator'
-import { DEFAULT_MAX_TICKS, TILE_COUNT } from '../../../libs/td-sim'
-import { MAX_INPUTS } from '../battle.config'
+import {
+  DEFAULT_MAX_TICKS,
+  MAX_DRAFT_TICKS,
+  MAX_REPLAY_INPUTS,
+  TILE_COUNT,
+} from '../../../libs/td-sim'
+
+// Fight time plus the separately capped draft time (the sim's own ceilings).
+const MAX_LOG_TICKS = DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS
 
 export class TdBattleInputDto {
   @IsInt()
   @Min(0)
-  @Max(DEFAULT_MAX_TICKS)
+  @Max(MAX_LOG_TICKS)
   tick: number
 
   @IsIn(['summon', 'merge', 'pick'])
@@ -56,11 +63,11 @@ export class TdBattleFinishDto {
 
   @IsInt()
   @Min(1)
-  @Max(DEFAULT_MAX_TICKS)
+  @Max(MAX_LOG_TICKS)
   ticks: number
 
   @IsArray()
-  @ArrayMaxSize(MAX_INPUTS)
+  @ArrayMaxSize(MAX_REPLAY_INPUTS)
   @ValidateNested({ each: true })
   @Type(() => TdBattleInputDto)
   inputs: TdBattleInputDto[]

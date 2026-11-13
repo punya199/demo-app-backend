@@ -4,6 +4,7 @@ import {
   HEROES,
   LEVEL_OUTPUT_PCT,
   MAX_CRIT_PCT,
+  MAX_LEVEL,
   PENALTY_OUTPUT_PCT,
   PENALTY_TILES,
   RESONANCE_CRIT_PCT,
@@ -14,6 +15,14 @@ import {
   TILE_COUNT,
 } from './config'
 import type { Gear } from './sim'
+
+/** Two gears merge only when hero, star, mod and level all match (and are below max level); the sim and the client share this. */
+export const canMerge = (a: Gear, b: Gear): boolean =>
+  a.hero === b.hero &&
+  a.star === b.star &&
+  (a.mod ?? 0) === (b.mod ?? 0) &&
+  a.level === b.level &&
+  a.level < MAX_LEVEL
 
 /** Tiles sharing an edge with `tile` (no diagonals, no wrap). */
 export function neighbors(tile: number): number[] {

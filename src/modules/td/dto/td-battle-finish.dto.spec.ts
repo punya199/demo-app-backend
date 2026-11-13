@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 import { plainToInstance } from 'class-transformer'
 import { validateSync } from 'class-validator'
-import { MAX_INPUTS } from '../battle.config'
+import { DEFAULT_MAX_TICKS, MAX_DRAFT_TICKS, MAX_REPLAY_INPUTS } from '../../../libs/td-sim'
 import { TdBattleFinishDto } from './td-battle-finish.dto'
 
 const errorsFor = (body: unknown) => validateSync(plainToInstance(TdBattleFinishDto, body))
@@ -13,7 +13,7 @@ describe('TdBattleFinishDto', () => {
   })
 
   it.each([
-    ['too many ticks', { ...ok, ticks: 12_001 }],
+    ['too many ticks', { ...ok, ticks: DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS + 1 }],
     ['negative seed', { ...ok, seed: -1 }],
     ['seed over uint32', { ...ok, seed: 2 ** 32 }],
     ['non-integer tick', { ...ok, inputs: [{ tick: 1.5, type: 'summon', tile: 1 }] }],
@@ -22,7 +22,10 @@ describe('TdBattleFinishDto', () => {
     ['log not an array', { ...ok, inputs: 'x' }],
     [
       'log too long',
-      { ...ok, inputs: Array.from({ length: MAX_INPUTS + 1 }, () => ({ tick: 0, type: 'pick' })) },
+      {
+        ...ok,
+        inputs: Array.from({ length: MAX_REPLAY_INPUTS + 1 }, () => ({ tick: 0, type: 'pick' })),
+      },
     ],
   ])('rejects %s', (_name, body) => {
     expect(errorsFor(body).length).toBeGreaterThan(0)

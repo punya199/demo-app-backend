@@ -2,6 +2,8 @@ import { HttpException } from '@nestjs/common'
 import {
   createState,
   DEFAULT_MAX_TICKS,
+  MAX_DRAFT_TICKS,
+  MAX_REPLAY_INPUTS,
   CoreEntry,
   GOLDEN_REPLAY,
   hashState,
@@ -89,7 +91,15 @@ describe('evaluateFinish', () => {
   })
 
   it('rejects a replay over the tick cap and malformed logs', () => {
-    expect(statusOf(() => finish(session(), { ticks: DEFAULT_MAX_TICKS + 1 }))).toBe(422)
+    expect(
+      statusOf(() => finish(session(), { ticks: DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS + 1 }))
+    ).toBe(422)
+    const flood = Array.from({ length: MAX_REPLAY_INPUTS + 1 }, () => ({
+      tick: 0,
+      type: 'pick' as const,
+      index: 0,
+    }))
+    expect(statusOf(() => finish(session(), { inputs: flood }))).toBe(422)
     expect(
       statusOf(() => finish(session(), { inputs: [{ tick: 0, type: 'summon', tile: 99 }] }))
     ).toBe(422)
