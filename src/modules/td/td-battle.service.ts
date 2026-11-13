@@ -10,11 +10,13 @@ import {
   TdCurrencyLedgerEntity,
 } from '../../db/entities/td/td-currency-ledger.entity'
 import { TdPlayerProfileEntity } from '../../db/entities/td/td-player-profile.entity'
+import { TdStageProgressEntity } from '../../db/entities/td/td-stage-progress.entity'
 import { evaluateFinish } from './battle'
 import { BATTLE_TTL_MS } from './battle.config'
 import { modLevels } from './gear'
 import { buildPool } from './hero'
 import { ENERGY_CAP, regenerateEnergy, STAGE_ENERGY_COST } from './energy'
+import { assertStageUnlocked, planStageClear } from './stage'
 import { TdBattleFinishDto } from './dto/td-battle-finish.dto'
 
 @Injectable()
@@ -22,8 +24,9 @@ export class TdBattleService {
   constructor(private readonly dataSource: DataSource) {}
 
   // Spends the stage's energy and issues a single-use battle id with a server-chosen seed. The
-  // profile row lock serialises this with other energy changes of the same player.
-  async start(userId: string, now: Date = new Date()) {
+  // profile row lock serialises this with other energy changes of the same player. A locked stage
+  // is refused before any energy is charged.
+  async start(userId: string, stageId: number, now: Date = new Date()) {
     return this.dataSource.transaction(async etm => {
       await etm
         .createQueryBuilder()
@@ -36,6 +39,7 @@ export class TdBattleService {
         where: { userId },
         lock: { mode: 'pessimistic_write' },
       })
+      assertStageUnlocked(stageId, await etm.find(TdStageProgressEntity, { where: { userId } }))
       const next = regenerateEnergy(profile.energy, profile.energyUpdatedAt, now)
       if (next.energy < STAGE_ENERGY_COST) {
         throw new HttpException('Not enough energy', HttpStatus.CONFLICT)
@@ -55,10 +59,11 @@ export class TdBattleService {
           userId,
           seed: String(seed),
           heroPool: pool,
+          stageId,
           expiresAt: new Date(now.getTime() + BATTLE_TTL_MS),
         })
       )
-      return { battleId: session.id, seed, pool, expiresAt: session.expiresAt }
+      return { battleId: session.id, seed, stageId, pool, expiresAt: session.expiresAt }
     })
   }
 
@@ -85,6 +90,7 @@ export class TdBattleService {
           seed: Number(session.seed),
           status: session.status as 'started' | 'finished',
           pool: session.heroPool,
+          stage: session.stageId,
           expiresAt: session.expiresAt,
         },
         { userId, seed: dto.seed, ticks: dto.ticks, inputs },
@@ -105,6 +111,39 @@ export class TdBattleService {
           reason: `td_battle:${session.id}`,
         })
       }
+      // First clear: the stage_progress row is created at most once (unique key), and only the
+      // transaction that created it pays the gems, so a concurrent or repeated clear cannot pay twice.
+      let gems = 0
+      let stars = 0
+      if (result.stars > 0) {
+        const created = await etm
+          .createQueryBuilder()
+          .insert()
+          .into(TdStageProgressEntity)
+          .values({ userId, stageId: session.stageId, stars: result.stars })
+          .orIgnore()
+          .returning('id')
+          .execute()
+        if ((created.raw as unknown[]).length > 0) {
+          const plan = planStageClear(session.stageId, null, result.stars)
+          gems = plan.gems
+          stars = plan.stars
+          await etm.insert(TdCurrencyLedgerEntity, {
+            userId,
+            currency: EnumTdCurrency.GEMS,
+            amount: gems,
+            reason: `td_stage_first_clear:${session.stageId}`,
+          })
+        } else {
+          const existing = await etm.findOneOrFail(TdStageProgressEntity, {
+            where: { userId, stageId: session.stageId },
+            lock: { mode: 'pessimistic_write' },
+          })
+          stars = planStageClear(session.stageId, existing.stars, result.stars).stars
+          if (stars !== existing.stars)
+            await etm.update(TdStageProgressEntity, existing.id, { stars })
+        }
+      }
       const row = await etm
         .createQueryBuilder(TdCurrencyLedgerEntity, 'l')
         .select('COALESCE(SUM(l.amount), 0)', 'total')
@@ -117,6 +156,11 @@ export class TdBattleService {
         result: result.status,
         rounds: result.round,
         coins: result.coins,
+        stageId: session.stageId,
+        stars: result.stars,
+        bestStars: stars,
+        firstClear: gems > 0,
+        gems,
         balances: { coins: Number(row?.total ?? 0) },
       }
     })

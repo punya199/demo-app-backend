@@ -5,6 +5,7 @@ import { TdGachaController } from './td-gacha.controller'
 import { TdGachaService } from './td-gacha.service'
 import { TdGearController } from './td-gear.controller'
 import { TdHeroController } from './td-hero.controller'
+import { TdStageController } from './td-stage.controller'
 import { TdProfileController } from './td-profile.controller'
 import { TdProfileService } from './td-profile.service'
 
@@ -15,6 +16,7 @@ import { TdProfileService } from './td-profile.service'
     TdBattleController,
     TdHeroController,
     TdGearController,
+    TdStageController,
   ],
   providers: [TdProfileService, TdGachaService, TdBattleService],
   exports: [TdProfileService, TdGachaService, TdBattleService],

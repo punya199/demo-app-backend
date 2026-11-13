@@ -2,6 +2,7 @@ import { Body, Controller, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs
 import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { TdBattleFinishDto } from './dto/td-battle-finish.dto'
+import { TdBattleStartDto } from './dto/td-battle-start.dto'
 import { TdBattleService } from './td-battle.service'
 import { TdRateLimitGuard } from './td-rate-limit.guard'
 
@@ -13,8 +14,8 @@ export class TdBattleController {
   @UseGuards(new TdRateLimitGuard())
   @AuthUser()
   @Post()
-  start(@ReqUser() user: IAppJwtPayload) {
-    return this.battleService.start(user['user-id'])
+  start(@ReqUser() user: IAppJwtPayload, @Body() dto: TdBattleStartDto) {
+    return this.battleService.start(user['user-id'], dto.stageId)
   }
 
   @UseGuards(new TdRateLimitGuard())

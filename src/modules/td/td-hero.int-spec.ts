@@ -92,7 +92,7 @@ describe('td owned heroes and star-up', () => {
     await own(userId, 'void-blade')
     await own(userId, 'cinder-witch', 2)
     await giveShards(userId, 1000)
-    const { battleId, pool } = await battle.start(userId, T0)
+    const { battleId, pool } = await battle.start(userId, 1, T0)
     const expected = [
       { hero: 'cinder-witch', star: 2, mod: 0 },
       { hero: 'void-blade', star: 1, mod: 0 },
@@ -105,7 +105,7 @@ describe('td owned heroes and star-up', () => {
 
   it('a new player with no heroes battles with the starter pool', async () => {
     const userId = await createUser('td')
-    const { pool } = await battle.start(userId, T0)
+    const { pool } = await battle.start(userId, 1, T0)
     expect(pool).toEqual(STARTER_POOL)
   })
 })

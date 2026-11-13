@@ -105,7 +105,7 @@ describe('td gear mod upgrades', () => {
     await own(userId, 'void-blade')
     await giveCoins(userId, 1000)
     await gacha.upgradeGear(userId, 'void-blade', T0)
-    const { battleId, pool } = await battle.start(userId, T0)
+    const { battleId, pool } = await battle.start(userId, 1, T0)
     expect(pool).toEqual([{ hero: 'void-blade', star: 1, mod: 1 }])
     await gacha.upgradeGear(userId, 'void-blade', T0)
     const stored = await sql<{ hero_pool: unknown }[]>(

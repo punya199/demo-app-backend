@@ -27,6 +27,10 @@ export class TdBattleSessionEntity {
   @Column({ name: 'hero_pool', type: 'jsonb', nullable: true })
   heroPool: PoolEntry[] | null
 
+  // The stage this battle was started on (1 to STAGE_COUNT); the replay plays that stage.
+  @Column({ name: 'stage_id', type: 'integer', default: 1 })
+  stageId: number
+
   // 'won' | 'lost', from the replay
   @Column({ name: 'result', type: 'varchar', nullable: true })
   result: string | null
