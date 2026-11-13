@@ -31,11 +31,11 @@ describe('td schema and profile', () => {
 
   // Put a player's stored energy at `energy` as of T0.
   const setEnergy = (userId: string, energy: number) =>
-    sql(`UPDATE td.player_profile SET energy=$2, energy_updated_at=$3 WHERE user_id=$1`, [
-      userId,
-      energy,
-      T0,
-    ])
+    sql(
+      `INSERT INTO td.player_profile (user_id, energy, energy_updated_at) VALUES ($1,$2,$3)
+       ON CONFLICT (user_id) DO UPDATE SET energy=$2, energy_updated_at=$3`,
+      [userId, energy, T0]
+    )
 
   describe('migration', () => {
     it('keeps every td table in the td schema, with no foreign key out of it', async () => {
@@ -80,6 +80,14 @@ describe('td schema and profile', () => {
       })
     })
 
+    it('is a pure read: it takes no lock and creates no profile row', async () => {
+      const userId = await createUser('td')
+      await service.getProfile(userId, T0)
+      expect(await sql(`SELECT 1 FROM td.player_profile WHERE user_id=$1`, [userId])).toHaveLength(
+        0
+      )
+    })
+
     it.each([
       // [energy at T0, minutes offline, energy now, seconds to the next point]
       [0, 5, 0, 60],
@@ -90,7 +98,6 @@ describe('td schema and profile', () => {
       [0, 60 * 24 * 365, 60, null],
     ])('after an offline gap: %i energy + %i min -> %i', async (start, gap, expected, next) => {
       const userId = await createUser('td')
-      await service.getProfile(userId, T0)
       await setEnergy(userId, start)
       const { energy } = await service.getProfile(userId, minutes(gap))
       expect(energy.current).toBe(expected)
@@ -99,7 +106,6 @@ describe('td schema and profile', () => {
 
     it('keeps the leftover minutes across reads, so polling never loses or adds energy', async () => {
       const userId = await createUser('td')
-      await service.getProfile(userId, T0)
       await setEnergy(userId, 0)
       await service.getProfile(userId, minutes(4))
       await service.getProfile(userId, minutes(8))
@@ -108,7 +114,6 @@ describe('td schema and profile', () => {
 
     it('never double-grants when the same player is read in parallel', async () => {
       const userId = await createUser('td')
-      await service.getProfile(userId, T0)
       await setEnergy(userId, 0)
       const results = await Promise.all(
         Array.from({ length: 8 }, () => service.getProfile(userId, minutes(12)))
