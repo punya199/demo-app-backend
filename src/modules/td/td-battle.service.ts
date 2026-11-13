@@ -74,7 +74,15 @@ export class TdBattleService {
           expiresAt: new Date(now.getTime() + BATTLE_TTL_MS),
         })
       )
-      return { battleId: session.id, seed, stageId, pool, cores, relics, expiresAt: session.expiresAt }
+      return {
+        battleId: session.id,
+        seed,
+        stageId,
+        pool,
+        cores,
+        relics,
+        expiresAt: session.expiresAt,
+      }
     })
   }
 
