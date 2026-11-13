@@ -3,21 +3,21 @@ import { AuthUser, ReqUser } from '../auth/auth.decorator'
 import { IAppJwtPayload } from '../auth/auth.interface'
 import { TdGachaPullDto } from './dto/td-gacha-pull.dto'
 import { TdGachaService } from './td-gacha.service'
-import { TdRateLimitGuard } from './td-rate-limit.guard'
+import { tdRateLimitGuard } from './td-rate-limit.guard'
 
 @Controller('td/gacha')
 export class TdGachaController {
   constructor(private readonly gachaService: TdGachaService) {}
 
   // Guards run in decorator order bottom-up: JWT first, then the per-user limit.
-  @UseGuards(new TdRateLimitGuard())
+  @UseGuards(tdRateLimitGuard)
   @AuthUser()
   @Get()
   getGacha(@ReqUser() user: IAppJwtPayload) {
     return this.gachaService.getGacha(user['user-id'])
   }
 
-  @UseGuards(new TdRateLimitGuard())
+  @UseGuards(tdRateLimitGuard)
   @AuthUser()
   @Post('pull')
   pull(@ReqUser() user: IAppJwtPayload, @Body() dto: TdGachaPullDto) {

@@ -4,21 +4,21 @@ import { IAppJwtPayload } from '../auth/auth.interface'
 import { TdBattleFinishDto } from './dto/td-battle-finish.dto'
 import { TdBattleStartDto } from './dto/td-battle-start.dto'
 import { TdBattleService } from './td-battle.service'
-import { TdRateLimitGuard } from './td-rate-limit.guard'
+import { tdRateLimitGuard } from './td-rate-limit.guard'
 
 @Controller('td/battles')
 export class TdBattleController {
   constructor(private readonly battleService: TdBattleService) {}
 
   // Guards run in decorator order bottom-up: JWT first, then the per-user limit.
-  @UseGuards(new TdRateLimitGuard())
+  @UseGuards(tdRateLimitGuard)
   @AuthUser()
   @Post()
   start(@ReqUser() user: IAppJwtPayload, @Body() dto: TdBattleStartDto) {
     return this.battleService.start(user['user-id'], dto.stageId)
   }
 
-  @UseGuards(new TdRateLimitGuard())
+  @UseGuards(tdRateLimitGuard)
   @AuthUser()
   @Post(':id/finish')
   finish(
