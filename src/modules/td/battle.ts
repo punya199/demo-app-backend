@@ -54,8 +54,12 @@ export const evaluateFinish = (
     if (error instanceof RangeError) fail(HttpStatus.UNPROCESSABLE_ENTITY, error.message)
     throw error
   }
-  if (state.status === 'running')
-    fail(HttpStatus.UNPROCESSABLE_ENTITY, 'The input log does not finish the battle')
+  if (state.status === 'running') {
+    throw new HttpException(
+      'The input log does not finish the battle',
+      HttpStatus.UNPROCESSABLE_ENTITY
+    )
+  }
   return {
     status: state.status,
     round: state.round,
