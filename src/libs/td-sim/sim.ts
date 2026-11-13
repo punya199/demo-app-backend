@@ -73,7 +73,7 @@ export interface PoolEntry {
 }
 
 /** Charge units a gear needs for a shot; the stronger skill (from STRONG_SKILL_STAR) reloads faster. */
-const fullCooldown = (hero: HeroId, star: number): number =>
+export const fullCooldown = (hero: HeroId, star: number): number =>
   Math.floor(
     (HEROES[hero].cooldown *
       CHARGE_SCALE *
@@ -302,7 +302,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
 function assertValidPool(pool: unknown): void {
   if (!Array.isArray(pool) || pool.length === 0) throw new RangeError('pool must not be empty')
   for (const p of pool as Partial<PoolEntry>[]) {
-    if (typeof p?.hero !== 'string' || !Object.hasOwn(HEROES, p.hero))
+    if (typeof p?.hero !== 'string' || !Object.prototype.hasOwnProperty.call(HEROES, p.hero))
       throw new RangeError('pool has an unknown hero')
     if (!Number.isInteger(p.star) || p.star! < 1 || p.star! > MAX_STAR)
       throw new RangeError('pool star must be an integer from 1 to MAX_STAR')
