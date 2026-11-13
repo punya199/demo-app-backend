@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { HEROES, MAX_STAR, PoolEntry, STARTER_POOL } from '../../libs/td-sim'
+import { HEROES, MAX_GEAR_MOD, MAX_STAR, PoolEntry, STARTER_POOL } from '../../libs/td-sim'
 import { STAR_UP_SHARD_COSTS } from './hero.config'
 
 export interface IStarUpPlan {
@@ -23,13 +23,18 @@ export function planStarUp(starLevel: number, shards: number): IStarUpPlan {
 // Pure. The battle's summon pool from the heroes a player owns; the caller stores the result with
 // the battle session so the server replay uses this exact snapshot. A player with no (known)
 // heroes gets the starter pool from td-sim config. Unknown ids are dropped and stars clamped so a
-// bad row can never make the later replay fail validation.
-export function buildPool(owned: { heroId: string; starLevel: number }[]): PoolEntry[] {
+// bad row can never make the later replay fail validation. `mods` maps hero id to gear mod level
+// (missing means 0).
+export function buildPool(
+  owned: { heroId: string; starLevel: number }[],
+  mods: Record<string, number> = {}
+): PoolEntry[] {
   const pool = owned
     .filter(h => Object.hasOwn(HEROES, h.heroId))
     .map(h => ({
       hero: h.heroId as PoolEntry['hero'],
       star: Math.min(MAX_STAR, Math.max(1, Math.trunc(h.starLevel) || 1)),
+      mod: Math.min(MAX_GEAR_MOD, Math.max(0, Math.trunc(mods[h.heroId]) || 0)),
     }))
     .sort((a, b) => (a.hero < b.hero ? -1 : a.hero > b.hero ? 1 : 0))
   return pool.length ? pool : STARTER_POOL.map(p => ({ ...p }))

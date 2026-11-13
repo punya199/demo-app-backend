@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { HEROES, MAX_STAR, STARTER_POOL } from '../../libs/td-sim'
+import { HEROES, MAX_GEAR_MOD, MAX_STAR, STARTER_POOL } from '../../libs/td-sim'
 import { TD_HEROES } from './gacha.config'
 import { buildPool, planStarUp } from './hero'
 import { STAR_UP_SHARD_COSTS } from './hero.config'
@@ -48,8 +48,24 @@ describe('buildPool', () => {
       { heroId: 'cinder-witch', starLevel: 1 },
     ])
     expect(pool).toEqual([
-      { hero: 'cinder-witch', star: 1 },
-      { hero: 'void-blade', star: 3 },
+      { hero: 'cinder-witch', star: 1, mod: 0 },
+      { hero: 'void-blade', star: 3, mod: 0 },
+    ])
+  })
+
+  it('carries each hero\'s gear mod level, clamped to the cap, 0 when there is none', () => {
+    const pool = buildPool(
+      [
+        { heroId: 'void-blade', starLevel: 1 },
+        { heroId: 'cinder-witch', starLevel: 1 },
+        { heroId: 'sun-oracle', starLevel: 1 },
+      ],
+      { 'void-blade': 2, 'cinder-witch': 99, ghost: 4 }
+    )
+    expect(pool).toEqual([
+      { hero: 'cinder-witch', star: 1, mod: MAX_GEAR_MOD },
+      { hero: 'sun-oracle', star: 1, mod: 0 },
+      { hero: 'void-blade', star: 1, mod: 2 },
     ])
   })
 
@@ -60,8 +76,8 @@ describe('buildPool', () => {
       { heroId: 'cinder-witch', starLevel: 0 },
     ])
     expect(pool).toEqual([
-      { hero: 'cinder-witch', star: 1 },
-      { hero: 'void-blade', star: MAX_STAR },
+      { hero: 'cinder-witch', star: 1, mod: 0 },
+      { hero: 'void-blade', star: MAX_STAR, mod: 0 },
     ])
     expect(buildPool([{ heroId: 'ghost', starLevel: 1 }])).toEqual(STARTER_POOL)
   })
