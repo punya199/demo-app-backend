@@ -15,13 +15,13 @@ import {
   DRAFT_SIZE,
   ENEMIES,
   ENEMY_BASE_HP,
-  HERO_IDS,
   HEROES,
   HP_GROWTH_PCT,
   INCOME_EVERY,
   LANE_LENGTH,
   MAX_CRIT_PCT,
   MAX_LEVEL,
+  MAX_STAR,
   ROUNDS,
   SKILL_BANK_GOLD,
   SKILL_BOUNTY,
@@ -30,8 +30,11 @@ import {
   SKILL_IDS,
   SKILL_POWER_PCT,
   SKILL_REPAIR_HP,
+  STARTER_POOL,
   START_GOLD,
   START_HP,
+  STRONG_SKILL_COOLDOWN_PCT,
+  STRONG_SKILL_STAR,
   SUMMON_COST,
   TILE_COUNT,
   type EnemyKind,
@@ -55,11 +58,28 @@ export type SimInput =
 export interface Gear {
   tile: number
   hero: HeroId
+  /** 1 to MAX_STAR, copied from the battle's pool; merging keeps it. */
+  star: number
   /** 1 to MAX_LEVEL; merging two identical gears gives level + 1. */
   level: number
   /** Charge units still needed before the next shot (hero.cooldown * CHARGE_SCALE when empty). Only linked gears charge. */
   cooldown: number
 }
+
+/** One owned hero as the battle sees it. */
+export interface PoolEntry {
+  hero: HeroId
+  star: number
+}
+
+/** Charge units a gear needs for a shot; the stronger skill (from STRONG_SKILL_STAR) reloads faster. */
+const fullCooldown = (hero: HeroId, star: number): number =>
+  Math.floor(
+    (HEROES[hero].cooldown *
+      CHARGE_SCALE *
+      (star >= STRONG_SKILL_STAR ? STRONG_SKILL_COOLDOWN_PCT : 100)) /
+      100
+  )
 
 export interface Enemy {
   id: number
@@ -89,15 +109,19 @@ export interface SimState {
   skills: SkillId[]
   enemies: Enemy[]
   gears: Gear[]
+  /** The summon pool, snapshotted when the battle starts; never changes during a run. */
+  pool: PoolEntry[]
 }
 
 export interface Replay {
   seed: number
   ticks: number
   inputs: SimInput[]
+  /** Owned-hero snapshot taken at battle start; omitted means the starter pool. */
+  pool?: PoolEntry[]
 }
 
-export function createState(seed: number): SimState {
+export function createState(seed: number, pool: readonly PoolEntry[] = STARTER_POOL): SimState {
   return {
     tick: 0,
     rng: seed >>> 0,
@@ -113,6 +137,7 @@ export function createState(seed: number): SimState {
     skills: [],
     enemies: [],
     gears: [],
+    pool: pool.map((p) => ({ ...p })),
   }
 }
 
@@ -184,15 +209,15 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
       const a = gears[from]
       const b = gears[to]
       if (a.hero !== b.hero || a.level !== b.level || a.level >= MAX_LEVEL) continue
-      gears[to] = { ...b, level: b.level + 1, cooldown: HEROES[b.hero].cooldown * CHARGE_SCALE }
+      gears[to] = { ...b, level: b.level + 1, cooldown: fullCooldown(b.hero, b.star) }
       gears.splice(from, 1)
       continue
     }
     const free = onBoard(input.tile) && !gears.some((g) => g.tile === input.tile)
     if (!free || gold < SUMMON_COST) continue
     gold -= SUMMON_COST
-    const hero = HERO_IDS[rng.int(HERO_IDS.length)]
-    gears.push({ tile: input.tile, hero, level: 1, cooldown: HEROES[hero].cooldown * CHARGE_SCALE })
+    const { hero, star } = state.pool[rng.int(state.pool.length)]
+    gears.push({ tile: input.tile, hero, star, level: 1, cooldown: fullCooldown(hero, star) })
   }
   if (state.tick % INCOME_EVERY === 0) gold += 1
 
@@ -238,7 +263,7 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
     let raw = Math.max(1, Math.floor((out.damage * powerPct) / 100))
     if (crit) raw = Math.floor((raw * CRIT_OUTPUT_PCT) / 100)
     target.hp -= hitDamage(raw, gear.hero, target, roundTick)
-    gear.cooldown = HEROES[gear.hero].cooldown * CHARGE_SCALE
+    gear.cooldown = fullCooldown(gear.hero, gear.star)
     if (target.hp <= 0) {
       gold += ENEMIES[target.kind].reward + bounty
       enemies = enemies.filter((e) => e !== target)
@@ -274,8 +299,19 @@ export function step(state: SimState, inputs: readonly SimInput[]): SimState {
   }
 }
 
+function assertValidPool(pool: unknown): void {
+  if (!Array.isArray(pool) || pool.length === 0) throw new RangeError('pool must not be empty')
+  for (const p of pool as Partial<PoolEntry>[]) {
+    if (typeof p?.hero !== 'string' || !Object.hasOwn(HEROES, p.hero))
+      throw new RangeError('pool has an unknown hero')
+    if (!Number.isInteger(p.star) || p.star! < 1 || p.star! > MAX_STAR)
+      throw new RangeError('pool star must be an integer from 1 to MAX_STAR')
+  }
+}
+
 function assertValidReplay(replay: Replay, maxTicks: number): void {
   const { seed, ticks, inputs } = replay
+  if (replay.pool !== undefined) assertValidPool(replay.pool)
   if (!Number.isInteger(seed)) throw new RangeError('seed must be an integer')
   if (!Number.isInteger(ticks) || ticks < 0 || ticks > maxTicks) {
     throw new RangeError(`ticks must be an integer in [0, ${maxTicks}]`)
@@ -304,7 +340,7 @@ function assertValidReplay(replay: Replay, maxTicks: number): void {
 /** Replay a battle from its seed and input log. Throws RangeError on a malformed or over-long log. */
 export function runReplay(replay: Replay, opts: { maxTicks?: number } = {}): SimState {
   assertValidReplay(replay, opts.maxTicks ?? DEFAULT_MAX_TICKS)
-  let state = createState(replay.seed)
+  let state = createState(replay.seed, replay.pool)
   let i = 0
   while (state.tick < replay.ticks && state.status === 'running') {
     const now: SimInput[] = []
@@ -331,7 +367,8 @@ export function hashState(state: SimState): string {
     state.offer,
     state.skills,
     state.enemies.map((e) => [e.id, e.kind, e.pos, e.hp]),
-    state.gears.map((g) => [g.tile, g.hero, g.level, g.cooldown]),
+    state.gears.map((g) => [g.tile, g.hero, g.star, g.level, g.cooldown]),
+    state.pool.map((p) => [p.hero, p.star]),
   ])
   let h = 0x811c9dc5
   for (let i = 0; i < text.length; i++) {

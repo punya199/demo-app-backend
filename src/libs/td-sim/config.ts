@@ -68,14 +68,57 @@ export const SKILL_BOUNTY = 2
 export const SKILL_BANK_GOLD = 25
 export const SKILL_REPAIR_HP = 3
 
-export type HeroId = 'archer' | 'mage' | 'knight'
-/** damage per shot and ticks between shots. */
+/** The first three are the starter recruits; the rest mirror the backend gacha heroes (a unit test there keeps the ids in step). */
+export type HeroId =
+  | 'archer'
+  | 'mage'
+  | 'knight'
+  | 'cinder-witch'
+  | 'frost-herald'
+  | 'storm-caller'
+  | 'sun-oracle'
+  | 'moss-healer'
+  | 'tide-bard'
+  | 'iron-warden'
+  | 'dawn-priestess'
+  | 'twig-archer'
+  | 'ember-lancer'
+  | 'glacier-sniper'
+  | 'void-blade'
+/** damage per shot and ticks between shots (star 1; see STAR_DAMAGE_PCT). */
 export const HEROES: Record<HeroId, { damage: number; cooldown: number }> = {
   archer: { damage: 3, cooldown: 8 },
   mage: { damage: 8, cooldown: 20 },
   knight: { damage: 5, cooldown: 12 },
+  'cinder-witch': { damage: 6, cooldown: 18 },
+  'frost-herald': { damage: 7, cooldown: 18 },
+  'storm-caller': { damage: 9, cooldown: 18 },
+  'sun-oracle': { damage: 12, cooldown: 18 },
+  'moss-healer': { damage: 2, cooldown: 8 },
+  'tide-bard': { damage: 3, cooldown: 8 },
+  'iron-warden': { damage: 4, cooldown: 8 },
+  'dawn-priestess': { damage: 5, cooldown: 8 },
+  'twig-archer': { damage: 3, cooldown: 8 },
+  'ember-lancer': { damage: 5, cooldown: 10 },
+  'glacier-sniper': { damage: 8, cooldown: 14 },
+  'void-blade': { damage: 12, cooldown: 16 },
 }
 export const HERO_IDS = Object.keys(HEROES) as HeroId[]
+
+/** Star level: a hero starts at 1 and the backend raises it by spending shards. */
+export const MAX_STAR = 5
+/** Damage multiplier (percent) per star; index 0 is star 1. */
+export const STAR_DAMAGE_PCT: readonly number[] = [100, 115, 130, 150, 175]
+/** From this star a hero's stronger skill is unlocked: it reloads at STRONG_SKILL_COOLDOWN_PCT of the normal time. */
+export const STRONG_SKILL_STAR = 3
+export const STRONG_SKILL_COOLDOWN_PCT = 70
+
+/** A battle's summon pool is the player's owned heroes (with star levels). A player who owns none plays with this pool. */
+export const STARTER_POOL: readonly { hero: HeroId; star: number }[] = [
+  { hero: 'archer', star: 1 },
+  { hero: 'mage', star: 1 },
+  { hero: 'knight', star: 1 },
+]
 
 /** Energy source: sits just off the board edge, feeding this tile (bottom row, middle). A gear here is linked. */
 export const SOURCE_TILE = 27

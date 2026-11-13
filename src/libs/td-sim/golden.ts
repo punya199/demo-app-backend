@@ -28,5 +28,5 @@ export const GOLDEN_REPLAY: Replay = {
   ],
 }
 
-/** Rebaselined on purpose in ticket 04: rounds, enemy types, the boss, skills and the draft changed the rules, the state shape and the golden inputs (now two drafts). */
-export const GOLDEN_HASH = '6d77f6ed'
+/** Rebaselined on purpose in ticket 09: gears carry a star and the state carries the hero pool, so the hash input changed (the starter pool plays the same rules as before). Earlier: ticket 04 added rounds, the boss, skills and the draft. */
+export const GOLDEN_HASH = 'bbe1c4eb'
