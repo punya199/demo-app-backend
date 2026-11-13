@@ -39,6 +39,7 @@ import { PollEntity } from '../db/entities/poll.entity'
 import { UserEntity } from '../db/entities/user.entity'
 import { WalletTransactionEntity } from '../db/entities/wallet-transaction.entity'
 import { WalletEntity } from '../db/entities/wallet.entity'
+import { TdBattleSessionEntity } from '../db/entities/td/td-battle-session.entity'
 import { TdGachaPityEntity } from '../db/entities/td/td-gacha-pity.entity'
 import { TdGachaPullEntity } from '../db/entities/td/td-gacha-pull.entity'
 import { TdHeroOwnedEntity } from '../db/entities/td/td-hero-owned.entity'
@@ -95,6 +96,7 @@ export const entities = [
   TdHeroOwnedEntity,
   TdGachaPityEntity,
   TdGachaPullEntity,
+  TdBattleSessionEntity,
 ]
 
 export const subscribers = [AuditSubscriber]

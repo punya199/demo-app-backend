@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common'
-import { DEFAULT_MAX_TICKS, hashState, runReplay, SimInput } from '../../libs/td-sim'
+import { DEFAULT_MAX_TICKS, hashState, runReplay, SimInput, SimState } from '../../libs/td-sim'
 import { COINS_PER_ROUND, COINS_WIN_BONUS } from './battle.config'
 
 export interface IBattleSession {
@@ -44,7 +44,7 @@ export const evaluateFinish = (
   if (now.getTime() > session.expiresAt.getTime()) fail(HttpStatus.GONE, 'Battle expired')
   if (req.seed !== session.seed) fail(HttpStatus.BAD_REQUEST, 'Seed does not match the battle')
 
-  let state
+  let state: SimState
   try {
     state = runReplay(
       { seed: session.seed, ticks: req.ticks, inputs: req.inputs },
