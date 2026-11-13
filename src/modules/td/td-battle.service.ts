@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { randomInt } from 'crypto'
 import { DataSource } from 'typeorm'
 import { SimInput } from '../../libs/td-sim'
+import { TdHeroOwnedEntity } from '../../db/entities/td/td-hero-owned.entity'
 import { TdBattleSessionEntity } from '../../db/entities/td/td-battle-session.entity'
 import {
   EnumTdCurrency,
@@ -10,6 +11,7 @@ import {
 import { TdPlayerProfileEntity } from '../../db/entities/td/td-player-profile.entity'
 import { evaluateFinish } from './battle'
 import { BATTLE_TTL_MS } from './battle.config'
+import { buildPool } from './hero'
 import { ENERGY_CAP, regenerateEnergy, STAGE_ENERGY_COST } from './energy'
 import { TdBattleFinishDto } from './dto/td-battle-finish.dto'
 
@@ -40,15 +42,18 @@ export class TdBattleService {
         energy: next.energy - STAGE_ENERGY_COST,
         energyUpdatedAt: next.updatedAt,
       })
+      // Snapshot of the owned heroes; stored so the replay ignores any later change.
+      const pool = buildPool(await etm.find(TdHeroOwnedEntity, { where: { userId } }))
       const seed = randomInt(0, 2 ** 32)
       const session = await etm.save(
         etm.create(TdBattleSessionEntity, {
           userId,
           seed: String(seed),
+          heroPool: pool,
           expiresAt: new Date(now.getTime() + BATTLE_TTL_MS),
         })
       )
-      return { battleId: session.id, seed, expiresAt: session.expiresAt }
+      return { battleId: session.id, seed, pool, expiresAt: session.expiresAt }
     })
   }
 
@@ -74,6 +79,7 @@ export class TdBattleService {
           userId: session.userId,
           seed: Number(session.seed),
           status: session.status as 'started' | 'finished',
+          pool: session.heroPool,
           expiresAt: session.expiresAt,
         },
         { userId, seed: dto.seed, ticks: dto.ticks, inputs },

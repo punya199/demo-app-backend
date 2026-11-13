@@ -1,5 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm'
 
+import { PoolEntry } from '../../../libs/td-sim'
+
 // One row per started battle. The id is the single-use battle id: `finish` flips status to
 // 'finished' under a row lock, so a second finish is refused. Rows are kept as the audit trail.
 @Entity({ schema: 'td', name: 'battle_session' })
@@ -20,6 +22,10 @@ export class TdBattleSessionEntity {
 
   @Column({ name: 'expires_at', type: 'timestamp with time zone' })
   expiresAt: Date
+
+  // Owned-hero snapshot taken at battle start; the replay uses exactly this. Null on older rows.
+  @Column({ name: 'hero_pool', type: 'jsonb', nullable: true })
+  heroPool: PoolEntry[] | null
 
   // 'won' | 'lost', from the replay
   @Column({ name: 'result', type: 'varchar', nullable: true })
