@@ -3,6 +3,7 @@ import { randomInt, randomUUID } from 'crypto'
 import { DataSource, EntityManager } from 'typeorm'
 import { TdGachaPityEntity } from '../../db/entities/td/td-gacha-pity.entity'
 import { TdGachaPullEntity } from '../../db/entities/td/td-gacha-pull.entity'
+import { TdGearModEntity } from '../../db/entities/td/td-gear-mod.entity'
 import { TdHeroOwnedEntity } from '../../db/entities/td/td-hero-owned.entity'
 import {
   EnumTdCurrency,
@@ -10,6 +11,8 @@ import {
 } from '../../db/entities/td/td-currency-ledger.entity'
 import { TdPlayerProfileEntity } from '../../db/entities/td/td-player-profile.entity'
 import { ENERGY_CAP } from './energy'
+import { modLevels, planGearUpgrade } from './gear'
+import { GEAR_MOD_COSTS_COINS } from './gear.config'
 import { GachaMode, planPull, pullCount } from './gacha'
 import {
   GACHA_DUPLICATE_SHARDS,
@@ -33,6 +36,9 @@ export class TdGachaService {
   async getGacha(userId: string, now: Date = new Date()) {
     const pity = await this.dataSource.manager.findOneBy(TdGachaPityEntity, { userId })
     const owned = await this.dataSource.manager.find(TdHeroOwnedEntity, { where: { userId } })
+    const mods = modLevels(
+      await this.dataSource.manager.find(TdGearModEntity, { where: { userId } })
+    )
     const current = pity?.pity ?? 0
     return {
       config: {
@@ -43,13 +49,18 @@ export class TdGachaService {
         duplicateShards: GACHA_DUPLICATE_SHARDS,
         heroes: TD_HEROES,
         starUpCosts: STAR_UP_SHARD_COSTS,
+        gearModCosts: GEAR_MOD_COSTS_COINS,
       },
       state: {
         pity: current,
         pullsUntilLegendary: GACHA_PITY_LIMIT - current,
         freePullAvailable: pity?.lastFreePullOn !== utcDay(now),
         ownedHeroIds: owned.map(h => h.heroId),
-        ownedHeroes: owned.map(h => ({ heroId: h.heroId, starLevel: h.starLevel })),
+        ownedHeroes: owned.map(h => ({
+          heroId: h.heroId,
+          starLevel: h.starLevel,
+          modLevel: mods[h.heroId] ?? 0,
+        })),
       },
     }
   }
@@ -171,6 +182,38 @@ export class TdGachaService {
         starLevel: plan.nextStar,
         cost: plan.cost,
         balances: { shards: shards - plan.cost },
+      }
+    })
+  }
+
+  // Spends coins to raise an owned hero's gear mod by one level. Same player lock as star-up and
+  // pulls, so the coin balance read here is the committed one; the spend is a negative ledger row.
+  // The mod row is created on the first upgrade (no row means level 0), under that lock.
+  async upgradeGear(userId: string, heroId: string, now: Date = new Date()) {
+    return this.dataSource.transaction(async etm => {
+      await this.lockPlayer(etm, userId, now)
+      if (!(await etm.existsBy(TdHeroOwnedEntity, { userId, heroId }))) {
+        throw new NotFoundException('Hero not owned')
+      }
+      const mod = await etm.findOneBy(TdGearModEntity, { userId, heroId })
+      const coins = await this.balance(etm, userId, EnumTdCurrency.COINS)
+      const plan = planGearUpgrade(mod?.level ?? 0, coins)
+      await etm.insert(TdCurrencyLedgerEntity, {
+        userId,
+        currency: EnumTdCurrency.COINS,
+        amount: -plan.cost,
+        reason: `gear_mod:${heroId}`,
+      })
+      if (mod) {
+        await etm.update(TdGearModEntity, mod.id, { level: plan.nextLevel })
+      } else {
+        await etm.insert(TdGearModEntity, { userId, heroId, level: plan.nextLevel })
+      }
+      return {
+        heroId,
+        modLevel: plan.nextLevel,
+        cost: plan.cost,
+        balances: { coins: coins - plan.cost },
       }
     })
   }

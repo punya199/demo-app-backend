@@ -53,7 +53,7 @@ describe('buildPool', () => {
     ])
   })
 
-  it('carries each hero\'s gear mod level, clamped to the cap, 0 when there is none', () => {
+  it("carries each hero's gear mod level, clamped to the cap, 0 when there is none", () => {
     const pool = buildPool(
       [
         { heroId: 'void-blade', starLevel: 1 },

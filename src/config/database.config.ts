@@ -42,6 +42,7 @@ import { WalletEntity } from '../db/entities/wallet.entity'
 import { TdBattleSessionEntity } from '../db/entities/td/td-battle-session.entity'
 import { TdGachaPityEntity } from '../db/entities/td/td-gacha-pity.entity'
 import { TdGachaPullEntity } from '../db/entities/td/td-gacha-pull.entity'
+import { TdGearModEntity } from '../db/entities/td/td-gear-mod.entity'
 import { TdHeroOwnedEntity } from '../db/entities/td/td-hero-owned.entity'
 import { TdCurrencyLedgerEntity } from '../db/entities/td/td-currency-ledger.entity'
 import { TdPlayerProfileEntity } from '../db/entities/td/td-player-profile.entity'
@@ -93,6 +94,7 @@ export const entities = [
   PetListingEntity,
   TdPlayerProfileEntity,
   TdCurrencyLedgerEntity,
+  TdGearModEntity,
   TdHeroOwnedEntity,
   TdGachaPityEntity,
   TdGachaPullEntity,

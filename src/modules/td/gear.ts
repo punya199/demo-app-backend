@@ -18,3 +18,7 @@ export function planGearUpgrade(level: number, coins: number): IGearUpgradePlan 
   }
   return { cost, nextLevel: level + 1 }
 }
+
+// Pure. Turns gear_mod rows into the hero id -> level map the battle pool and the screen use.
+export const modLevels = (rows: { heroId: string; level: number }[]): Record<string, number> =>
+  Object.fromEntries(rows.map(r => [r.heroId, r.level]))

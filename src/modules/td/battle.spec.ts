@@ -132,3 +132,39 @@ describe('hero pool snapshot', () => {
     expect(evaluateFinish(session({ pool: null }), req, NOW).hash).not.toBe(log.hash)
   })
 })
+
+describe('gear mod snapshot', () => {
+  const log = (pool: PoolEntry[]) => {
+    let state = createState(7, pool)
+    const logged: SimInput[] = []
+    while (state.status === 'running' && state.tick < DEFAULT_MAX_TICKS) {
+      const now: SimInput[] =
+        state.phase === 'draft'
+          ? [{ tick: state.tick, type: 'pick', index: 0 }]
+          : state.tick % 40 === 0 && state.tick < 400
+            ? [{ tick: state.tick, type: 'summon', tile: 27 - ((state.tick / 40) % 8) }]
+            : []
+      logged.push(...now)
+      state = step(state, now)
+    }
+    return { ticks: state.tick, inputs: logged, hash: hashState(state), round: state.round }
+  }
+  const BASE: PoolEntry[] = [{ hero: 'archer', star: 1, mod: 0 }]
+  const MODDED: PoolEntry[] = [{ hero: 'archer', star: 1, mod: 5 }]
+
+  it('the replay applies the stored mod level exactly as the client battle did', () => {
+    const played = log(MODDED)
+    const req = { userId: 'u1', seed: 7, ticks: played.ticks, inputs: played.inputs }
+    expect(evaluateFinish(session({ pool: MODDED }), req, NOW).hash).toBe(played.hash)
+  })
+
+  it('the same log judged without the mod does not match, so a mod cannot be claimed for free', () => {
+    const played = log(MODDED)
+    const req = { userId: 'u1', seed: 7, ticks: played.ticks, inputs: played.inputs }
+    expect(evaluateFinish(session({ pool: BASE }), req, NOW).hash).not.toBe(played.hash)
+  })
+
+  it('an upgraded hero survives at least as long as the same hero un-upgraded', () => {
+    expect(log(MODDED).round).toBeGreaterThanOrEqual(log(BASE).round)
+  })
+})

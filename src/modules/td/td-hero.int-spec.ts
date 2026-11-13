@@ -94,8 +94,8 @@ describe('td owned heroes and star-up', () => {
     await giveShards(userId, 1000)
     const { battleId, pool } = await battle.start(userId, T0)
     const expected = [
-      { hero: 'cinder-witch', star: 2 },
-      { hero: 'void-blade', star: 1 },
+      { hero: 'cinder-witch', star: 2, mod: 0 },
+      { hero: 'void-blade', star: 1, mod: 0 },
     ]
     expect(pool).toEqual(expected)
     await gacha.starUp(userId, 'void-blade', T0)
