@@ -1,6 +1,11 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common'
 import { STAGE_COUNT } from '../../libs/td-sim'
-import { STAGE_FIRST_CLEAR_GEMS, STAR_MIN_HP } from './stage.config'
+import {
+  STAGE_FIRST_CLEAR_GEMS,
+  STAGE_SWEEP_REWARDS,
+  STAR_MIN_HP,
+  SWEEP_MIN_STARS,
+} from './stage.config'
 
 export interface IStageProgress {
   stageId: number
@@ -57,3 +62,12 @@ export const stageList = (progress: readonly IStageProgress[]) =>
       firstClearGems: STAGE_FIRST_CLEAR_GEMS[i],
     }
   })
+
+// Pure. A sweep needs the stage unlocked and cleared with 3 stars; it pays the repeatable
+// reward only, never the first-clear gems.
+export const planSweep = (stageId: number, progress: readonly IStageProgress[]) => {
+  assertStageUnlocked(stageId, progress)
+  const stars = progress.find(p => p.stageId === stageId)?.stars ?? 0
+  if (stars < SWEEP_MIN_STARS) throw new ConflictException('Sweep needs 3 stars on this stage')
+  return { ...STAGE_SWEEP_REWARDS[stageId - 1] }
+}

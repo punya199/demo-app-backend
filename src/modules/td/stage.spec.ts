@@ -1,7 +1,7 @@
 import { HttpException } from '@nestjs/common'
 import { STAGE_COUNT } from '../../libs/td-sim'
-import { STAGE_FIRST_CLEAR_GEMS, STAR_MIN_HP } from './stage.config'
-import { assertStageUnlocked, planStageClear, stageList, starsFor } from './stage'
+import { STAGE_FIRST_CLEAR_GEMS, STAGE_SWEEP_REWARDS, STAR_MIN_HP } from './stage.config'
+import { assertStageUnlocked, planStageClear, planSweep, stageList, starsFor } from './stage'
 
 const statusOf = (fn: () => unknown) => {
   try {
@@ -85,5 +85,30 @@ describe('stageList', () => {
   })
   it('a new player only has stage 1', () => {
     expect(stageList([]).map(s => s.unlocked)).toEqual([true, false, false])
+  })
+})
+
+describe('planSweep', () => {
+  const three = [{ stageId: 1, stars: 3 }]
+
+  it('pays the configured coins and shards, never gems, for a 3-star stage', () => {
+    expect(planSweep(1, three)).toEqual({
+      coins: STAGE_SWEEP_REWARDS[0].coins,
+      shards: STAGE_SWEEP_REWARDS[0].shards,
+    })
+  })
+
+  it('has a reward for every stage the sim has', () => {
+    expect(STAGE_SWEEP_REWARDS).toHaveLength(STAGE_COUNT)
+  })
+
+  it('refuses a stage below 3 stars or never cleared (409)', () => {
+    expect(statusOf(() => planSweep(1, [{ stageId: 1, stars: 2 }]))).toBe(409)
+    expect(statusOf(() => planSweep(1, []))).toBe(409)
+  })
+
+  it('refuses a locked stage (403) and an unknown stage (400)', () => {
+    expect(statusOf(() => planSweep(2, []))).toBe(403)
+    expect(statusOf(() => planSweep(STAGE_COUNT + 1, three))).toBe(400)
   })
 })

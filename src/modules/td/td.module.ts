@@ -10,6 +10,8 @@ import { TdGoalsController } from './td-goals.controller'
 import { TdGoalsService } from './td-goals.service'
 import { TdHeroController } from './td-hero.controller'
 import { TdStageController } from './td-stage.controller'
+import { TdSweepController } from './td-sweep.controller'
+import { TdSweepService } from './td-sweep.service'
 import { TdProfileController } from './td-profile.controller'
 import { TdProfileService } from './td-profile.service'
 import { TdRelicController } from './td-relic.controller'
@@ -26,6 +28,7 @@ import { TdRelicService } from './td-relic.service'
     TdGoalsController,
     TdCoreController,
     TdRelicController,
+    TdSweepController,
   ],
   providers: [
     TdProfileService,
@@ -34,6 +37,7 @@ import { TdRelicService } from './td-relic.service'
     TdGoalsService,
     TdCoreService,
     TdRelicService,
+    TdSweepService,
   ],
   exports: [
     TdProfileService,
