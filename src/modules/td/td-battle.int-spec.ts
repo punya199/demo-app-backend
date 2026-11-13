@@ -114,25 +114,33 @@ describe('td battle', () => {
     expect(await statusOf(service.finish(userId, battleId, { ...good, seed: seed ^ 1 }, T0))).toBe(
       400
     )
-    // tampered log: a log that never ends the battle
+    // tampered log: a log that never ends the battle; the 422 also closes the session, so it
+    // cannot be replayed again
     expect(
       await statusOf(service.finish(userId, battleId, { ...good, inputs: [], ticks: 10 }, T0))
     ).toBe(422)
-    // over the tick cap
+    expect(await statusOf(service.finish(userId, battleId, good, T0))).toBe(409)
+    // over the tick cap (a fresh battle, the first one is closed)
+    const capped = await service.start(userId, 1, T0)
     expect(
       await statusOf(
         service.finish(
           userId,
-          battleId,
-          { ...good, ticks: DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS + 1 },
+          capped.battleId,
+          { ...losingLog(capped.seed), ticks: DEFAULT_MAX_TICKS + MAX_DRAFT_TICKS + 1 },
           T0
         )
       )
     ).toBe(422)
     expect(await coinsOf(userId)).toBe(0)
     // extra client-claimed fields are ignored: the paid amount is the replayed one
-    const forged = { ...good, result: 'won', coins: 999_999 } as unknown as TdBattleFinishDto
-    const res = await service.finish(userId, battleId, forged, T0)
+    const fresh = await service.start(userId, 1, T0)
+    const forged = {
+      ...losingLog(fresh.seed),
+      result: 'won',
+      coins: 999_999,
+    } as unknown as TdBattleFinishDto
+    const res = await service.finish(userId, fresh.battleId, forged, T0)
     expect(res.result).toBe('lost')
     expect(res.coins).toBeLessThan(999)
     expect(await coinsOf(userId)).toBe(res.coins)

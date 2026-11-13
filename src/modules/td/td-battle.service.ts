@@ -13,7 +13,7 @@ import {
 } from '../../db/entities/td/td-currency-ledger.entity'
 import { TdPlayerProfileEntity } from '../../db/entities/td/td-player-profile.entity'
 import { TdStageProgressEntity } from '../../db/entities/td/td-stage-progress.entity'
-import { evaluateFinish } from './battle'
+import { evaluateFinish, IBattleResult } from './battle'
 import { BATTLE_TTL_MS } from './battle.config'
 import { battleCores } from './core'
 import { modLevels } from './gear'
@@ -86,37 +86,62 @@ export class TdBattleService {
     })
   }
 
-  // Locks the session row, replays the log, and in the same transaction closes the session and
-  // appends the coin reward to the ledger. A rejected request changes nothing.
+  // The CPU-bound replay runs first, without a transaction or a lock, so it holds no pooled
+  // connection. The payout transaction then locks the session row and re-checks its status, so
+  // parallel finishes of one battle still pay once. A log that does not replay cleanly (422)
+  // closes the session, so it cannot be used to make the server replay again and again.
   async finish(userId: string, battleId: string, dto: TdBattleFinishDto, now: Date = new Date()) {
+    const found = await this.dataSource.manager.findOne(TdBattleSessionEntity, {
+      where: { id: battleId, userId },
+    })
+    if (!found) {
+      throw new HttpException('Battle not found', HttpStatus.NOT_FOUND)
+    }
+    // Copy only the known fields so nothing extra reaches the sim.
+    const inputs = dto.inputs.map(
+      ({ tick, type, tile, from, to, index }) => ({ tick, type, tile, from, to, index }) as SimInput
+    )
+    let result: IBattleResult
+    try {
+      result = evaluateFinish(
+        {
+          id: found.id,
+          userId: found.userId,
+          seed: Number(found.seed),
+          status: found.status as 'started' | 'finished',
+          pool: found.heroPool,
+          cores: found.cores,
+          relics: found.relics,
+          stage: found.stageId,
+          expiresAt: found.expiresAt,
+        },
+        { userId, seed: dto.seed, ticks: dto.ticks, inputs },
+        now
+      )
+    } catch (error) {
+      if (
+        error instanceof HttpException &&
+        error.getStatus() === (HttpStatus.UNPROCESSABLE_ENTITY as number)
+      ) {
+        await this.dataSource.manager.update(
+          TdBattleSessionEntity,
+          { id: found.id, userId, status: 'started' },
+          { status: 'finished', result: 'invalid', coinsAwarded: 0, finishedAt: now }
+        )
+      }
+      throw error
+    }
     return this.dataSource.transaction(async etm => {
       const session = await etm.findOne(TdBattleSessionEntity, {
-        where: { id: battleId },
+        where: { id: battleId, userId },
         lock: { mode: 'pessimistic_write' },
       })
       if (!session) {
         throw new HttpException('Battle not found', HttpStatus.NOT_FOUND)
       }
-      // Copy only the known fields so nothing extra reaches the sim.
-      const inputs = dto.inputs.map(
-        ({ tick, type, tile, from, to, index }) =>
-          ({ tick, type, tile, from, to, index }) as SimInput
-      )
-      const result = evaluateFinish(
-        {
-          id: session.id,
-          userId: session.userId,
-          seed: Number(session.seed),
-          status: session.status as 'started' | 'finished',
-          pool: session.heroPool,
-          cores: session.cores,
-          relics: session.relics,
-          stage: session.stageId,
-          expiresAt: session.expiresAt,
-        },
-        { userId, seed: dto.seed, ticks: dto.ticks, inputs },
-        now
-      )
+      if (session.status !== 'started') {
+        throw new HttpException('Battle already finished', HttpStatus.CONFLICT)
+      }
       await etm.update(TdBattleSessionEntity, session.id, {
         status: 'finished',
         result: result.status,
