@@ -1,3 +1,10 @@
+# [1.59.0](https://github.com/punya199/demo-app-backend/compare/v1.58.0...v1.59.0) (2026-11-13)
+
+
+### Update
+
+* document the Tower Defense module in CLAUDE.md ([5b13806](https://github.com/punya199/demo-app-backend/commit/5b13806950353cd5a531249debc7b4a223bf6aec))
+
 # [1.58.0](https://github.com/punya199/demo-app-backend/compare/v1.57.0...v1.58.0) (2026-11-13)
 
 
